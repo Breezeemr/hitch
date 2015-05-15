@@ -1,8 +1,9 @@
-(defproject hitch "0.1.0-SNAPSHOT"
-  :description "FIXME: write this!"
-  :url "http://example.com/FIXME"
+(defproject com.breezeehr/hitch "0.1.0-SNAPSHOT"
+  :description "A Clojurescript library designed to manage and cache derived data."
+  :url "https://github.com/Breezeemr/hitch"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :scm "https://github.com/Breezeemr/hitch"
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-3211"]

@@ -1,6 +1,6 @@
 # Hitch
 
-A Clojure library designed to manage derived data.
+A Clojurescript library designed to manage and cache derived data.
 
 ## Usage
 [hitch "0.1.0-SNAPSHOT"]
