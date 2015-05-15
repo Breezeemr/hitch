@@ -12,7 +12,7 @@ pom.xml
 .repl
 .nrepl-port
 /.idea/**
-!/.idea/misc.xml
+#!/.idea/misc.xml
 /log
 *.iml
 id_file
