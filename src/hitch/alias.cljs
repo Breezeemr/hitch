@@ -3,14 +3,13 @@
             [hitch.graph :as graph]))
 
 (defrecord AliasSelector [k]
-  proto/IDataSelectorStaticRefs
-  (selector-dependencies [_] [])
-  proto/IDataSelector
-  (get-value! [this args]
-    (prn "evaluate alias" k args)
-    (if (not-empty args)
-      (first args)
-      :hitch.graph/not-loaded)))
+  proto/ISelectorSingleton
+  proto/ISelector
+  (selector-init [this])
+  (selector-invoke [this alias]
+    (if alias
+      (proto/get-value alias)
+      :hitch/not-loaded)))
 
 (defn alias [k]
   (->AliasSelector k))
@@ -20,10 +19,9 @@
    (set-alias graph/*default-graph* k data-selector))
   ([graph k data-selector]
    (when data-selector
-     (let [alias-node (proto/get-node graph (->AliasSelector k))
-           data-selector-node (proto/get-node graph data-selector)]
-       (prn "set alias" k data-selector [data-selector-node])
-       (set! (.-refs alias-node) [data-selector-node])
+     (let [alias-node (graph/get-or-create-node graph (->AliasSelector k))
+           data-selector-node (graph/get-or-create-node graph data-selector)]
+       (set! (.-refs alias-node) data-selector-node)
        (proto/depend! data-selector-node alias-node )
        (proto/invalidate! alias-node)
        ))))

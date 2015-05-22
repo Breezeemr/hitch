@@ -6,12 +6,12 @@
             [hitch.kv-store :as kv :refer [keyspace]]
             [hitch.alias :as alias]
             [hitch.graph :as graph])
-  (:require-macros [hitch.api :as api]))
+  (:require-macros [hitch.core :as api]))
 
 (defn score [a]
   #_(api/depend tmap a)
   (api/if-loaded
-    [x (graph/hitch (fns/apply-sel a))]
+    [x (graph/hitch-get (fns/apply-sel a))]
     (str x)
     x))
 
@@ -22,6 +22,7 @@
   (str "cat" (graph/hitch-get (fns/apply-sel t2 v))))
 
 (deftest t1
+         (graph/clear! graph/*default-graph*)
          (let [kvs (graph/getn (keyspace))]
            (proto/clear! kvs)
            (is (= (t2 "hi") ""))
@@ -31,22 +32,24 @@
            (is (= (test3 "hi") "cat:test5"))
            (proto/set-key kvs "hi" :test6)
            (is (= (t2 "hi") ":test6"))
-           (is (= (test3 "hi") "cat:test6"))))
+           (is (= (test3 "hi") "cat:test6"))
+           ))
 
 (deftest aliases
+         (graph/clear! graph/*default-graph*)
          (let [kvs (graph/getn (keyspace))
-               sfconfig (alias/alias :storefron/config)]
-           (proto/clear! kvs)
+               sfconfig (alias/alias :storefront/config)]
+           ;(proto/clear! kvs)
            ;(proto/clear! alias)
-           (is (= (graph/getn sfconfig) :hitch.graph/not-loaded))
-           (alias/set-alias :storefron/config (kv/key :test))
+           (is (= (graph/getn sfconfig) :hitch/not-loaded))
+           (alias/set-alias :storefront/config (kv/key :test))
            (is (= (graph/getn sfconfig) nil))
            (proto/set-key kvs :test :test5)
 
            (is (= (graph/getn sfconfig) :test5))
            #_(fns/hitch-apply  score (kv/key :test))
 
-           (alias/set-alias :storefron/config (fns/apply-sel score (kv/key :test)))
+           (alias/set-alias :storefront/config (fns/apply-sel score (kv/key :test)))
 
            (is (= (graph/getn sfconfig) ":test5"))
 

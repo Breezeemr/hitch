@@ -3,35 +3,40 @@
             [hitch.graph :as store]))
 
 (defrecord FN1 [f a]
-  proto/IDataSelectorDynamicRefs
-  proto/IDataSelector
-  (get-value! [this args]
-    #_(binding [proto/*dependent* (proto/get-node store/*store* this)] )
+  proto/ISelector
+  (selector-init [this]
+    (hitch.dynamic-dependency/dependent-transaction))
+  (selector-invoke [this refs]
     (f a)))
 (defrecord FN2 [f a b]
-  proto/IDataSelectorDynamicRefs
-  proto/IDataSelector
-  (get-value! [this args]
+  proto/ISelector
+  (selector-init [this]
+    (hitch.dynamic-dependency/dependent-transaction))
+  (selector-invoke [this refs]
     (f a b)))
 (defrecord FN3 [f a b c]
-  proto/IDataSelectorDynamicRefs
-  proto/IDataSelector
-  (get-value! [this args]
+  proto/ISelector
+  (selector-init [this]
+    (hitch.dynamic-dependency/dependent-transaction))
+  (selector-invoke [this refs]
     (f a b c)))
 (defrecord FN4 [f a b c d]
-  proto/IDataSelectorDynamicRefs
-  proto/IDataSelector
-  (get-value! [this args]
+  proto/ISelector
+  (selector-init [this]
+    (hitch.dynamic-dependency/dependent-transaction))
+  (selector-invoke [this refs]
     (f a b c d)))
 (defrecord FN5 [f a b c d e]
-  proto/IDataSelectorDynamicRefs
-  proto/IDataSelector
-  (get-value! [this args]
+  proto/ISelector
+  (selector-init [this]
+    (hitch.dynamic-dependency/dependent-transaction))
+  (selector-invoke [this refs]
     (f a b c d e)))
 (defrecord FNrest [f a b c d e rest]
-  proto/IDataSelectorDynamicRefs
-  proto/IDataSelector
-  (get-value! [this args]
+  proto/ISelector
+  (selector-init [this]
+    (hitch.dynamic-dependency/dependent-transaction))
+  (selector-invoke [this refs]
     (apply f a b c d (conj rest e))))
 
 (defn apply-sel

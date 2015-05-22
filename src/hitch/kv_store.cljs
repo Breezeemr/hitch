@@ -35,13 +35,11 @@
     (pr-writer store writer opts)))
 
 (defrecord KVStoreServiceSelector [keyspace]
-  proto/IDataSelectorStaticRefs
-  (selector-dependencies [_] [])
-  proto/IDataSelector
-  (get-value! [_ args]
+  proto/ISelectorSingleton
+  proto/ISelector
+  (selector-init [this] [])
+  (selector-invoke [this _]
     (->KVStoreService {} keyspace)))
-
-
 
 (defn keyspace
   ([]
@@ -50,11 +48,10 @@
    (->KVStoreServiceSelector k)))
 
 (defrecord KeySelector [ks k]
-  proto/IDataSelectorStaticRefs
-  (selector-dependencies [_] [ks])
-  proto/IDataSelector
-  (get-value! [this [alias-service :as args]]
-    (proto/get-key alias-service k)))
+  proto/ISelector
+  (selector-init [this] (store/hitch-node ks))
+  (selector-invoke [this alias-service-node]
+    (proto/get-key (proto/get-value alias-service-node) k)))
 
 (defn key
   ([k] (->KeySelector (keyspace) k))

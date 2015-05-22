@@ -5,20 +5,8 @@
 (declare *default-graph*)
 
 (defn not-loaded? [a]
-  (= a ::not-loaded))
+  (= a :hitch/not-loaded))
 
-(defn- get-val-static [data-selector refs]
-  (let [x (into [] (map proto/get-value) refs)]
-    (if (some not-loaded? x)
-      ::not-loaded
-      (proto/get-value! data-selector x))))
-
-(defn- get-val-dynamic [node data-selector refs]
-  (dyn/with-dependent node
-    (let [val (proto/get-value! data-selector nil)]
-      (if (some not-loaded? (map proto/get-value (.-tx-deps refs)))
-        ::not-loaded
-        val))))
 
 (deftype DependencyNode [data-selector ^:mutable value ^:mutable dependents ^:mutable refs]
   proto/IDependencyNode
@@ -26,9 +14,15 @@
     value)
   (resolve-value! [this]    ;-> boolean changed? true if value has changed
     (let [old-value value
-          new-value (if (satisfies? proto/IDataSelectorStaticRefs data-selector)
-                       (get-val-static data-selector refs)
-                       (get-val-dynamic this data-selector refs))]
+          new-value (if (instance? dyn/DependentTransaction refs)
+                      (dyn/with-dependent this
+                        (let [result (proto/selector-invoke data-selector refs)]
+                          (if (proto/selector-ready? data-selector refs)
+                            result
+                            :hitch/not-loaded)))
+                      (if (proto/selector-ready? data-selector refs)
+                        (proto/selector-invoke data-selector refs)
+                        :hitch/not-loaded))]
       (when (not= new-value old-value)
         (do (set! value new-value)
             true))))
@@ -39,14 +33,14 @@
     dependents)
   proto/IDependencyTracker
   (depend! [this dependent]                 ;returns new?
-    (let [dependent-ref (.-refs dependent)]
+    #_(let [dependent-ref (.-refs dependent)]
       (when (satisfies? proto/IDependentTransaction dependent-ref)
         (proto/add-dep dependent-ref this)))
     (if (contains? dependents dependent)
       false
       (do (set! dependents (conj dependents dependent))
           true)))
-  (un-depend! [_ dependent]                              ;returns last-removed?
+  (undepend! [_ dependent]                              ;returns last-removed?
     (let [newdeps (disj dependents dependent)]
       (set! dependents newdeps)
       (if (= #{} newdeps)
@@ -58,62 +52,65 @@
   (-pr-writer [_ writer opts]
     (-write writer "#node {:value ")
     (pr-writer value writer opts)
-    (-write writer " :dependents ")
-    (pr-writer dependents #_(into #{} (map #(.-selector %)) dependents) writer opts)
-    (-write writer " :refs ")
-    (pr-writer refs #_(into #{} (map #(.-selector %)) refs) writer opts)
+    ;(-write writer " :dependents ")
+    ;(pr-writer dependents #_(into #{} (map #(.-selector %)) dependents) writer opts)
+    ;(-write writer " :refs ")
+    ;(pr-writer refs #_(into #{} (map #(.-selector %)) refs) writer opts)
     (-write writer "}")))
 
-(defn resolve-selectors [dependency-graph ref-selectors]
-  (into []
-        (comp (remove nil?)
-              (map (fn [ref]
-                     (proto/get-node dependency-graph ref))))
-        ref-selectors))
+(defn clear-node! [node]
+  (set! (.-dependents node) nil)
+  (set! (.-refs node) nil))
 
 (defn dep-node [dependency-graph data-selector]
   (DependencyNode. data-selector ::not-loaded #{}
-                   (cond (satisfies? proto/IDataSelectorStaticRefs data-selector)
-                         (resolve-selectors dependency-graph (when (satisfies? proto/IDataSelector data-selector)
-                                              (proto/selector-dependencies data-selector)))
-                         (satisfies? proto/IDataSelectorDynamicRefs data-selector)
-                         (hitch.dynamic-dependency/dependent-transaction))))
+                   (when (satisfies? proto/ISelector data-selector)
+                         (proto/selector-init data-selector))))
 
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable gc-list]
   proto/IDependencyGraph
   (get-node [this data-selector]
-    (if-let [n (get nodemap data-selector)]
-      n
-      (proto/create-node! this data-selector)))
+    (get nodemap data-selector)
+    )
   (create-node! [this data-selector]
-    (let [#_(prn "create node for" data-selector)
-          new-node (dep-node this data-selector)]
+    (let [new-node (dep-node this data-selector)]
       (set! nodemap  (assoc nodemap data-selector new-node))
       (proto/resolve-value! new-node)
       new-node))
   (gc [this data-selector]
     #_(do (doseq [d (proto/selector-dependencies data-selector)]
-          (proto/un-depend! this d))
+          (proto/undepend! this d))
         true)))
 
-(defn- get-node [dependency-graph data-selector]
-  (proto/get-node dependency-graph data-selector))
+(defn- get-or-create-node [dependency-graph data-selector]
+  (if-let [n (proto/get-node dependency-graph data-selector)]
+    n
+    (proto/create-node! dependency-graph data-selector)))
 
 (defn getn
    ([data-selector]
     (getn *default-graph* data-selector))
    ([dependency-graph data-selector]
-    (proto/get-value (proto/get-node dependency-graph data-selector))))
+    (if (satisfies? proto/ISelectorSingleton data-selector)
+      (proto/get-value (get-or-create-node dependency-graph data-selector))
+      (proto/selector-invoke data-selector (proto/selector-init data-selector)))))
 
 
-(defn- hitch-node [dependency-graph data-selector dependent]
-  (let [n (proto/get-node dependency-graph data-selector)
-        new? (when dependent
-               (proto/depend! n dependent ))]
+(defn hitch-node
+  ([data-selector]
+    (hitch-node *default-graph* data-selector))
+  ([dependency-graph data-selector]
+   (if proto/*dependent*
+     (hitch-node dependency-graph data-selector proto/*dependent*)
+     (get-or-create-node dependency-graph data-selector)))
+  ([dependency-graph data-selector dependent]
+   (let [n (get-or-create-node dependency-graph data-selector)
+         new? (when dependent
+                (proto/depend! n dependent))]
 
-    new?                                                      ;Todo
-    n))
+     new?                                    ;Todo
+     n)))
 
 
 (defn hitch
@@ -134,3 +131,13 @@
   (DependencyGraph. {} []))
 
 (defonce *default-graph* (graph))
+
+
+
+(defn clear! [dgraph]
+  (doseq [node (vals (.-nodemap dgraph))]
+         (clear-node! node))
+  (set! (.-nodemap dgraph) {})
+  (set! (.-gc-list dgraph) [])
+  )
+

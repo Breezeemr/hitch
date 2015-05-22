@@ -15,7 +15,8 @@
       (set! in-tx? false)
       to-remove
       #_(doseq [item to-remove]
-        (proto/un-depend! )))))
+        (proto/undepend! )))))
+
 
 (defn dependent-transaction []
   (->DependentTransaction #{} #{} false))

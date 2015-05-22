@@ -1,7 +1,7 @@
-(ns hitch.api)
+(ns hitch.core)
 
 (defmacro if-loaded [bindingval loaded not-loaded]
   `(let ~bindingval
-     (if (= ~(first bindingval) :hitch.api/not-loaded)
+     (if (= ~(first bindingval) :hitch/not-loaded)
        ~not-loaded
        ~loaded)))

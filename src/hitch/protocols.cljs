@@ -4,14 +4,19 @@
 
 (def ^:dynamic *dynamic-dep-tx* nil)
 
-(defprotocol IDataSelectorDynamicRefs)
-(defprotocol IDataSelectorStaticRefs
-  (selector-dependencies [this]
-                         "returns a list of data selectors this dataselector depends on"))
-(defprotocol IDataSelector
-  "The interface implemented by dataselector records to realize their results"
-  (get-value! [this deps]
-             "returns the value for the dataselector"))
+(defprotocol ISelectorSingleton)
+
+(defprotocol ISelector
+  (selector-ready? [this refs] "returns boolean if ready")
+  (selector-init [this]"returns a ref object")
+  (selector-invoke [this refs]"calls selector with a resolved ref object"))
+
+(extend-protocol  ISelector
+  default
+  (selector-ready? [this refs] true)
+  (selector-init [this] nil)
+  (selector-invoke [this refs]
+    (this)))
 
 (defprotocol IDependentTransaction
   (start [_] "initialize transaction")
@@ -32,7 +37,7 @@
   (depend! [this dependent]
             "Dependency sources call this method if a tracker is bound in the current
              context with dependencies that are encountered during query processing.")
-  (un-depend! [this dependent]))
+  (undepend! [this dependent]))
 
 (defprotocol IDependencyNode
   "A utility API for tracking dependencies, allows us to provide more
