@@ -5,8 +5,8 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :scm "https://github.com/Breezeemr/hitch"
 
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-3211"]
+  :dependencies [[org.clojure/clojure "1.7.0-beta1" :scope "provided"]
+                 [org.clojure/clojurescript "0.0-3211" :scope "provided"]
                  ]
   :profiles {
              :dev {
