@@ -7,15 +7,15 @@
 (defprotocol ISelectorSingleton)
 
 (defprotocol ISelector
-  (selector-ready? [this refs] "returns boolean if ready")
-  (selector-init [this]"returns a ref object")
-  (selector-invoke [this refs]"calls selector with a resolved ref object"))
+  (selector-ready? [this refs extra] "returns boolean if ready")
+  (selector-init [this extra]"returns a ref object")
+  (selector-invoke [this refs extra ]"calls selector with a resolved ref object"))
 
 (extend-protocol  ISelector
   default
-  (selector-ready? [this refs] true)
-  (selector-init [this] nil)
-  (selector-invoke [this refs]
+  (selector-ready? [this refs extra] true)
+  (selector-init [this extra ] nil)
+  (selector-invoke [this refs extra]
     (this)))
 
 (defprotocol IDependentTransaction

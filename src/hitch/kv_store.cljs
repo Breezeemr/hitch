@@ -37,8 +37,8 @@
 (defrecord KVStoreServiceSelector [keyspace]
   proto/ISelectorSingleton
   proto/ISelector
-  (selector-init [this] [])
-  (selector-invoke [this _]
+  (selector-init [this _] [])
+  (selector-invoke [this _ _]
     (->KVStoreService {} keyspace)))
 
 (defn keyspace
@@ -49,8 +49,8 @@
 
 (defrecord KeySelector [ks k]
   proto/ISelector
-  (selector-init [this] (store/hitch-node ks))
-  (selector-invoke [this alias-service-node]
+  (selector-init [this _] (store/hitch-node ks))
+  (selector-invoke [this alias-service-node _]
     (proto/get-key (proto/get-value alias-service-node) k)))
 
 (defn key

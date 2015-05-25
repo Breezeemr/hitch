@@ -4,39 +4,39 @@
 
 (defrecord FN1 [f a]
   proto/ISelector
-  (selector-init [this]
+  (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
-  (selector-invoke [this refs]
+  (selector-invoke [this refs _]
     (f a)))
 (defrecord FN2 [f a b]
   proto/ISelector
-  (selector-init [this]
+  (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
-  (selector-invoke [this refs]
+  (selector-invoke [this refs _]
     (f a b)))
 (defrecord FN3 [f a b c]
   proto/ISelector
-  (selector-init [this]
+  (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
-  (selector-invoke [this refs]
+  (selector-invoke [this refs _]
     (f a b c)))
 (defrecord FN4 [f a b c d]
   proto/ISelector
-  (selector-init [this]
+  (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
-  (selector-invoke [this refs]
+  (selector-invoke [this refs _]
     (f a b c d)))
 (defrecord FN5 [f a b c d e]
   proto/ISelector
-  (selector-init [this]
+  (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
-  (selector-invoke [this refs]
+  (selector-invoke [this refs _]
     (f a b c d e)))
 (defrecord FNrest [f a b c d e rest]
   proto/ISelector
-  (selector-init [this]
+  (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
-  (selector-invoke [this refs]
+  (selector-invoke [this refs _]
     (apply f a b c d (conj rest e))))
 
 (defn apply-sel

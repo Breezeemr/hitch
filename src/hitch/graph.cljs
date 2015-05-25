@@ -16,12 +16,12 @@
     (let [old-value value
           new-value (if (instance? dyn/DependentTransaction refs)
                       (dyn/with-dependent this
-                        (let [result (proto/selector-invoke data-selector refs)]
-                          (if (proto/selector-ready? data-selector refs)
+                        (let [result (proto/selector-invoke data-selector refs nil)]
+                          (if (proto/selector-ready? data-selector refs  nil)
                             result
                             :hitch/not-loaded)))
-                      (if (proto/selector-ready? data-selector refs)
-                        (proto/selector-invoke data-selector refs)
+                      (if (proto/selector-ready? data-selector refs  nil)
+                        (proto/selector-invoke data-selector refs  nil)
                         :hitch/not-loaded))]
       (when (not= new-value old-value)
         (do (set! value new-value)
@@ -62,10 +62,10 @@
   (set! (.-dependents node) nil)
   (set! (.-refs node) nil))
 
-(defn dep-node [dependency-graph data-selector]
+(defn dep-node [dependency-graph data-selector extra]
   (DependencyNode. data-selector ::not-loaded #{}
                    (when (satisfies? proto/ISelector data-selector)
-                         (proto/selector-init data-selector))))
+                         (proto/selector-init data-selector extra))))
 
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable gc-list]
@@ -74,7 +74,7 @@
     (get nodemap data-selector)
     )
   (create-node! [this data-selector]
-    (let [new-node (dep-node this data-selector)]
+    (let [new-node (dep-node this data-selector nil)]
       (set! nodemap  (assoc nodemap data-selector new-node))
       (proto/resolve-value! new-node)
       new-node))
@@ -94,7 +94,7 @@
    ([dependency-graph data-selector]
     (if (satisfies? proto/ISelectorSingleton data-selector)
       (proto/get-value (get-or-create-node dependency-graph data-selector))
-      (proto/selector-invoke data-selector (proto/selector-init data-selector)))))
+      (proto/selector-invoke data-selector (proto/selector-init data-selector nil) nil))))
 
 
 (defn hitch-node
@@ -131,8 +131,6 @@
   (DependencyGraph. {} []))
 
 (defonce *default-graph* (graph))
-
-
 
 (defn clear! [dgraph]
   (doseq [node (vals (.-nodemap dgraph))]

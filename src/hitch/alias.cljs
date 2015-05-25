@@ -5,8 +5,8 @@
 (defrecord AliasSelector [k]
   proto/ISelectorSingleton
   proto/ISelector
-  (selector-init [this])
-  (selector-invoke [this alias]
+  (selector-init [this _])
+  (selector-invoke [this alias _]
     (if alias
       (proto/get-value alias)
       :hitch/not-loaded)))
