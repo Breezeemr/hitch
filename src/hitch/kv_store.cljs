@@ -9,11 +9,11 @@
   proto/IKeyStore
   (get-key [_ k]
     (get store k))
-  (set-key [_ k value]
+  (set-key [this k value]
     (set! store (assoc (or store {}) k value))
     (if-let [n (proto/get-node store/*default-graph* (key ks k))]
-      (proto/invalidate! n)))
-  (swap-key! [_ f]
+      (proto/invalidate! n this)))
+  (swap-key! [this f]
     (let [old store]
       (set! store (f old))
       (loop [ks (into #{} (keys old) (keys store))]
@@ -21,14 +21,14 @@
           (let [k (first ks)]
             (when (not= (get old k) (get store k))
               (if-let [n (proto/get-node store/*default-graph* (key ks k))]
-                (proto/invalidate! n))))
+                (proto/invalidate! n this))))
           (recur (rest ks))))))
-  (clear! [_]
+  (clear! [this]
     (let [old store]
       (set! store {})
       (doseq [alias (keys old)]
         (if-let [n (proto/get-node store/*default-graph* (key ks alias))]
-          (proto/invalidate! n)))))
+          (proto/invalidate! n this)))))
   IPrintWithWriter
   (-pr-writer [_ writer opts]
     (-write writer "#KVStoreService ")

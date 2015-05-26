@@ -23,7 +23,7 @@
            data-selector-node (graph/get-or-create-node graph data-selector)]
        (set! (.-refs alias-node) data-selector-node)
        (proto/depend! data-selector-node alias-node )
-       (proto/invalidate! alias-node)
+       (proto/invalidate! alias-node data-selector-node)
        ))))
 
 (defn get-alias

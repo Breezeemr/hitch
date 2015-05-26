@@ -11,7 +11,7 @@
   (selector-init [this extra]"returns a ref object")
   (selector-invoke [this refs extra ]"calls selector with a resolved ref object"))
 
-(extend-protocol  ISelector
+#_(extend-protocol  ISelector
   default
   (selector-ready? [this refs extra] true)
   (selector-init [this extra ] nil)
@@ -48,9 +48,13 @@
   (resolve-value! [this]
                   "Informs store that a particular params yeilds value given current store + deps")
   ;(rem-value! [this params])
-  (invalidate! [this])
+  (invalidate! [this  changed-node])
   (dependents [this]
                 "The current dependencies encountered by this tracker"))
+
+(extend-protocol  IDependencyNode
+  default
+  (get-value [this] this))
 
 (defprotocol IKeyStore
   "public interface"
