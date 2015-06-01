@@ -1,7 +1,8 @@
 (ns hitch.protocols)
 
 (def ^:dynamic *dependent* nil)
-
+(defn get-dependent []
+  (or *dependent* js/quiescent.*component*))
 (def ^:dynamic *dynamic-dep-tx* nil)
 
 (defprotocol ISelectorSingleton)
