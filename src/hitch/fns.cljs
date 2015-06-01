@@ -69,7 +69,7 @@
   ([dependent f a b c d e & rest] (hitch-dapply dependent (FNrest. f a b c d e rest))))
 
 #_(defn hitch-apply
-  ([data-selector] (store/hitch store/*default-graph* data-selector proto/*dependent*))
+  ([data-selector] (store/hitch store/*default-graph* data-selector (proto/get-dependent)))
   ([f a] (hitch-apply (FN1. f a)))
   ([f a b] (hitch-apply (FN2. f a b)))
   ([f a b c] (hitch-apply (FN3. f a b c)))

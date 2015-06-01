@@ -5,7 +5,7 @@
 (declare *default-graph* DependencyNode)
 
 (defn not-loaded? [a]
-  (= a :hitch/not-loaded))
+  (= (proto/get-value a) :hitch/not-loaded))
 
 (def loaded? (complement not-loaded?))
 
@@ -35,7 +35,11 @@
             true))))
   (invalidate! [this changed-node]
     (when (or (and (identical? changed-node value) (not (nil? changed-node))) (proto/resolve-value! this))
-      (run! (fn [d] (when d (proto/invalidate! d this))) dependents)))   ; hardcoded to one graph.
+      (run! (fn [d] (when d
+                      (cond (satisfies? proto/IDependencyNode d)
+                            (proto/invalidate! d this)
+                            (.-forceUpdate d) (.forceUpdate d))
+                      )) dependents)))   ; hardcoded to one graph.
   (dependents [_]
     dependents)
   proto/IDependencyTracker
@@ -72,9 +76,7 @@
   (set! (.-refs node) nil))
 
 (defn dep-node [dependency-graph data-selector extra]
-  (DependencyNode. data-selector :hitch/not-loaded #{}
-                   (when (satisfies? proto/ISelector data-selector)
-                         (proto/selector-init data-selector extra))))
+  (DependencyNode. data-selector :hitch/not-loaded #{} nil))
 
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable gc-list]
@@ -84,24 +86,32 @@
   (create-node! [this data-selector]
     (let [new-node (dep-node this data-selector nil)]
       (set! nodemap  (assoc nodemap data-selector new-node))
-      (proto/resolve-value! new-node)
+      (set! (.-refs new-node)  (when (satisfies? proto/ISelector data-selector)
+                                (proto/selector-init data-selector nil)))
       new-node))
   (gc [this data-selector]
     #_(do (doseq [d (proto/selector-dependencies data-selector)]
           (proto/undepend! this d))
         true)))
 
-(defn- get-or-create-node [dependency-graph data-selector]
+(defn- get-or-create-node [dependency-graph data-selector dependent]
   (if-let [n (proto/get-node dependency-graph data-selector)]
-    n
-    (proto/create-node! dependency-graph data-selector)))
+    (do (when dependent
+          (proto/depend! n dependent))
+      n)
+    (let [n (proto/create-node! dependency-graph data-selector)]
+      (if dependent
+        (when (proto/depend! n dependent)
+          (proto/invalidate! n nil))
+        (proto/invalidate! n nil))
+      n)))
 
 (defn getn
    ([data-selector]
     (getn *default-graph* data-selector))
    ([dependency-graph data-selector]
     (if (satisfies? proto/ISelectorSingleton data-selector)
-      (proto/get-value (get-or-create-node dependency-graph data-selector))
+      (proto/get-value (get-or-create-node dependency-graph data-selector nil ))
       (proto/selector-invoke data-selector (proto/selector-init data-selector nil) nil))))
 
 
@@ -109,30 +119,25 @@
   ([data-selector]
     (hitch-node *default-graph* data-selector))
   ([dependency-graph data-selector]
-   (if proto/*dependent*
-     (hitch-node dependency-graph data-selector proto/*dependent*)
-     (get-or-create-node dependency-graph data-selector)))
+   (if-let [dependent (proto/get-dependent)]
+     (hitch-node dependency-graph data-selector dependent)
+     (get-or-create-node dependency-graph data-selector nil)))
   ([dependency-graph data-selector dependent]
-   (let [n (get-or-create-node dependency-graph data-selector)
-         new? (when dependent
-                (proto/depend! n dependent))]
-
-     new?                                    ;Todo
-     n)))
+   (get-or-create-node dependency-graph data-selector dependent)))
 
 
 (defn hitch
   ([data-selector]
-   (hitch *default-graph* data-selector proto/*dependent*))
+   (hitch *default-graph* data-selector (proto/get-dependent)))
   ([data-selector dependent]
    (hitch *default-graph* data-selector dependent))
   ([dependency-graph data-selector dependent]
-   (assert proto/*dependent*)
+   (assert (proto/get-dependent))
    (proto/get-value (hitch-node dependency-graph data-selector dependent))))
 
 (defn hitch-get [data-selector]
-  (if proto/*dependent*
-    (hitch data-selector proto/*dependent* )
+  (if (proto/get-dependent)
+    (hitch data-selector (proto/get-dependent) )
     (getn data-selector)))
 
 (defn graph []
