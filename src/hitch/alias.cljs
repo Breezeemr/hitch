@@ -16,11 +16,9 @@
 
 (defn set-alias
   ([k data-selector]
-   (set-alias graph/*default-graph* k data-selector))
-  ([graph k data-selector]
    (when data-selector
-     (let [alias-node (graph/get-or-create-node graph (->AliasSelector k))
-           data-selector-node (graph/get-or-create-node graph data-selector)]
+     (let [alias-node (graph/hitch-node (->AliasSelector k))
+           data-selector-node (graph/hitch-node data-selector)]
        (set! (.-refs alias-node) data-selector-node)
        (proto/depend! data-selector-node alias-node )
        (proto/invalidate! alias-node data-selector-node)
