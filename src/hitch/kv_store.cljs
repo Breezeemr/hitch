@@ -11,12 +11,15 @@
     (get store k))
   (set-key [this k value]
     (set! store (assoc (or store {}) k value))
-    (if-let [n (proto/get-node store/*default-graph* (key ks k))]
+    (prn "setkey" k value)
+    (hitch.graph/invalidate-selectors [(key ks k)])
+    #_(if-let [n (proto/get-node store/*default-graph* (key ks k))]
       (proto/invalidate! n this)))
   (swap-key! [this f]
     (let [old store]
       (set! store (f old))
-      (loop [ks (into #{} (keys old) (keys store))]
+      (hitch.graph/invalidate-selectors (map #(key ks %) (into #{} (keys old) (keys store))))
+      #_(loop [ks (into #{} (keys old) (keys store))]
         (when (not-empty ks)
           (let [k (first ks)]
             (when (not= (get old k) (get store k))
@@ -26,7 +29,8 @@
   (clear! [this]
     (let [old store]
       (set! store {})
-      (doseq [alias (keys old)]
+      (hitch.graph/invalidate-selectors (map #(key ks %) (keys old)))
+      #_(doseq [alias (keys old)]
         (if-let [n (proto/get-node store/*default-graph* (key ks alias))]
           (proto/invalidate! n this)))))
   IPrintWithWriter

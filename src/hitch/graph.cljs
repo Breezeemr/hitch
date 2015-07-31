@@ -208,6 +208,7 @@
 ;; new api
 
 (defn invalidate-level [nodes react-coms]
+  ;(prn "nodes " nodes)
   (loop [nodes nodes nexttx (transient #{}) react-coms react-coms]
     (if-let [node (first nodes)]
       (if  (dnode? node)
@@ -220,10 +221,12 @@
 (defn invalidate-selectors
   ([selectors] (invalidate-selectors *default-graph* selectors))
   ([graph selectors]
-    (loop [[nodes react-coms] (invalidate-level (select-keys (get-node-map graph) selectors) (transient #{}))]
-      (if (not-empty nodes)
-        (recur (invalidate-level nodes react-coms))
-        (persistent! react-coms)))))
+    ;(prn "temp" (get-node-map graph) selectors)
+   (let [nodemap (get-node-map graph)]
+     (loop [[nodes react-coms] (invalidate-level (map #(get nodemap %) selectors) (transient #{}))]
+       (if (not-empty nodes)
+         (recur (invalidate-level nodes react-coms))
+         (persistent! react-coms))))))
 
 (defn refresh-react-coms [refreshset]
   (run! fupdate refreshset))
