@@ -24,8 +24,12 @@
 
 (defn dnode? [a]
   (instance? DependencyNode a))
+
 (defn fupdater [com]
   #(.forceUpdate com))
+
+(defn get-dependents [node]
+  (.-dependents node))
 
 (defn evaluate-dependents! [node]
   (run! (fn [d]
@@ -42,7 +46,7 @@
                   (do (.log js/console "delayed  forceupdate" d) (js/setTimeout  (fupdater d) 15))
                   (do (.log js/console "forceupdate" d) (.forceUpdate d)))
                 :default (.log js/console "could not invalidate" d))
-          ) (.-dependents node)))
+          ) (get-dependents node)))
 
 (deftype DependencyNode [data-selector ^:mutable value ^:mutable dependents ^:mutable refs]
   proto/IDependencyNode
@@ -104,6 +108,8 @@
     ;(-write writer " :refs ")
     ;(pr-writer refs #_(into #{} (map #(.-selector %)) refs) writer opts)
     (-write writer "}")))
+
+
 
 (defn clear-node! [node]
   (when (dnode? (.-value node))
@@ -196,3 +202,28 @@
   (set! (.-gc-list dgraph) [])
   )
 
+(defn get-node-map [graph]
+  (.-nodemap graph))
+
+;; new api
+
+(defn invalidate-level [nodes react-coms]
+  (loop [nodes nodes nexttx (transient #{}) react-coms react-coms]
+    (if-let [node (first nodes)]
+      (if  (dnode? node)
+        (if (proto/resolve-value! node)
+          (recur (rest nodes) (reduce conj! nexttx (get-dependents node)) react-coms)
+          (recur (rest nodes) nexttx react-coms))
+        (recur (rest nodes) nexttx (conj! react-coms node)))
+      [(persistent! nexttx) react-coms])))
+
+(defn invalidate-selectors
+  ([selectors] (invalidate-selectors *default-graph* selectors))
+  ([graph selectors]
+    (loop [[nodes react-coms] (invalidate-level (select-keys (get-node-map graph) selectors) (transient #{}))]
+      (if (not-empty nodes)
+        (recur (invalidate-level nodes react-coms))
+        (persistent! react-coms)))))
+
+(defn refresh-react-coms [refreshset]
+  (run! fupdate refreshset))
