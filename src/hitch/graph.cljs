@@ -58,6 +58,7 @@
                               result
                               :hitch/not-loaded)))
                         (binding [hitch.protocols/*dependent* this]
+                          #_(proto/selector-invoke data-selector refs nil)
                           (if (proto/selector-ready? data-selector refs nil)
                             (proto/selector-invoke data-selector refs nil)
                             :hitch/not-loaded)))
@@ -78,7 +79,7 @@
   proto/IDependencyTracker
   (depend! [this dependent]                 ;returns new?
     (let [dependent-ref (.-refs dependent)]
-      (when (satisfies? proto/IDependentTransaction dependent-ref)
+      (when (and (satisfies? proto/IDependentTransaction dependent-ref) (.-in-tx? dependent-ref))
         (proto/add-dep dependent-ref this)))
     (assert (not= dependent *default-graph*))
     (assert (or (instance? DependencyNode dependent) (.-props dependent) ) )

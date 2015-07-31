@@ -5,7 +5,7 @@
      (binding [hitch.protocols/*dependent* ~dependent]
          (hitch.protocols/start (.-refs ~dependent))
          (let [temp# (do ~@body)]
-           (doseq [to-remove# (hitch.protocols/commit (.-refs ~dependent))]
+           #_(doseq [to-remove# (hitch.protocols/commit (.-refs ~dependent))]
              (hitch.protocols/undepend! to-remove# ~dependent))
            temp#)
          )))
