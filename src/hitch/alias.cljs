@@ -6,6 +6,7 @@
   proto/ISelectorSingleton
   proto/ISelector
   (selector-init [this _])
+  (selector-ready? [this _ _] true)
   (selector-invoke [this alias _]
     (if alias
       (proto/get-value alias)

@@ -6,36 +6,42 @@
   proto/ISelector
   (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
+  (selector-ready? [this _ _] true)
   (selector-invoke [this refs _]
     (f a)))
 (defrecord FN2 [f a b]
   proto/ISelector
   (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
+  (selector-ready? [this _ _] true)
   (selector-invoke [this refs _]
     (f a b)))
 (defrecord FN3 [f a b c]
   proto/ISelector
   (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
+  (selector-ready? [this _ _] true)
   (selector-invoke [this refs _]
     (f a b c)))
 (defrecord FN4 [f a b c d]
   proto/ISelector
   (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
+  (selector-ready? [this _ _] true)
   (selector-invoke [this refs _]
     (f a b c d)))
 (defrecord FN5 [f a b c d e]
   proto/ISelector
   (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
+  (selector-ready? [this _ _] true)
   (selector-invoke [this refs _]
     (f a b c d e)))
 (defrecord FNrest [f a b c d e rest]
   proto/ISelector
   (selector-init [this _]
     (hitch.dynamic-dependency/dependent-transaction))
+  (selector-ready? [this _ _] true)
   (selector-invoke [this refs _]
     (apply f a b c d (conj rest e))))
 
