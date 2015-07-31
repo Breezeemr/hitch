@@ -30,6 +30,9 @@
 
 (defn get-dependents [node]
   (.-dependents node))
+(defn get-data-selector [node]
+  (.-data-selector node)
+  )
 
 (defn evaluate-dependents! [node]
   (run! (fn [d]
@@ -212,7 +215,7 @@
   (loop [nodes nodes nexttx (transient #{}) react-coms react-coms]
     (if-let [node (first nodes)]
       (if  (dnode? node)
-        (if (proto/resolve-value! node)
+        (if (or (proto/resolve-value! node) (satisfies? proto/ISelectorReload (get-data-selector node)))
           (recur (rest nodes) (reduce conj! nexttx (get-dependents node)) react-coms)
           (recur (rest nodes) nexttx react-coms))
         (recur (rest nodes) nexttx (conj! react-coms node)))

@@ -6,6 +6,7 @@
 (def ^:dynamic *dynamic-dep-tx* nil)
 
 (defprotocol ISelectorSingleton)
+(defprotocol ISelectorReload)
 
 (defprotocol ISelector
   (selector-ready? [this refs extra] "returns boolean if ready")
