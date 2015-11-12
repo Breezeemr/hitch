@@ -5,14 +5,14 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :scm "https://github.com/Breezeemr/hitch"
 
-  :dependencies [[org.clojure/clojure "1.7.0-beta1" :scope "provided"]
-                 [org.clojure/clojurescript "0.0-3211" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
+                 [org.clojure/clojurescript "1.7.145" :scope "provided"]
                  ]
   :profiles {
              :dev {
-                   :dependencies [[org.clojure/core.async "0.1.346.0-17112a-alpha"]]
+                   :dependencies [[org.clojure/core.async  "0.2.371"]]
                    :plugins [[lein-cljsbuild "1.0.5"]
-                             [lein-figwheel "0.3.1"]]
+                             [lein-figwheel "0.4.1"]]
                    :figwheel {
                               ;; :http-server-root "public" ;; default and assumes "resources"
                               ;; :server-port 3449 ;; default
