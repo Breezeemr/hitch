@@ -2,7 +2,8 @@
 
 (def ^:dynamic *dependent* nil)
 (defn get-dependent []
-  (or *dependent* (and js/window.quiescent js/quiescent.*component*)))
+  *dependent*)
+
 (def ^:dynamic *dynamic-dep-tx* nil)
 
 (defprotocol ISelectorSingleton)
