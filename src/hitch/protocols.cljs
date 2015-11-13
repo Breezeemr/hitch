@@ -2,6 +2,7 @@
 
 (def ^:dynamic *dependent* nil)
 (defn get-dependent []
+  (assert *dependent* "dependent should be bound")
   *dependent*)
 
 (def ^:dynamic *dynamic-dep-tx* nil)

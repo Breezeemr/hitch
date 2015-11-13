@@ -123,6 +123,8 @@
 (defn dep-node [dependency-graph data-selector extra]
   (DependencyNode. data-selector :hitch/not-loaded #{} nil))
 
+(def dummynode (DependencyNode. nil true #{} nil))
+
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable gc-list]
   proto/IDependencyGraph
@@ -156,6 +158,13 @@
         (proto/depend! n dependent)
         (evaluate-dependents! n))
       n)))
+
+(defn get-node
+  ([data-selector]
+   (get-node *default-graph* data-selector))
+  ([dependency-graph data-selector]
+    ;(assert (satisfies? proto/ISelectorSingleton data-selector))
+   (get-or-create-node dependency-graph data-selector nil)))
 
 (defn getn
    ([data-selector]
