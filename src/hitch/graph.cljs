@@ -1,8 +1,7 @@
 (ns hitch.graph
   (:require [hitch.protocols   :as proto ]
             [hitch.dynamic-dependency :as dyn :include-macros true]
-            )
-  (:import [goog.async nextTick]))
+            ))
 
 (declare *default-graph* DependencyNode)
 
@@ -11,22 +10,8 @@
 
 (def loaded? (complement not-loaded?))
 
-(defonce refreshset (atom #{}))
-(defn fupdate [com]
-  (when (.isMounted com)
-    (.forceUpdate com)))
-(defonce refreshqueued (atom false))
-(defn refresh []
-  (let [rset @refreshset]
-    (reset! refreshqueued false)
-    (swap! refreshset empty)
-    (run! fupdate rset)))
-
 (defn dnode? [a]
   (instance? DependencyNode a))
-
-(defn fupdater [com]
-  #(.forceUpdate com))
 
 (defn get-dependents [node]
   (.-dependents node))
@@ -39,16 +24,7 @@
           (assert d)
           (cond (instance? DependencyNode d)
                 (proto/invalidate! d node)
-                (.-props d)
-                (do
-                  (when-not @refreshqueued
-                    (swap! refreshqueued not)
-                    (nextTick refresh))
-                  (swap! refreshset conj d))
-                #_(if (#{"RECEIVING_STATE"} (aget d "_compositeLifeCycleState"))
-                  (do (.log js/console "delayed  forceupdate" d) (js/setTimeout  (fupdater d) 15))
-                  (do (.log js/console "forceupdate" d) (.forceUpdate d)))
-                :default (.log js/console "could not invalidate" d))
+                :default ((.-external-invalidate! *default-graph*) d) #_(.log js/console "could not invalidate" d))
           ) (get-dependents node)))
 
 (deftype DependencyNode [data-selector ^:mutable value ^:mutable dependents ^:mutable refs]
@@ -126,7 +102,7 @@
 (def dummynode (DependencyNode. nil true #{} nil))
 
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
-(deftype DependencyGraph [^:mutable nodemap ^:mutable gc-list]
+(deftype DependencyGraph [^:mutable nodemap ^:mutable gc-list ^:mutable external-invalidate!]
   proto/IDependencyGraph
   (get-node [this data-selector]
     (get nodemap data-selector))
@@ -156,7 +132,7 @@
       (when dependent
 
         (proto/depend! n dependent)
-        (evaluate-dependents! n))
+        #_(evaluate-dependents! n))
       n)))
 
 (defn get-node
@@ -203,7 +179,7 @@
     (getn data-selector)))
 
 (defn graph []
-  (DependencyGraph. {} []))
+  (DependencyGraph. {} [] identity))
 
 (defonce *default-graph* (graph))
 
@@ -239,6 +215,3 @@
        (if (not-empty nodes)
          (recur (invalidate-level nodes react-coms))
          (persistent! react-coms))))))
-
-(defn refresh-react-coms [refreshset]
-  (run! fupdate refreshset))
