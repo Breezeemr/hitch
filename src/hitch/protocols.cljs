@@ -2,7 +2,7 @@
 
 (def ^:dynamic *dependent* nil)
 (defn get-dependent []
-  (assert *dependent* "dependent should be bound")
+  ;(assert *dependent* "dependent should be bound")    must disable check for events
   *dependent*)
 
 (def ^:dynamic *dynamic-dep-tx* nil)
