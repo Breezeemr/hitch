@@ -12,13 +12,13 @@
   (set-key [this k value]
     (set! store (assoc (or store {}) k value))
     (prn "setkey" k value)
-    (hitch.graph/invalidate-selectors [(key ks k)])
+    (hitch.graph/invalidate-selectors store/*default-graph* [(key ks k)])
     #_(if-let [n (proto/get-node store/*default-graph* (key ks k))]
       (proto/invalidate! n this)))
   (swap-key! [this f]
     (let [old store]
       (set! store (f old))
-      (hitch.graph/invalidate-selectors (map #(key ks %) (into #{} (keys old) (keys store))))
+      (hitch.graph/invalidate-selectors store/*default-graph* (map #(key ks %) (into #{} (keys old) (keys store))))
       #_(loop [ks (into #{} (keys old) (keys store))]
         (when (not-empty ks)
           (let [k (first ks)]
@@ -29,7 +29,8 @@
   (clear! [this]
     (let [old store]
       (set! store {})
-      (hitch.graph/invalidate-selectors (map #(key ks %) (keys old)))
+      (prn (map #(key ks %) (keys old)))
+      (hitch.graph/invalidate-selectors store/*default-graph* (map #(key ks %) (keys old)))
       #_(doseq [alias (keys old)]
         (if-let [n (proto/get-node store/*default-graph* (key ks alias))]
           (proto/invalidate! n this)))))
@@ -41,9 +42,9 @@
 (defrecord KVStoreServiceSelector [keyspace]
   proto/ISelectorSingleton
   proto/ISelector
-  (selector-init [this _] [])
-  (selector-ready? [this _ _] true)
-  (selector-invoke [this _ _]
+  (selector-init [this graph current-node] [])
+  (selector-ready? [this graph current-node] true)
+  (selector-invoke [this graph current-node]
     (->KVStoreService {} keyspace)))
 
 (defn keyspace
@@ -54,10 +55,11 @@
 
 (defrecord KeySelector [ks k]
   proto/ISelector
-  (selector-init [this _] (store/hitch-node ks))
-  (selector-ready? [this _ _] true)
-  (selector-invoke [this alias-service-node _]
-    (proto/get-key (proto/get-value alias-service-node) k)))
+  (selector-init [this graph current-node] (store/hitch-node graph ks))
+  (selector-ready? [this graph current-node] true)
+  (selector-invoke [this graph current-node]
+    (prn (.-refs current-node))
+    (proto/get-key (proto/get-value (.-refs current-node)) k)))
 
 (defn key
   ([k] (->KeySelector (keyspace) k))

@@ -5,29 +5,26 @@
 (defrecord AliasSelector [k]
   proto/ISelectorSingleton
   proto/ISelector
-  (selector-init [this _])
-  (selector-ready? [this _ _] true)
-  (selector-invoke [this alias _]
-    (if alias
-      (proto/get-value alias)
-      :hitch/not-loaded)))
+  (selector-init [this graph _])
+  (selector-ready? [this graph _ ] true)
+  (selector-invoke [this graph current-node]
+    (.-value current-node)))
 
 (defn alias [k]
   (->AliasSelector k))
 
 (defn set-alias
-  ([k data-selector]
+  ([graph node k data-selector]
    (when data-selector
-     (let [alias-node (graph/hitch-node (->AliasSelector k))
-           data-selector-node (graph/hitch-node data-selector)]
-       (set! (.-refs alias-node) data-selector-node)
-       (proto/depend! data-selector-node alias-node )
-       (proto/invalidate! alias-node data-selector-node)
+     (let [kselector (->AliasSelector k)
+           alias-node (graph/get-node graph  kselector)
+           data-selector-node (graph/get-node graph  data-selector)]
+       (proto/set-value! alias-node data-selector-node)
+       (proto/alias! data-selector-node alias-node )
+       (graph/invalidate-selectors graph [kselector])
        ))))
 
 (defn get-alias
-  ([k]
-   (get-alias graph/*default-graph* k))
-  ([graph k]
-   (graph/getn (->AliasSelector k))))
+  ([graph node k]
+   (proto/eval-request graph node ->AliasSelector k)))
 

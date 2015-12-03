@@ -1,7 +1,6 @@
 (ns ^:figwheel-always hitch.core
     (:require [hitch.protocols :as proto]
               [hitch.graph :as store]
-              [hitch.fns :as fns]
               [hitch.kv-store ])
   )
 

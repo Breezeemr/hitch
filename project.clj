@@ -7,12 +7,13 @@
 
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
                  [org.clojure/clojurescript "1.7.145" :scope "provided"]
+                 [com.cemerick/piggieback "0.2.1"]    ; needed by figwheel nrepl
                  ]
   :profiles {
              :dev {
                    :dependencies [[org.clojure/core.async  "0.2.371"]]
-                   :plugins [[lein-cljsbuild "1.0.5"]
-                             [lein-figwheel "0.4.1"]]
+                   :plugins [[lein-cljsbuild "1.1.1"]
+                             [lein-figwheel "0.5.0-1"]]
                    :figwheel {
                               ;; :http-server-root "public" ;; default and assumes "resources"
                               ;; :server-port 3449 ;; default
