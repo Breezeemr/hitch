@@ -94,6 +94,7 @@
   (set-value! [this new-value]
                   "Informs store that a particular params yeilds value given current store + deps")
   (make-value [this graph] )
+  (data-selector [this])
   ;(rem-value! [this params])
   #_(invalidate! [this graph changed-node])
   (-dependents [this]
