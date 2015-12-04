@@ -6,6 +6,7 @@
 
 (defonce *default-graph* (mgraph/graph))
 
+(def loaded? proto/loaded?)
 (defn pure-get
   ([dependency-graph data-selector] (proto/get-node dependency-graph data-selector)))
 
