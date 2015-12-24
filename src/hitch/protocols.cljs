@@ -79,9 +79,11 @@
 (defprotocol IDependencyTracker
   "Implemented by function and component caches"
   (depend! [this dependent]
+    [this dependent key]
             "Dependency sources call this method if a tracker is bound in the current
              context with dependencies that are encountered during query processing.")
-  (undepend! [this dependent])
+  (undepend! [this dependent]
+    [this dependent key] )
   (alias! [this dependent])
   (unalias! [this dependent]))
 
@@ -133,18 +135,22 @@
 
 (def loaded? (complement not-loaded?))
 
-(defn claim-dependency [graph dependentancy-target dependent]
+(defn claim-dependency [graph dependentancy-target dependent subselector]
   (let [dependent-ref (.-refs dependent)]
     (when (and (satisfies? IDependentTransaction dependent-ref) (.-in-tx? dependent-ref))
       (add-dep dependent-ref dependentancy-target)))
   (assert (not= dependent graph))
   ; (assert (or (instance? DependencyNode dependent) (.-props dependent) ) )
-  (depend! dependentancy-target dependent)
+  (if subselector
+    (depend! dependentancy-target dependent subselector)
+    (depend! dependentancy-target dependent))
   )
 
-(defn release-dependency [graph dependentancy-target dependent]
-  (when (undepend! dependentancy-target dependent)
-    (gc graph (data-selector dependentancy-target)))
+(defn release-dependency [graph dependentancy-target dependent subselector]
+  (if subselector
+    (undepend! dependentancy-target dependent subselector)
+    (when (undepend! dependentancy-target dependent)
+      (gc graph (data-selector dependentancy-target))))
   false)
 
 (defn claim-alias [graph alias-node alias-target]
@@ -180,10 +186,10 @@
     (when (not= new-value old-value)
       (assign-value! graph node new-value))))
 
-(defn- get-or-create-node [dependency-graph data-selector dependent]
+(defn- get-or-create-node [dependency-graph data-selector dependent subselector]
   (if-let [n (get-node dependency-graph data-selector)]
     (do (when dependent
-          (claim-dependency dependency-graph n dependent))
+          (claim-dependency dependency-graph n dependent subselector))
         n)
     (let [n (selector-create-node data-selector dependency-graph)]
       (add-node! dependency-graph data-selector n)
@@ -192,5 +198,5 @@
                                   (selector-init data-selector dependency-graph n))))
       (resolve-value! n dependency-graph)
       (when dependent
-        (claim-dependency dependency-graph n dependent))
+        (claim-dependency dependency-graph n dependent subselector))
       n)))

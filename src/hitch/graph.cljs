@@ -14,7 +14,7 @@
 (defn get-node
   ([dependency-graph data-selector]
     ;(assert (satisfies? proto/ISelectorSingleton data-selector))
-   (proto/get-or-create-node dependency-graph data-selector nil)))
+   (proto/get-or-create-node dependency-graph data-selector nil nil)))
 
 (defn getn
   ([data-selector]
@@ -25,10 +25,10 @@
 
 (defn hitch-node
   ([dependency-graph data-selector]
-   (proto/get-or-create-node dependency-graph data-selector nil))
+   (proto/get-or-create-node dependency-graph data-selector nil nil))
   ([dependency-graph data-selector dependent]
     (assert dependent)
-   (proto/get-or-create-node dependency-graph data-selector dependent)))
+   (proto/get-or-create-node dependency-graph data-selector dependent nil)))
 
 
 (defn hitch

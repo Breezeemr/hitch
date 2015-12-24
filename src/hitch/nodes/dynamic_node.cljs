@@ -28,7 +28,7 @@
     aliased-by)
   (clear-node! [this graph]
     (when (proto/dnode? (.-value this))
-      (proto/release-dependency graph this (.-value this)))
+      (proto/release-dependency graph this (.-value this) nil))
     (set! value nil)
     (set! dependents nil)
     (set! aliased-by  nil)

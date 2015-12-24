@@ -19,42 +19,42 @@
   (eval-request [this selector-constructor parent-node]
     (let [sel (new selector-constructor)
           _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node)]
+          node (proto/get-or-create-node graph sel parent-node nil)]
       (proto/get-value node)))
   (eval-request [this selector-constructor parent-node a]
     (let [sel (new selector-constructor a)
           _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node)]
+          node (proto/get-or-create-node graph sel parent-node nil)]
       (proto/get-value node)))
   (eval-request [this selector-constructor parent-node a b]
     (let [sel (new selector-constructor a b)
           _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node)]
+          node (proto/get-or-create-node graph sel parent-node nil)]
       (proto/get-value node)))
   (eval-request [this selector-constructor parent-node a b c]
     (let [sel (new selector-constructor a b c)
           _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node)]
+          node (proto/get-or-create-node graph sel parent-node nil)]
       (proto/get-value node)))
   (eval-request [this selector-constructor parent-node a b c d]
     (let [sel (new selector-constructor a b c d)
           _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node)]
+          node (proto/get-or-create-node graph sel parent-node nil)]
       (proto/get-value node)))
   (eval-request [this selector-constructor parent-node a b c d f]
     (let [sel (new selector-constructor a b c d f)
           _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node)]
+          node (proto/get-or-create-node graph sel parent-node nil)]
       (proto/get-value node)))
   (eval-request [this selector-constructor parent-node a b c d f g]
     (let [sel (new selector-constructor a b c d f g)
           _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node)]
+          node (proto/get-or-create-node graph sel parent-node nil)]
       (proto/get-value node)))
   (eval-request [this selector-constructor parent-node a b c d f g h]
     (let [sel (new selector-constructor a b c d f g h)
           _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node)]
+          node (proto/get-or-create-node graph sel parent-node nil)]
       (proto/get-value node)))
 
   )
