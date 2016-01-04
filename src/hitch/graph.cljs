@@ -38,6 +38,33 @@
    (assert dependent)
    (proto/get-value (hitch-node dependency-graph data-selector dependent))))
 
+(defn cb ([graph callback selector-constructor] (proto/eval-request graph callback selector-constructor))
+  ([graph callback selector-constructor a](proto/eval-request graph callback selector-constructor a))
+  ([graph callback selector-constructor a b](proto/eval-request graph callback selector-constructor a b))
+  ([graph callback selector-constructor a b c](proto/eval-request graph callback selector-constructor a b c))
+  ([graph callback selector-constructor a b c d](proto/eval-request graph callback selector-constructor a b c d))
+  ([graph callback selector-constructor a b c d f](proto/eval-request graph callback selector-constructor a b c d f))
+  ([graph callback selector-constructor a b c d f g](proto/eval-request graph callback selector-constructor a b c d f g))
+  ([graph callback selector-constructor a b c d f g h](proto/eval-request graph callback selector-constructor a b c d f g h)))
+
+(defn resolve ([graph ex-dep selector-constructor] (proto/eval-request graph ex-dep selector-constructor))
+  ([graph ex-dep selector-constructor a](proto/eval-request graph ex-dep selector-constructor a))
+  ([graph ex-dep selector-constructor a b](proto/eval-request graph ex-dep selector-constructor a b))
+  ([graph ex-dep selector-constructor a b c](proto/eval-request graph ex-dep selector-constructor a b c))
+  ([graph ex-dep selector-constructor a b c d](proto/eval-request graph ex-dep selector-constructor a b c d))
+  ([graph ex-dep selector-constructor a b c d f](proto/eval-request graph ex-dep selector-constructor a b c d f))
+  ([graph ex-dep selector-constructor a b c d f g](proto/eval-request graph ex-dep selector-constructor a b c d f g))
+  ([graph ex-dep selector-constructor a b c d f g h](proto/eval-request graph ex-dep selector-constructor a b c d f g h)))
+
+(defn no-subscribe-resolve ([graph selector-constructor] (proto/eval-request graph nil selector-constructor))
+  ([graph  selector-constructor a](proto/eval-request graph  nil selector-constructor a))
+  ([graph  selector-constructor a b](proto/eval-request graph nil selector-constructor a b))
+  ([graph  selector-constructor a b c](proto/eval-request graph nil selector-constructor a b c))
+  ([graph  selector-constructor a b c d](proto/eval-request graph nil selector-constructor a b c d))
+  ([graph  selector-constructor a b c d f](proto/eval-request graph nil selector-constructor a b c d f))
+  ([graph  selector-constructor a b c d f g](proto/eval-request graph nil selector-constructor a b c d f g))
+  ([graph  selector-constructor a b c d f g h](proto/eval-request graph nil selector-constructor a b c d f g h)))
+
 
 ;;; new api
 (defn invalidate-level [graph nodes external-invalids]
