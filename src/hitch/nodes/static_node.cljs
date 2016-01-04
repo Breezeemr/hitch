@@ -27,11 +27,16 @@
     (set! refs nil))
   proto/IDependencyTracker
   (depend! [this dependent]                 ;returns new?
+    ;must be able to proxy to service
+    (when (satisfies? proto/IDependencyTracker value)
+      (proto/depend! value dependent))
     (if (contains? dependents dependent)
       false
       (do (set! dependents (conj dependents dependent))
           true)))
   (undepend! [this dependent]                              ;returns last-removed?
+    (when (satisfies? proto/IDependencyTracker value)
+      (proto/undepend! value dependent))
     (let [newdeps (disj dependents dependent)]
       (set! dependents newdeps)
       (if (= #{} newdeps)
