@@ -26,7 +26,7 @@
 
 (def keyspace
   (reify
-    proto/ISelector
+    proto/ISelectorFactory
     (-eval [this graph ks]
       (assert nil "alias is stateful and should not be evaled")
       )

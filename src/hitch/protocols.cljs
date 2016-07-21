@@ -21,7 +21,7 @@
   default
   (-internal? [sub graph] false))
 
-(defprotocol ISelector
+(defprotocol ISelectorFactory
   (-eval [selector graph] [selector graph a] [selector graph a b] [selector graph a b c] [selector graph a b c d] [selector graph a b c d e] [selector graph a b c d e f] [selector graph a b c d e f g] [selector graph a b c d e f g h])
   (-selector [selector graph] [selector graph a] [selector graph a b] [selector graph a b c] [selector graph a b c d] [selector graph a b c d e] [selector graph a b c d e f] [selector graph a b c d e f g] [selector graph a b c d e f g h]))
 

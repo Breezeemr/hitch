@@ -25,7 +25,7 @@
 (clojure.core/defn sel-constructor [name eval-fn-name selector-name constructor-binding-forms body]
   `(def ~name
      (cljs.core/reify
-       hitch.protocols/ISelector
+       hitch.protocols/ISelectorFactory
        (~'-eval ~(clojure.core/into ['this 'graph] (clojure.core/map clojure.core/first) constructor-binding-forms)
          (assert ~'graph)
          ~(clojure.core/->> constructor-binding-forms
