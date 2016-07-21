@@ -20,9 +20,6 @@
     #_(do (doseq [d (proto/selector-dependencies data-selector)]
             (proto/undepend! this d))
           true))
-  (invalidate-selectors! [graph selectors]
-
-    )
   proto/IDependencyTracker
   (depend! [graph dependee dependent]
     (proto/node-depend! dependee dependent))

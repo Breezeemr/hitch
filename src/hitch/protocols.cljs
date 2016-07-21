@@ -39,7 +39,6 @@
                   "create node and follow init lifecycle")
   (add-node! [this data-selector node]
              "adds node")
-  (invalidate-selectors! [graph selectors])
   (clear-graph! [this])
   (gc [this data-selector]
       "Schedule clean up of the resources for dataselector"))
