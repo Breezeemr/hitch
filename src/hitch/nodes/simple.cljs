@@ -46,15 +46,13 @@
   proto/ISubscriber
   (-active? [node graph] (boolean (not-empty subscribers)))
   (-invalidate [node graph]
-    (binding [hitch.graph/*current-node* node]
+    (let [new-value (dtx/run-tx-computation graph selector node)
+          ret (cond
+                (and value (nil? new-value)) :stale
+                (not= value new-value) (do #_(prn "changein") (set! value new-value) :value-changed)
+                :default :value-unchanged)]
 
-      (let [new-value (dtx/run-tx-computation graph selector node)
-            ret (cond
-                  (and value (nil? new-value)) :stale
-                  (not= value new-value) (do #_(prn "changein") (set! value new-value) :value-changed)
-                  :default :value-unchanged)]
-
-        ret)))
+      ret))
   proto/IInternalSubscriber
   (-internal? [sub graph] true)
   proto/INodeDependencyTracker
