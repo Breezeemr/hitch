@@ -11,7 +11,6 @@
 (def loaded? (complement not-loaded?))
 
 (defprotocol ISubscriber
-  (-active? [sub graph])
   (-recalculate! [sub graph]))
 
 (defprotocol IInternalSubscriber

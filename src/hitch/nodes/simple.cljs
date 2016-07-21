@@ -44,7 +44,6 @@
           (set! one-time-subscribers (conj one-time-subscribers handler))
           nil))))
   proto/ISubscriber
-  (-active? [node graph] (boolean (not-empty subscribers)))
   (-recalculate! [node graph]
     (let [new-value (dtx/run-tx-computation graph selector node)
           ret (cond
