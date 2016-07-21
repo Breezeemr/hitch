@@ -5,7 +5,7 @@
 
             [hitch.nodes.simple :as node]
             [hitch.graph :as graph])
-  (:require-macros [hitch.selector :refer [def-selector]]
+  (:require-macros [hitch.selector :refer [defselector]]
                    [hitch.eager-go :refer [eager-go]]))
 
 (defrecord KVStoreServiceSelector [keyspace]
@@ -34,6 +34,6 @@
       (assert graph)
       (->KVStoreServiceSelector ks))))
 
-(def-selector key [graph kspace k]
-              (let [kvstore (<! (graph/hitch graph keyspace kspace))]
+(defselector key [graph kspace k]
+             (let [kvstore (<! (graph/hitch graph keyspace kspace))]
                 (get @kvstore k)))

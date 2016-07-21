@@ -1,6 +1,6 @@
 (ns hitch.core-test
   (:require-macros [hitch.eager-go :refer [eager-go]]
-                   [hitch.selector :refer [def-selector]])
+                   [hitch.selector :refer [defselector]])
   (:require [cljs.test :refer [] :refer-macros [is deftest run-tests async]]
             [hitch.core :as core]
             [hitch.protocols :as proto]

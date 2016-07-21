@@ -1,11 +1,11 @@
 (ns hitch.selectors.mutable-var
   (:require [hitch.protocols :as proto]
             [hitch.graph :as graph])
-  (:require-macros [hitch.selector :refer [def-selector]]
+  (:require-macros [hitch.selector :refer [defselector]]
                    [hitch.eager-go :refer [eager-go]]))
 
-(def-selector mutable-var [graph k]
-              (proto/get-value graph/*current-node*))
+(defselector mutable-var [graph k]
+             (proto/get-value graph/*current-node*))
 
 (defn set-var!
   ([graph k value]

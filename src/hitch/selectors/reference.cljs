@@ -1,11 +1,11 @@
 (ns hitch.selectors.reference
   (:require [hitch.protocols :as proto]
             [hitch.graph :as graph])
-  (:require-macros [hitch.selector :refer [def-selector]]
+  (:require-macros [hitch.selector :refer [defselector]]
                    [hitch.eager-go :refer [eager-go]]))
 
-(def-selector reference [graph k]
-              (when-let [selector (and graph/*current-node* (.-refs graph/*current-node*))]
+(defselector reference [graph k]
+             (when-let [selector (and graph/*current-node* (.-refs graph/*current-node*))]
                 (<! (graph/get-or-create-node! graph selector))))
 
 (defn set-reference!

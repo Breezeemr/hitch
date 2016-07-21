@@ -1,7 +1,7 @@
 (ns hitch.selectors.kv-store-test
   (:require-macros [hitch.eager-go :refer [eager-go]]
                    [cljs.core.async.macros :refer [go]]
-                   [hitch.selector :refer [def-selector]])
+                   [hitch.selector :refer [defselector]])
   (:require [cljs.test :refer [] :refer-macros [is deftest run-tests async]]
             [hitch.core :as core]
             [hitch.protocols :as proto]
