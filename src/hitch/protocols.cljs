@@ -12,7 +12,7 @@
 
 (defprotocol ISubscriber
   (-active? [sub graph])
-  (-invalidate [sub graph]))
+  (-recalculate! [sub graph]))
 
 (defprotocol IInternalSubscriber
   (-internal? [sub graph]))

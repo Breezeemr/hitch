@@ -13,7 +13,7 @@
   (if-let [n (proto/get-node graph selector)]
     n
     (let [n (proto/add-node! graph selector (proto/-create-node selector graph))]
-      (proto/-invalidate n graph)
+      (proto/-recalculate! n graph)
       n)))
 
 (defn try-to-get-node [dependency-graph data-selector]
@@ -112,7 +112,7 @@
          newitems (transient {})
          external-invalids external-invalids]
     (if-let [node (first nodes)]
-      (let [stat (proto/-invalidate node graph)]            ;inlineing invalidate produces error
+      (let [stat (proto/-recalculate! node graph)]            ;inlineing invalidate produces error
         (case stat
           :value-changed (do                                ;(prn  :value-changed)
                            (recur (rest nodes)

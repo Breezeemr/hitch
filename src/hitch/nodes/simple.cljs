@@ -45,7 +45,7 @@
           nil))))
   proto/ISubscriber
   (-active? [node graph] (boolean (not-empty subscribers)))
-  (-invalidate [node graph]
+  (-recalculate! [node graph]
     (let [new-value (dtx/run-tx-computation graph selector node)
           ret (cond
                 (and value (nil? new-value)) :stale
