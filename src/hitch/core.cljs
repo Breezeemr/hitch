@@ -1,7 +1,6 @@
 (ns ^:figwheel-always hitch.core
-    (:require [hitch.protocols :as proto]
-              [hitch.graph :as store]
-              [hitch.kv-store ])
+  (:require [hitch.protocols :as proto]
+            [hitch.graph])
   )
 
 (enable-console-print!)
@@ -18,7 +17,7 @@
   ;; your application
   (swap! app-state update-in [:__figwheel_counter] inc))
 
-(comment    ;for cursive
+(comment                                                    ;for cursive
   (use 'figwheel-sidecar.repl-api)
   (cljs-repl "dev"))
 

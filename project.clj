@@ -5,16 +5,16 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :scm "https://github.com/Breezeemr/hitch"
 
-  :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.7.145" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.93" :scope "provided"]
                  [com.cemerick/piggieback "0.2.1"]    ; needed by figwheel nrepl
-                 ]
+                 [org.clojure/core.async  "0.2.385"]]
   :profiles {
              :dev {
-                   :dependencies [[org.clojure/core.async  "0.2.371"]]
-                   :plugins [[lein-cljsbuild "1.1.1"]
-                             [lein-figwheel "0.5.0-1"]]
-                   :figwheel {
+                   :dependencies []
+                   :plugins [                               ;[lein-cljsbuild "1.1.1"]
+                             [lein-figwheel "0.5.4-7"]]
+                   :figwheel { :http-server-root "public"
                               ;; :http-server-root "public" ;; default and assumes "resources"
                               ;; :server-port 3449 ;; default
                               :css-dirs ["resources/public/css"] ;; watch and update CSS
@@ -45,40 +45,41 @@
                               }}}
   :source-paths ["src"]
 
-  :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
+  :clean-targets ^{:protect false} ["resources/public/js" "target"]
   
   :cljsbuild {
-    :builds [{:id "dev"
-              :source-paths ["src"]
+              :builds [{:id           "dev"
+                        :source-paths ["src"]
 
-              :figwheel { :on-jsload "hitch.core/on-js-reload" }
+                        :figwheel     {:on-jsload "hitch.core/on-js-reload"}
 
-              :compiler {:main hitch.core
-                         :asset-path "js/compiled/out"
-                         :output-to "resources/public/js/compiled/hitch.js"
-                         :output-dir "resources/public/js/compiled/out"
-                         :optimizations :none
-                         :source-map true
-                         :source-map-timestamp true
-                         :cache-analysis true }}
-             {:id "test"
-              :source-paths ["src" "test"]
+                        :compiler     {:main           hitch.core
+                                       :asset-path     "js/out"
+                                       :output-to      "resources/public/js/hitch.js"
+                                       :output-dir     "resources/public/js/out"
+                                       :optimizations  :none
+                                       :source-map     true
+                                       ;:source-map-timestamp true
+                                       :cache-analysis true}}
+                       {:id           "test"
+                        :source-paths ["src" "test"]
 
-              :figwheel { :on-jsload "hitch.test-runner/on-js-reload" }
+                        :figwheel     {:on-jsload "hitch.test-runner/on-js-reload"}
 
-              :compiler {:main hitch.test-runner
-                         :asset-path "js/compiled/testout"
-                         :output-to "resources/public/js/compiled/hitch_test.js"
-                         :output-dir "resources/public/js/compiled/testout"
-                         :optimizations :none
-                         :source-map true
-                         :source-map-timestamp true
-                         :cache-analysis true }}
-             {:id "min"
-              :source-paths ["src"]
-              :compiler {:output-to "resources/public/js/compiled/hitch.js"
-                         :main hitch.core
-                         :optimizations :advanced
-                         :pretty-print false}}]}
+                        :compiler     {:main          hitch.test-runner
+                                       :asset-path    "js/testout"
+                                       :output-to     "resources/public/js/hitch_test.js"
+                                       :output-dir    "resources/public/js/testout"
+                                       :optimizations :none
+                                       :source-map true
+                                       :source-map-timestamp false
+                                       ;:cache-analysis true
+                                       }}
+                       {:id           "min"
+                        :source-paths ["src"]
+                        :compiler     {:output-to     "resources/public/js/hitch.js"
+                                       :main          hitch.core
+                                       :optimizations :advanced
+                                       :pretty-print  false}}]}
 
             )

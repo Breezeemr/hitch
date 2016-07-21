@@ -1,104 +1,155 @@
 (ns hitch.graph
-  (:require [hitch.protocols   :as proto ]
+  (:require [hitch.protocols :as proto]
             [hitch.graphs.mutable :as mgraph]
-            [hitch.nodes.static-node :as snode]
-            ))
+            [cljs.core.async.impl.protocols :as impl]))
 
 (defonce *default-graph* (mgraph/graph))
-
+(def ^:dynamic *graph* *default-graph*)
+(def ^:dynamic *current-node* nil)
+(def ^:dynamic *execution-mode* true)
 (def loaded? proto/loaded?)
-(defn pure-get
-  ([dependency-graph data-selector] (proto/get-node dependency-graph data-selector)))
 
+(defn get-or-create-node! [graph selector]
+  (if-let [n (proto/get-node graph selector)]
+    n
+    (let [n (proto/add-node! graph selector (proto/-create-node selector graph))]
+      (proto/-invalidate n graph)
+      n)))
 
-(defn get-node
-  ([dependency-graph data-selector]
-    ;(assert (satisfies? proto/ISelectorSingleton data-selector))
-   (proto/get-or-create-node dependency-graph data-selector nil nil)))
-
-(defn getn
-  ([data-selector]
-   #_(if (satisfies? proto/ISelectorSingleton data-selector)
-     (proto/get-value (proto/get-or-create-node dependency-graph data-selector nil ))
-     (proto/selector-invoke data-selector dependency-graph  (proto/selector-init data-selector dependency-graph nil)))))
-
+(defn try-to-get-node [dependency-graph data-selector]
+  (proto/get-node dependency-graph data-selector))
 
 (defn hitch-node
-  ([dependency-graph data-selector]
-   (proto/get-or-create-node dependency-graph data-selector nil nil))
-  ([dependency-graph data-selector dependent]
-    (assert dependent)
-   (proto/get-or-create-node dependency-graph data-selector dependent nil)))
+  ([graph selector-constructor] (get-or-create-node! graph (proto/-selector selector-constructor graph)))
+  ([graph selector-constructor a] (get-or-create-node! graph (proto/-selector selector-constructor graph a)))
+  ([graph selector-constructor a b] (get-or-create-node! graph (proto/-selector selector-constructor graph a b)))
+  ([graph selector-constructor a b c] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c)))
+  ([graph selector-constructor a b c d] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c d)))
+  ([graph selector-constructor a b c d f] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c d f)))
+  ([graph selector-constructor a b c d f g] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c d f g)))
+  ([graph selector-constructor a b c d f g h] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c d f g h))))
 
+(defn hitch-eval
+  ([graph selector-constructor] (proto/-eval selector-constructor graph))
+  ([graph selector-constructor a] (proto/-eval selector-constructor graph a))
+  ([graph selector-constructor a b] (proto/-eval selector-constructor graph a b))
+  ([graph selector-constructor a b c] (proto/-eval selector-constructor graph a b c))
+  ([graph selector-constructor a b c d] (proto/-eval selector-constructor graph a b c d))
+  ([graph selector-constructor a b c d f] (proto/-eval selector-constructor graph a b c d f))
+  ([graph selector-constructor a b c d f g] (proto/-eval selector-constructor graph a b c d f g))
+  ([graph selector-constructor a b c d f g h] (proto/-eval selector-constructor graph a b c d f g h)))
 
 (defn hitch
-  ([dependency-graph data-selector]
-   (hitch dependency-graph data-selector nil))
-  ([dependency-graph data-selector dependent]
-   (assert dependent)
-   (proto/get-value (hitch-node dependency-graph data-selector dependent))))
+  ([graph selector-constructor]
+   (assert *current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor)]
+     (proto/depend! graph node *current-node*)
+     node
+     ))
+  ([graph selector-constructor a]
+   (assert *current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a)]
+     ;(prn "here"  node  *current-node*)
+     (proto/depend! graph node *current-node*)
+     node
+     ))
+  ([graph selector-constructor a b]
+   (assert *current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b)]
+     (proto/depend! graph node *current-node*)
+     node
+     ))
+  ([graph selector-constructor a b c]
+   (assert *current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c)]
+     (proto/depend! graph node *current-node*)
+     node
+     ))
+  ([graph selector-constructor a b c d]
+   (assert *current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d)]
+     (proto/depend! graph node *current-node*)
+     node
+     ))
+  ([graph selector-constructor a b c d f]
+   (assert *current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f)]
+     (proto/depend! graph node *current-node*)
+     node
+     ))
+  ([graph selector-constructor a b c d f g]
+   (assert *current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f g)]
+     (proto/depend! graph node *current-node*)
+     node
+     ))
+  ([graph selector-constructor a b c d f g h]
+   (assert *current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f g h)]
+     (proto/depend! graph node *current-node*)
+     node
+     )))
 
-(defn cb ([graph callback selector-constructor] (proto/eval-request graph callback selector-constructor))
-  ([graph callback selector-constructor a](proto/eval-request graph callback selector-constructor a))
-  ([graph callback selector-constructor a b](proto/eval-request graph callback selector-constructor a b))
-  ([graph callback selector-constructor a b c](proto/eval-request graph callback selector-constructor a b c))
-  ([graph callback selector-constructor a b c d](proto/eval-request graph callback selector-constructor a b c d))
-  ([graph callback selector-constructor a b c d f](proto/eval-request graph callback selector-constructor a b c d f))
-  ([graph callback selector-constructor a b c d f g](proto/eval-request graph callback selector-constructor a b c d f g))
-  ([graph callback selector-constructor a b c d f g h](proto/eval-request graph callback selector-constructor a b c d f g h)))
+(defn hook
+  ([graph selector-constructor] ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor))
+  ([graph selector-constructor a] ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a))
+  ([graph selector-constructor a b] ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b))
+  ([graph selector-constructor a b c] ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c))
+  ([graph selector-constructor a b c d] ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d))
+  ([graph selector-constructor a b c d f] ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f))
+  ([graph selector-constructor a b c d f g] ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f g))
+  ([graph selector-constructor a b c d f g h] ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f g h)))
 
-(defn resolve ([graph ex-dep selector-constructor] (proto/eval-request graph ex-dep selector-constructor))
-  ([graph ex-dep selector-constructor a](proto/eval-request graph ex-dep selector-constructor a))
-  ([graph ex-dep selector-constructor a b](proto/eval-request graph ex-dep selector-constructor a b))
-  ([graph ex-dep selector-constructor a b c](proto/eval-request graph ex-dep selector-constructor a b c))
-  ([graph ex-dep selector-constructor a b c d](proto/eval-request graph ex-dep selector-constructor a b c d))
-  ([graph ex-dep selector-constructor a b c d f](proto/eval-request graph ex-dep selector-constructor a b c d f))
-  ([graph ex-dep selector-constructor a b c d f g](proto/eval-request graph ex-dep selector-constructor a b c d f g))
-  ([graph ex-dep selector-constructor a b c d f g h](proto/eval-request graph ex-dep selector-constructor a b c d f g h)))
-
-(defn no-subscribe-resolve ([graph selector-constructor] (proto/eval-request graph nil selector-constructor))
-  ([graph  selector-constructor a](proto/eval-request graph  nil selector-constructor a))
-  ([graph  selector-constructor a b](proto/eval-request graph nil selector-constructor a b))
-  ([graph  selector-constructor a b c](proto/eval-request graph nil selector-constructor a b c))
-  ([graph  selector-constructor a b c d](proto/eval-request graph nil selector-constructor a b c d))
-  ([graph  selector-constructor a b c d f](proto/eval-request graph nil selector-constructor a b c d f))
-  ([graph  selector-constructor a b c d f g](proto/eval-request graph nil selector-constructor a b c d f g))
-  ([graph  selector-constructor a b c d f g h](proto/eval-request graph nil selector-constructor a b c d f g h)))
-
-
-;;; new api
+(defn invalidate-external-items [value ext-items]
+  (doseq [subscriber (seq ext-items)
+          ;:when (impl/active? subscriber)
+          :let [handler (impl/commit subscriber)]]
+    (handler value)))
+;;;; new api
 (defn invalidate-level [graph nodes external-invalids]
   ;(prn "nodes " nodes)
-  (loop [nodes nodes newvalues (transient {}) external-invalids external-invalids]
+  (loop [nodes nodes
+         newitems (transient {})
+         external-invalids external-invalids]
     (if-let [node (first nodes)]
-      (if  (proto/dnode? node)
-        (let [newvalue (proto/make-new-value graph node)
-              oldvalue (proto/get-value node)]
-          (if (or
-                (not= oldvalue newvalue)
-                (satisfies? proto/ISelectorReload (proto/get-data-selector node)))
-            (recur (rest nodes) (assoc! newvalues node newvalue) external-invalids)
-            (recur (rest nodes) newvalues external-invalids)))
-        (recur (rest nodes) newvalues (conj! external-invalids node)))
+      (let [stat (proto/-invalidate node graph)]            ;inlineing invalidate produces error
+        (case stat
+          :value-changed (do                                ;(prn  :value-changed)
+                           (recur (rest nodes)
+                                  (into newitems (proto/get-dependents node))
+                                  (assoc! external-invalids (proto/get-value node) (proto/-take-one-time-dependents! node))))
+          :value-unchanged (recur (rest nodes) newitems external-invalids)
+          :stale (recur (rest nodes) newitems external-invalids)
+          ;:transient-error   (recur (rest nodes) newitems external-invalids)
+          ;:persistent-error  (recur (rest nodes) newitems external-invalids)
+          ))
       [(into #{}
-         (mapcat
-           (fn [[node newvalue]]
-             (proto/assign-value! graph node newvalue)
-             (eduction cat [(proto/get-dependents node) (proto/get-aliased-by node)])))
-         (persistent! newvalues))
+             (mapcat
+               proto/get-dependents)
+             (persistent! newitems))
        external-invalids])))
+(defn invalidate-nodes [graph nodes]
+  ;(prn "invalidate-nodes")
+  (loop [[nodes external-invalids] (invalidate-level graph nodes (transient {}))]
+    (if (not-empty nodes)
+      (recur (invalidate-level graph nodes external-invalids))
+      (let [exts (persistent! external-invalids)]
+        (doseq [[value ext-items] exts]
+          (invalidate-external-items value ext-items))))))
 
 (defn invalidate-selectors
   ([graph selectors]
-    (prn "temp"  selectors)
-   (loop [[nodes external-invalids] (invalidate-level graph (seq (sequence (comp
-                                                                             (map #(proto/get-node graph %))
-                                                                             (remove nil? ))
-                                                                   selectors)) (transient #{}))]
-     (if (not-empty nodes)
-       (recur (invalidate-level graph nodes external-invalids))
-       (persistent! external-invalids)))))
+   (invalidate-nodes graph (seq (sequence (comp
+                                            (map #(proto/get-node graph %))
+                                            (remove nil?))
+                                          selectors)))))
+(defn set-and-invalidate! [graph node value]
+  (proto/set-value! node value)
+  (invalidate-nodes graph (proto/get-dependents node))
+  (invalidate-external-items value (proto/-take-one-time-dependents! node)))
 
-(extend-protocol  proto/ISelectorNode
-  default
-  (selector-create-node [this graph] (snode/dep-node this)))
+(defn force-invalidate! [graph node value]
+  (let [onetime (proto/-take-one-time-dependents! node)]
+    ;(prn :force-invalidate! node value (proto/get-dependents node) onetime)
+    (invalidate-nodes graph (proto/get-dependents node))
+    (invalidate-external-items value onetime)))

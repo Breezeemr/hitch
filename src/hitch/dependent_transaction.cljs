@@ -1,8 +1,16 @@
 (ns hitch.dependent-transaction
-  (:require [hitch.protocols   :as proto ]
+  (:require [hitch.protocols :as proto]
+            [hitch.graph :as graph]
+            [cljs.core.async :as async]
             [clojure.set]))
 
 (deftype TX [graph ^:mutable requests]
+  proto/IDependencyTracker
+  (depend! [graph dependee dependent]
+    (set! requests (conj requests dependent))
+    (proto/node-depend! dependee dependent))
+  (undepend! [graph dependee dependent]
+    (proto/node-undepend! dependee dependent))
   proto/IDependencyGraph
   (get-node [this data-selector]
     (set! requests (conj requests data-selector))
@@ -10,53 +18,11 @@
   (add-node! [this data-selector new-node]
     (proto/add-node! graph data-selector new-node))
   #_(clear-graph! [this]
-    (proto/clear! graph))
+                  (proto/clear! graph))
   #_(gc [this data-selector]
-    #_(do (doseq [d (proto/selector-dependencies data-selector)]
-            (proto/undepend! this d))
-          true))
-  proto/IEvaluateRequest
-  (eval-request [this selector-constructor parent-node]
-    (let [sel (new selector-constructor)
-          _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node nil)]
-      (proto/get-value node)))
-  (eval-request [this selector-constructor parent-node a]
-    (let [sel (new selector-constructor a)
-          _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node nil)]
-      (proto/get-value node)))
-  (eval-request [this selector-constructor parent-node a b]
-    (let [sel (new selector-constructor a b)
-          _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node nil)]
-      (proto/get-value node)))
-  (eval-request [this selector-constructor parent-node a b c]
-    (let [sel (new selector-constructor a b c)
-          _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node nil)]
-      (proto/get-value node)))
-  (eval-request [this selector-constructor parent-node a b c d]
-    (let [sel (new selector-constructor a b c d)
-          _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node nil)]
-      (proto/get-value node)))
-  (eval-request [this selector-constructor parent-node a b c d f]
-    (let [sel (new selector-constructor a b c d f)
-          _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node nil)]
-      (proto/get-value node)))
-  (eval-request [this selector-constructor parent-node a b c d f g]
-    (let [sel (new selector-constructor a b c d f g)
-          _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node nil)]
-      (proto/get-value node)))
-  (eval-request [this selector-constructor parent-node a b c d f g h]
-    (let [sel (new selector-constructor a b c d f g h)
-          _   (set! requests (conj requests sel))
-          node (proto/get-or-create-node graph sel parent-node nil)]
-      (proto/get-value node)))
-
+        #_(do (doseq [d (proto/selector-dependencies data-selector)]
+                (proto/undepend! this d))
+              true))
   )
 
 
@@ -72,3 +38,16 @@
   (if oldtx
     (clojure.set/difference (.-requests oldtx) (.-requests newtx))
     #{}))
+
+(defn run-tx-computation [graph selector node]
+  (let [dtransact (tx graph)]
+    (binding [graph/*current-node* node]
+      (when-let [computation (selector dtransact)]
+        (let [new-value (async/poll! computation)]
+          (doseq [retired-selector (retired-selectors (proto/get-tx node) dtransact)
+                  :let [retired-node (proto/get-node graph retired-selector)]
+                  :when retired-node]
+            (proto/undepend! graph retired-node node))
+          (proto/set-tx! node dtransact)
+          new-value)))
+    ))

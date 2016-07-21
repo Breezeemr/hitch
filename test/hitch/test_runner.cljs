@@ -1,5 +1,7 @@
 (ns ^:figwheel-always hitch.test-runner
   (:require [hitch.core-test]
+            [hitch.selectors.mutable-var-test]
+            [hitch.selectors.kv-store-test]
             [cljs.test :as test :include-macros true :refer [report]])
   (:import [goog.dom DomHelper]
            [goog dom]))
@@ -33,20 +35,22 @@
   (println (:fail m) "failures," (:error m) "errors.")
   (if (< 0 (+ (:fail m) (:error m)))
     (change-favicon-to-color "#d00")
-    (change-favicon-to-color "#0d0"))) ;;<<-- change color
+    (change-favicon-to-color "#0d0")))                      ;;<<-- change color
 
 (defmethod report [::test/default :fail] [m]
-  (append-results (pr-str m) )
+  (append-results (pr-str m))
   (test/inc-report-counter! :fail))
 
 (defmethod report [::test/default :error] [m]
-  (append-results (pr-str m) )
+  (append-results (pr-str m))
   (test/inc-report-counter! :error))
 
 (defn runner []
   (clear-results)
   (test/run-tests
-    'hitch.core-test))
+    'hitch.core-test
+    'hitch.selectors.mutable-var-test
+    'hitch.selectors.kv-store-test))
 
 (defn ^:export on-js-reload []
   (runner))
@@ -54,6 +58,6 @@
 (defn ^:export run []
   (runner))
 
-(comment                                                      ;for cursive
+(comment                                                    ;for cursive
   (use 'figwheel-sidecar.repl-api)
   (cljs-repl "test"))
