@@ -143,13 +143,13 @@
                                             (map #(proto/get-node graph %))
                                             (remove nil?))
                                           selectors)))))
-(defn set-and-invalidate! [graph node value]
-  (proto/set-value! node value)
-  (invalidate-nodes graph (proto/get-dependents node))
-  (invalidate-external-items value (proto/-take-one-time-dependents! node)))
+
 
 (defn force-invalidate! [graph node value]
   (let [onetime (proto/-take-one-time-dependents! node)]
-    ;(prn :force-invalidate! node value (proto/get-dependents node) onetime)
     (invalidate-nodes graph (proto/get-dependents node))
     (invalidate-external-items value onetime)))
+
+(defn set-and-invalidate! [graph node value]
+  (proto/set-value! node value)
+  (force-invalidate! graph node value))
