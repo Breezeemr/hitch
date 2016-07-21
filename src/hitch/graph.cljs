@@ -3,8 +3,6 @@
             [hitch.graphs.mutable :as mgraph]
             [cljs.core.async.impl.protocols :as impl]))
 
-(defonce *default-graph* (mgraph/graph))
-(def ^:dynamic *graph* *default-graph*)
 (def ^:dynamic *current-node* nil)
 (def ^:dynamic *execution-mode* true)
 (def loaded? proto/loaded?)
