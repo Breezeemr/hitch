@@ -34,6 +34,6 @@
       (assert graph)
       (->KVStoreServiceSelector ks))))
 
-(def-selector key [kspace k]
-              (let [kvstore (<! (graph/hitch graph/*default-graph* keyspace kspace))]
+(def-selector key [graph kspace k]
+              (let [kvstore (<! (graph/hitch graph keyspace kspace))]
                 (get @kvstore k)))

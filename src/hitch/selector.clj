@@ -5,38 +5,37 @@
       [clojure.string :as str]))
 
 (clojure.core/defn eval-selector [eval-fn-name constructor-binding-forms body]
-  `(defn ~eval-fn-name ~(clojure.core/into ['graph] (clojure.core/map clojure.core/second) constructor-binding-forms)
+  `(defn ~eval-fn-name ~(clojure.core/into [] (clojure.core/map clojure.core/second) constructor-binding-forms)
      (hitch.eager-go/eager-go
        ~@body)))
 
 (clojure.core/defn selector-record [selector-name eval-fn-name constructor-binding-forms body]
-  `(defrecord ~selector-name ~(clojure.core/into [] (clojure.core/map clojure.core/first) constructor-binding-forms)
+  `(defrecord ~selector-name ~(clojure.core/into []  (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
      hitch.protocols/ICreateNode
      (~'-create-node [~'this ~'graph]
        (hitch.nodes.simple/node ~'this))
      cljs.core/IFn
-     (~'-invoke [~'this ~'graph]
-       (assert ~'graph)
+     (~'-invoke [~'this ~(clojure.core/ffirst constructor-binding-forms)]
+       (assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
        ~(clojure.core/->> constructor-binding-forms
                           (clojure.core/map clojure.core/first)
-                          (clojure.core/cons (clojure.core/symbol "graph"))
                           (clojure.core/cons eval-fn-name)))))
 
 (clojure.core/defn sel-constructor [name eval-fn-name selector-name constructor-binding-forms body]
   `(def ~name
      (cljs.core/reify
        hitch.protocols/ISelectorFactory
-       (~'-eval ~(clojure.core/into ['this 'graph] (clojure.core/map clojure.core/first) constructor-binding-forms)
-         (assert ~'graph)
+       (~'-eval ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) constructor-binding-forms)
+         (assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
          ~(clojure.core/->> constructor-binding-forms
                             (clojure.core/map clojure.core/first)
-                            (clojure.core/cons (clojure.core/symbol "graph"))
                             (clojure.core/cons eval-fn-name))
          )
-       (~'-selector ~(clojure.core/into ['this 'graph] (clojure.core/map clojure.core/first) constructor-binding-forms)
-         (assert ~'graph)
+       (~'-selector ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) constructor-binding-forms)
+         (assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
          ~(clojure.core/->> constructor-binding-forms
                             (clojure.core/map clojure.core/first)
+                            clojure.core/rest
                             (clojure.core/cons (clojure.core/symbol (clojure.core/str "->" selector-name)))))
        )))
 (clojure.core/defn create-binding-syms [binding-form]

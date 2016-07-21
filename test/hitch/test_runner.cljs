@@ -50,7 +50,8 @@
   (test/run-tests
     'hitch.core-test
     'hitch.selectors.mutable-var-test
-    'hitch.selectors.kv-store-test))
+    'hitch.selectors.kv-store-test
+    ))
 
 (defn ^:export on-js-reload []
   (runner))

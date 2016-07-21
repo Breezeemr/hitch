@@ -4,9 +4,9 @@
   (:require-macros [hitch.selector :refer [def-selector]]
                    [hitch.eager-go :refer [eager-go]]))
 
-(def-selector reference [k]
+(def-selector reference [graph k]
               (when-let [selector (and graph/*current-node* (.-refs graph/*current-node*))]
-                (<! (graph/get-or-create-node! graph/*graph* selector))))
+                (<! (graph/get-or-create-node! graph selector))))
 
 (defn set-reference!
   ([graph k data-selector]

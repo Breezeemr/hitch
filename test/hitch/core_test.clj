@@ -3,7 +3,7 @@
             [hitch.selector :as sel]))
 
 (deftest selectors
-  (let [binding-pairs '[[G__2 a]]]
+  (let [binding-pairs '[[G__1 graph] [G__2 a]]]
     (is (= (sel/eval-selector 'evaler binding-pairs ())
            '(cljs.core/defn evaler [graph a] (hitch.eager-go/eager-go))))
     (is (= (sel/selector-record 'evaler-rec 'evaler-fn binding-pairs ())
@@ -11,16 +11,16 @@
               hitch.protocols/ICreateNode
               (-create-node [this graph] (hitch.nodes.simple/node this))
               cljs.core/IFn
-              (-invoke [this graph]
-                (cljs.core/assert graph)
-                (evaler-fn graph G__2)))))
+              (-invoke [this G__1]
+                (cljs.core/assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph G__1))
+                (evaler-fn G__1 G__2)))))
     (is (= (sel/sel-constructor 'evaler 'evaler-fn 'evaler-rec binding-pairs ())
            '(def evaler
               (cljs.core/reify
-                hitch.protocols/ISelector
-                (-eval [this graph G__2]
-                  (cljs.core/assert graph)
-                  (evaler-fn graph G__2))
-                (-selector [this graph G__2]
-                  (cljs.core/assert graph)
+                hitch.protocols/ISelectorFactory
+                (-eval [this G__1 G__2]
+                  (cljs.core/assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph G__1))
+                  (evaler-fn G__1 G__2))
+                (-selector [this G__1 G__2]
+                  (cljs.core/assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph G__1))
                   (->evaler-rec G__2))))))))

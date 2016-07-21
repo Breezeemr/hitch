@@ -4,7 +4,7 @@
   (:require-macros [hitch.selector :refer [def-selector]]
                    [hitch.eager-go :refer [eager-go]]))
 
-(def-selector mutable-var [k]
+(def-selector mutable-var [graph k]
               (proto/get-value graph/*current-node*))
 
 (defn set-var!
