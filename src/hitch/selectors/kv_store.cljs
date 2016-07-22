@@ -21,8 +21,7 @@
       node))
   IFn
   (-invoke [this graph]
-    ;do nothing set on the outside
-    ))
+    (proto/get-value graph/*current-node*)))
 
 (def keyspace
   (reify
