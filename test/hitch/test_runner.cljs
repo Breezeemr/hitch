@@ -49,7 +49,7 @@
   (clear-results)
   (test/run-tests
     'hitch.core-test
-    ;'hitch.selectors.mutable-var-test
+    'hitch.selectors.mutable-var-test
     'hitch.selectors.kv-store-test
     ))
 
