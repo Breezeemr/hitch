@@ -2,7 +2,8 @@
   (:require [hitch.protocols :as proto]
             [hitch.graph :as graph]
             [cljs.core.async :as async]
-            [clojure.set]))
+            [clojure.set]
+            [cljs.core.async.impl.protocols :as impl]))
 
 (deftype TX [graph ^:mutable requests]
   proto/IDependencyTracker
@@ -43,7 +44,9 @@
   (let [dtransact (tx graph)]
     (binding [graph/*current-node* node]
       (when-let [computation (selector dtransact)]
-        (let [new-value (async/poll! computation)]
+        (let [new-value (if (satisfies? impl/ReadPort computation)
+                          (async/poll! computation)
+                          computation)]
           (doseq [retired-selector (retired-selectors (proto/get-tx node) dtransact)
                   :let [retired-node (proto/get-node graph retired-selector)]
                   :when retired-node]
