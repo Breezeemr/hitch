@@ -4,9 +4,9 @@
             [hitch.graph :as graph]
 
             [hitch.nodes.simple :as node]
-            [hitch.graph :as graph])
-  (:require-macros [hitch.selector :refer [defselector]]
-                   [hitch.eager-go :refer [eager-go]]))
+            [hitch.graph :as graph]
+            [hitch.selector :refer-macros [defselector]])
+  )
 
 (defrecord KVStoreServiceSelector [keyspace]
   proto/ICreateNode

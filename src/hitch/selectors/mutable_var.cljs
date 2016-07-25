@@ -1,8 +1,7 @@
 (ns hitch.selectors.mutable-var
   (:require [hitch.protocols :as proto]
-            [hitch.graph :as graph])
-  (:require-macros [hitch.selector :refer [defselector]]
-                   [hitch.eager-go :refer [eager-go]]))
+            [hitch.graph :as graph]
+            [hitch.selector :refer-macros [defselector]]))
 
 (defselector mutable-var [graph k]
              (proto/get-value graph/*current-node*))
