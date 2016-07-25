@@ -27,6 +27,10 @@
 (defprotocol ICreateNode
   (-create-node [this graph]))
 
+(defprotocol IService
+  (-selector-added [this selector])
+  (-selector-removed [this selector]))
+
 (defprotocol IDynamicDepNode
   (get-tx [this])
   (set-tx! [this tx]))

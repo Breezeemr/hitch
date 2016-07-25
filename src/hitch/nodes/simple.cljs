@@ -59,10 +59,14 @@
     (if (contains? subscribers dependent)
       false
       (do (set! subscribers (conj subscribers dependent))
+          (and (satisfies? proto/IService value)
+               (proto/-selector-added value dependent))
           true)))
   (node-undepend! [this dependent]                          ;returns last-removed?
     (let [newdeps (disj subscribers dependent)]
       (set! subscribers newdeps)
+      (and (satisfies? proto/IService value)
+           (proto/-selector-removed value dependent))
       (if (= #{} newdeps)
         true
         false)))
