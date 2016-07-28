@@ -1,7 +1,9 @@
 (ns hitch.graph
   (:require [hitch.protocols :as proto]
             [hitch.graphs.mutable :as mgraph]
-            [cljs.core.async.impl.protocols :as impl]))
+            [cljs.core.async.impl.protocols :as impl]
+            [hitch.eager-go :include-macros true]
+            [cljs.core.async :as async]))
 
 (def ^:dynamic *current-node* nil)
 (def ^:dynamic *execution-mode* true)
@@ -110,7 +112,7 @@
          newitems (transient {})
          external-invalids external-invalids]
     (if-let [node (first nodes)]
-      (let [stat (proto/-recalculate! node graph)]            ;inlineing invalidate produces error
+      (let [stat (proto/-recalculate! node graph)]          ;inlineing invalidate produces error
         (case stat
           :value-changed (do                                ;(prn  :value-changed)
                            (recur (rest nodes)
@@ -151,3 +153,10 @@
 (defn set-and-invalidate! [graph node value]
   (proto/set-value! node value)
   (force-invalidate! graph node value))
+
+(defn resolve-all [nodes]
+  (hitch.eager-go/eager-go
+    (loop [results (empty nodes) nodes (doall nodes)]
+      (if-let [node (first nodes)]
+        (recur (conj results (async/<! node)) (rest nodes))
+        results))))
