@@ -1,8 +1,8 @@
 (ns hitch.graph
+  (:require-macros [hitch.eager-go :refer [eager-go]])
   (:require [hitch.protocols :as proto]
             [hitch.graphs.mutable :as mgraph]
             [cljs.core.async.impl.protocols :as impl]
-            [hitch.eager-go :include-macros true]
             [cljs.core.async :as async]))
 
 (def ^:dynamic *current-node* nil)
@@ -155,7 +155,7 @@
   (force-invalidate! graph node value))
 
 (defn resolve-all [nodes]
-  (hitch.eager-go/eager-go
+  (eager-go
     (loop [results (empty nodes) nodes (doall nodes)]
       (if-let [node (first nodes)]
         (recur (conj results (async/<! node)) (rest nodes))
