@@ -60,13 +60,13 @@
   (node-undepend! [dependee dependent]))
 
 (defprotocol InformedSelector
-  (dependency-added [dependee-selector dependee-selector ]     ;[dependee-state dependee-effect depender-selector]
+  (dependency-added [dependant-selector dependee-selector ]     ;[dependee-state dependee-effect depender-selector]
                     ;=> new-dependee-effect
                     "Called to inform a selector (the dependee) that another selector (the
                     depender) has started depending on its value. Must return an opaque effect
                     object which the dependee-selector's apply-effect can understand. The
                     returned effect will replace the passed-in dependee-effect.")
-  (dependency-removed [dependee-selector dependee-selector ]              ;[dependee-state dependee-effect depender-selector]
+  (dependency-removed [dependant-selector dependee-selector ]              ;[dependee-state dependee-effect depender-selector]
                       ;=> new-dependee-effect
                       "Called to inform a selector (the dependee) that another selector (the
                       depender) has ceased depending on its value. Must return an opaque effect
