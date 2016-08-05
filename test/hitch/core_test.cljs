@@ -1,11 +1,10 @@
 (ns hitch.core-test
-  (:require-macros [hitch.eager-go :refer [eager-go]]
+  (:require-macros [hitch.eager :refer [go]]
                    [hitch.selector :refer [defselector]])
   (:require [cljs.test :refer [] :refer-macros [is deftest run-tests async]]
             [hitch.core :as core]
             [hitch.protocols :as proto]
             [hitch.selectors.kv-store :as kv :refer [keyspace]]
-            [hitch.selectors.mutable-var :refer [mutable-var set-var!]]
             [hitch.graph :as graph]
             [cljs.core.async :as async]))
 

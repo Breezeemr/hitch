@@ -1,17 +1,16 @@
 (ns hitch.dependent-transaction
   (:require [hitch.protocols :as proto]
-            [hitch.graph :as graph]
             [cljs.core.async :as async]
             [clojure.set]
             [cljs.core.async.impl.protocols :as impl]))
 
 (deftype TX [graph ^:mutable requests]
   proto/IDependencyTracker
-  (depend! [graph dependee dependent]
+  (depend! [_ dependee dependent]
     (set! requests (conj requests dependent))
-    (proto/node-depend! dependee dependent))
-  (undepend! [graph dependee dependent]
-    (proto/node-undepend! dependee dependent))
+    (proto/depend! graph dependee dependent))
+  (undepend! [_ dependee dependent]
+    (proto/undepend! graph dependee dependent))
   proto/IDependencyGraph
   (get-node [this data-selector]
     (set! requests (conj requests data-selector))
@@ -42,8 +41,8 @@
 
 (defn run-tx-computation [graph selector node]
   (let [dtransact (tx graph)]
-    (binding [graph/*current-node* node]
-      (when-let [computation (selector dtransact)]
+    (binding [proto/*current-node* node]
+      (when-let [computation (proto/-value selector dtransact (.-state node))]
         (let [new-value (if (satisfies? impl/ReadPort computation)
                           (async/poll! computation)
                           computation)]

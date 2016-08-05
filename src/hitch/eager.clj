@@ -1,7 +1,7 @@
-(ns hitch.eager-go
+(ns hitch.eager
   (:require [cljs.core.async.impl.ioc-macros :as ioc]))
 
-(defmacro eager-go
+(defmacro go
   "Asynchronously executes the body, returning immediately to the
   calling thread. Additionally, any visible calls to <!, >! and alt!/alts!
   channel operations within the body will block (if necessary) by

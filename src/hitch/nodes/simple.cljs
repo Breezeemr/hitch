@@ -1,6 +1,5 @@
 (ns hitch.nodes.simple
   (:require [hitch.protocols :as proto]
-            [hitch.graph :as graph]
             [hitch.dependent-transaction :as dtx]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :as impl]
@@ -9,7 +8,7 @@
 
 
 
-(deftype Node [selector ^:mutable value ^:mutable status ^:mutable subscribers ^:mutable one-time-subscribers ^:mutable refs]
+(deftype Node [selector ^:mutable value ^:mutable state ^:mutable stale? ^:mutable subscribers ^:mutable one-time-subscribers ^:mutable refs]
   proto/IDependencyNode
   (-get-value [_]
     (proto/get-value value))                                ;unwrap references
@@ -28,7 +27,7 @@
     selector)
   (clear-node! [this graph]
     (set! value nil)
-    (set! status nil)
+    (set! stale? true)
     (set! subscribers #{}))
   proto/IDynamicDepNode
   (get-tx [self] refs)
@@ -57,19 +56,21 @@
   proto/INodeDependencyTracker
   (node-depend! [this dependent]                            ;returns new?
     (if (contains? subscribers dependent)
-      false
+      nil
       (do (set! subscribers (conj subscribers dependent))
-          (and (satisfies? proto/IService value)
-               (proto/-selector-added value dependent))
-          true)))
+          (let [dep-sel (proto/-data-selector dependent)]
+            (prn "sel" dep-sel)
+            (when (satisfies? proto/InformedSelector selector)
+              (prn "add dep " selector dep-sel)
+              (proto/-apply selector state (proto/dependency-added selector dep-sel)))))))
   (node-undepend! [this dependent]                          ;returns last-removed?
     (let [newdeps (disj subscribers dependent)]
-      (set! subscribers newdeps)
-      (and (satisfies? proto/IService value)
-           (proto/-selector-removed value dependent))
-      (if (= #{} newdeps)
-        true
-        false)))
+      (when (not= subscribers newdeps)
+        (do
+          (set! subscribers newdeps)
+          (let [dep-sel (proto/-data-selector dependent)]
+            (when (satisfies? proto/InformedSelector selector)
+              (proto/-apply selector state (proto/dependency-removed selector dep-sel))))))))
   IPrintWithWriter
   (-pr-writer [_ writer opts]
     (-write writer "#node {:value ")
@@ -83,6 +84,6 @@
 (defn node
   ([sel] (node sel nil))
   ([sel val]
-   (->Node sel val nil #{} #{} #{})))
+   (->Node sel val nil true #{} #{} #{})))
 
 

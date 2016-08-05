@@ -1,5 +1,7 @@
 (ns hitch.protocols)
 
+(def ^:dynamic *current-node* nil)
+
 (defonce NOT-LOADED (reify Object
                       (toString [this] "not-loaded")))
 
@@ -21,15 +23,12 @@
   (-internal? [sub graph] false))
 
 (defprotocol ISelectorFactory
-  (-eval [selector graph] [selector graph a] [selector graph a b] [selector graph a b c] [selector graph a b c d] [selector graph a b c d e] [selector graph a b c d e f] [selector graph a b c d e f g] [selector graph a b c d e f g h])
-  (-selector [selector graph] [selector graph a] [selector graph a b] [selector graph a b c] [selector graph a b c d] [selector graph a b c d e] [selector graph a b c d e f] [selector graph a b c d e f g] [selector graph a b c d e f g h]))
+  (-selector [selector-factory] [selector-factory a] [selector-factory a b] [selector-factory a b c] [selector-factory a b c d] [selector-factory a b c d e] [selector-factory a b c d e f] [selector-factory a b c d e f g] [selector-factory a b c d e f g h]))
 
 (defprotocol ICreateNode
   (-create-node [this graph]))
 
-(defprotocol IService
-  (-selector-added [this selector])
-  (-selector-removed [this selector]))
+
 
 (defprotocol IDynamicDepNode
   (get-tx [this])
@@ -60,6 +59,21 @@
                  context with dependencies that are encountered during query processing.")
   (node-undepend! [dependee dependent]))
 
+(defprotocol InformedSelector
+  (dependency-added [dependee-selector dependee-selector ]     ;[dependee-state dependee-effect depender-selector]
+                    ;=> new-dependee-effect
+                    "Called to inform a selector (the dependee) that another selector (the
+                    depender) has started depending on its value. Must return an opaque effect
+                    object which the dependee-selector's apply-effect can understand. The
+                    returned effect will replace the passed-in dependee-effect.")
+  (dependency-removed [dependee-selector dependee-selector ]              ;[dependee-state dependee-effect depender-selector]
+                      ;=> new-dependee-effect
+                      "Called to inform a selector (the dependee) that another selector (the
+                      depender) has ceased depending on its value. Must return an opaque effect
+                      object which the dependee-selector's apply-effect can understand. The
+                      returned effect will replace the passed-in dependee-effect."
+                      ))
+
 (defprotocol IDependencyNode
   "A utility API for tracking dependencies, allows us to provide more
    advanced options for assembling tracker policies"
@@ -83,5 +97,24 @@
   (-dependents node))
 (defn get-data-selector [node]
   (-data-selector node))
+
+
+(defprotocol StatefulSelector
+  (init [selector] ;=> state
+        "Return opaque state object which should be associated with the selector.)
+
+        This is an opportunity to initialize and acquire stateful or mutable
+        resources.")
+
+  (clear [selector state] ;=> nil
+         "Clear any stateful or mutable resources. Return value is ignored.
+         This is an opportunity to clean up before destruction."))
+
+(defprotocol SelectorEffects
+  (-apply [selector old-state effects]))
+
+(defprotocol SelectorValue
+  (-value [selector graph state]))
+
 
 

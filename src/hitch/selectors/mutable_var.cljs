@@ -3,12 +3,20 @@
             [hitch.graph :as graph]
             [hitch.selector :refer-macros [defselector]]))
 
-(defselector mutable-var [graph k]
-             (proto/get-value graph/*current-node*))
+(defrecord MutableVar [n]
+  proto/StatefulSelector
+  (init [selector] nil)
+  (clear [selector state])
+  proto/SelectorEffects
+  (-apply [selector old-state effect]
+    (let [[key newvalue] effect]
+      (case key
+        :set-value [(second effect)])))
+  proto/SelectorValue
+  (-value [selector graph state]
+    state))
 
-(defn set-var!
-  ([graph k value]
-   (let [kselector (proto/-selector mutable-var graph k)
-         var-node (graph/get-or-create-node! graph kselector)]
-     (graph/set-and-invalidate! graph var-node value)
-     )))
+(def mutable-var
+  (reify proto/ISelectorFactory
+    (-selector [_ n]
+      (->MutableVar n))))

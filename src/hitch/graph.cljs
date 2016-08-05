@@ -1,18 +1,21 @@
 (ns hitch.graph
-  (:require-macros [hitch.eager-go :refer [eager-go]])
+  (:require-macros [hitch.eager :refer [go]])
   (:require [hitch.protocols :as proto]
             [hitch.graphs.mutable :as mgraph]
+            [hitch.nodes.simple :refer [node]]
             [cljs.core.async.impl.protocols :as impl]
             [cljs.core.async :as async]))
 
-(def ^:dynamic *current-node* nil)
+
 (def ^:dynamic *execution-mode* true)
 (def loaded? proto/loaded?)
 
 (defn get-or-create-node! [graph selector]
   (if-let [n (proto/get-node graph selector)]
     n
-    (let [n (proto/add-node! graph selector (proto/-create-node selector graph))]
+    (let [n (proto/add-node! graph selector (if (satisfies? proto/ICreateNode selector)
+                                              (proto/-create-node selector graph)
+                                              (node selector)))]
       (proto/-recalculate! n graph)
       n)))
 
@@ -20,73 +23,82 @@
   (proto/get-node dependency-graph data-selector))
 
 (defn hitch-node
-  ([graph selector-constructor] (get-or-create-node! graph (proto/-selector selector-constructor graph)))
-  ([graph selector-constructor a] (get-or-create-node! graph (proto/-selector selector-constructor graph a)))
-  ([graph selector-constructor a b] (get-or-create-node! graph (proto/-selector selector-constructor graph a b)))
-  ([graph selector-constructor a b c] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c)))
-  ([graph selector-constructor a b c d] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c d)))
-  ([graph selector-constructor a b c d f] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c d f)))
-  ([graph selector-constructor a b c d f g] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c d f g)))
-  ([graph selector-constructor a b c d f g h] (get-or-create-node! graph (proto/-selector selector-constructor graph a b c d f g h))))
+  ([graph selector-constructor] (get-or-create-node! graph (proto/-selector selector-constructor)))
+  ([graph selector-constructor a] (get-or-create-node! graph (proto/-selector selector-constructor a)))
+  ([graph selector-constructor a b] (get-or-create-node! graph (proto/-selector selector-constructor a b)))
+  ([graph selector-constructor a b c] (get-or-create-node! graph (proto/-selector selector-constructor a b c)))
+  ([graph selector-constructor a b c d] (get-or-create-node! graph (proto/-selector selector-constructor a b c d)))
+  ([graph selector-constructor a b c d f] (get-or-create-node! graph (proto/-selector selector-constructor a b c d f)))
+  ([graph selector-constructor a b c d f g] (get-or-create-node! graph (proto/-selector selector-constructor a b c d f g)))
+  ([graph selector-constructor a b c d f g h] (get-or-create-node! graph (proto/-selector selector-constructor a b c d f g h))))
 
 (defn hitch-eval
-  ([graph selector-constructor] (proto/-eval selector-constructor graph))
-  ([graph selector-constructor a] (proto/-eval selector-constructor graph a))
-  ([graph selector-constructor a b] (proto/-eval selector-constructor graph a b))
-  ([graph selector-constructor a b c] (proto/-eval selector-constructor graph a b c))
-  ([graph selector-constructor a b c d] (proto/-eval selector-constructor graph a b c d))
-  ([graph selector-constructor a b c d f] (proto/-eval selector-constructor graph a b c d f))
-  ([graph selector-constructor a b c d f g] (proto/-eval selector-constructor graph a b c d f g))
-  ([graph selector-constructor a b c d f g h] (proto/-eval selector-constructor graph a b c d f g h)))
+  ([graph selector-constructor] (selector-constructor graph))
+  ([graph selector-constructor a] (selector-constructor graph a))
+  ([graph selector-constructor a b] (selector-constructor graph a b))
+  ([graph selector-constructor a b c] (selector-constructor graph a b c))
+  ([graph selector-constructor a b c d] (selector-constructor graph a b c d))
+  ([graph selector-constructor a b c d f] (selector-constructor graph a b c d f))
+  ([graph selector-constructor a b c d f g] (selector-constructor graph a b c d f g))
+  ([graph selector-constructor a b c d f g h] (selector-constructor graph a b c d f g h)))
+(declare apply-effects)
 
 (defn hitch
   ([graph selector-constructor]
-   (assert *current-node*)
-   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor)]
-     (proto/depend! graph node *current-node*)
+   (assert proto/*current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor)
+         invalidated (proto/depend! graph node proto/*current-node*)]
+     (apply-effects graph invalidated)
      node
      ))
   ([graph selector-constructor a]
-   (assert *current-node*)
-   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a)]
-     ;(prn "here"  node  *current-node*)
-     (proto/depend! graph node *current-node*)
+   (assert proto/*current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a)
+         invalidated (proto/depend! graph node proto/*current-node*)]
+     ;(prn "here"  node  proto/*current-node*)
+     (apply-effects graph invalidated)
      node
      ))
   ([graph selector-constructor a b]
-   (assert *current-node*)
-   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b)]
-     (proto/depend! graph node *current-node*)
+   (assert proto/*current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b)
+         invalidated (proto/depend! graph node proto/*current-node*)]
+     (apply-effects graph invalidated)
      node
      ))
   ([graph selector-constructor a b c]
-   (assert *current-node*)
-   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c)]
-     (proto/depend! graph node *current-node*)
+   (assert proto/*current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c)
+         invalidated (proto/depend! graph node proto/*current-node*)]
+     (apply-effects graph invalidated)
      node
      ))
   ([graph selector-constructor a b c d]
-   (assert *current-node*)
-   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d)]
-     (proto/depend! graph node *current-node*)
+   (assert proto/*current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d)
+         invalidated (proto/depend! graph node proto/*current-node*)]
+     (apply-effects graph invalidated)
      node
      ))
   ([graph selector-constructor a b c d f]
-   (assert *current-node*)
-   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f)]
-     (proto/depend! graph node *current-node*)
+   (assert proto/*current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f)
+         invalidated (proto/depend! graph node proto/*current-node*)]
+     (apply-effects graph invalidated)
      node
      ))
   ([graph selector-constructor a b c d f g]
-   (assert *current-node*)
-   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f g)]
-     (proto/depend! graph node *current-node*)
+   (assert proto/*current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f g)
+         invalidated (proto/depend! graph node proto/*current-node*)]
+     (apply-effects graph invalidated)
      node
      ))
   ([graph selector-constructor a b c d f g h]
-   (assert *current-node*)
-   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f g h)]
-     (proto/depend! graph node *current-node*)
+   (assert proto/*current-node*)
+   (let [node ((if *execution-mode* hitch-node hitch-eval) graph selector-constructor a b c d f g h)
+         invalidated (proto/depend! graph node proto/*current-node*)]
+     (apply-effects graph invalidated)
      node
      )))
 
@@ -154,43 +166,27 @@
   (proto/set-value! node value)
   (force-invalidate! graph node value))
 
-(defn promise-all
-  "Given a collection of takeable items, return a promise channel which will
-  contain a vector of the next available value taken from every item, preserving
-  order if it exists in the original collection. If any takeable is closed
-  the promise will be closed.
+(defn -apply-effects [graph selector-effect-pairs]
+  (loop [invalidated-nodes (transient #{}) selector-effect-pairs selector-effect-pairs]
+     (if-let [[selector effects] (first selector-effect-pairs)]
+       (let [node (get-or-create-node! graph selector)]
+         (if (satisfies? proto/SelectorEffects selector)
+           (let [old-state (.-state node)
+                  [new-state new-selector-effect-pairs] (proto/-apply selector old-state effects)
+                  nodes (-apply-effects graph new-selector-effect-pairs)]
+                (if (not= old-state new-state)
+                  (do
+                    (set! (.-state node) new-state)
+                    (recur (-> invalidated-nodes
+                               (into nil)
+                               (conj! node))
+                           (rest selector-effect-pairs)))
+                  (recur (into invalidated-nodes nodes)
+                         (rest selector-effect-pairs))))
+             (recur invalidated-nodes (rest selector-effect-pairs))
+           ))
+       (persistent! invalidated-nodes))))
 
-  Runs as synchronously as possible using poll! and offer!, only becoming async
-  if one of the takeable items is not immediately takeable.
-
-  Example:
-
-      (go
-        (let [a (chan)
-              b (chan)]
-          (>! a 1)
-          (>! b 2)
-          (= [1 2] (<! (promise-all [a b])))))"
-  [takeables]
-  (let [p       (async/promise-chan)
-        nc      (count takeables)
-        waiting (volatile! nc)
-        a       (object-array nc)]
-    (run! (map-indexed
-            (fn [i takeable]
-              (if-some [v (async/poll! takeable)]
-                (do
-                  (aset a i v)
-                  (vswap! waiting dec))
-                (async/take! takeable
-                             (fn [v]
-                               (if (nil? v)
-                                 (async/close! p)
-                                 (do
-                                   (aset a i v)
-                                   (when (zero? (vswap! waiting dec))
-                                     (async/offer! p (into [] a))))))))))
-          takeables)
-    (when (zero? waiting)
-      (async/offer! p (into [] a)))
-    p))
+(defn apply-effects [graph selector-effect-pairs]
+  (->> (-apply-effects graph selector-effect-pairs)
+       (invalidate-nodes graph)))

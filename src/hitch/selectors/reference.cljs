@@ -4,7 +4,7 @@
             [hitch.selector :refer-macros [defselector]]))
 
 (defselector reference [graph k]
-             (when-let [selector (and graph/*current-node* (.-refs graph/*current-node*))]
+             (when-let [selector (and proto/*current-node* (.-refs proto/*current-node*))]
                 (<! (graph/get-or-create-node! graph selector))))
 
 (defn set-reference!

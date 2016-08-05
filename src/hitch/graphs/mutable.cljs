@@ -1,7 +1,6 @@
 (ns hitch.graphs.mutable
   (:require [hitch.protocols :as proto]))
 
-
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable gc-list ^:mutable internal-invalidated
                           ^:mutable external-invalidated ^:mutable external-invalidate!]
