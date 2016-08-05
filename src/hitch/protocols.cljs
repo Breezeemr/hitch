@@ -15,13 +15,6 @@
 (defprotocol ISubscriber
   (-recalculate! [sub graph]))
 
-(defprotocol IInternalSubscriber
-  (-internal? [sub graph]))
-
-(extend-protocol IInternalSubscriber
-  default
-  (-internal? [sub graph] false))
-
 (defprotocol ISelectorFactory
   (-selector [selector-factory] [selector-factory a] [selector-factory a b] [selector-factory a b c] [selector-factory a b c d] [selector-factory a b c d e] [selector-factory a b c d e f] [selector-factory a b c d e f g] [selector-factory a b c d e f g h]))
 

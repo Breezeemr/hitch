@@ -24,7 +24,7 @@
           (done))
         ))))
 
-#_(deftest firstasync
+(deftest firstasync
   (let [graph (mgraph/graph)]
     (proto/clear-graph! graph)
     (async done

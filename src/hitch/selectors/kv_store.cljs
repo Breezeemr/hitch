@@ -17,7 +17,7 @@
         :set-value [(second effect)])))
   proto/SelectorValue
   (-value [this graph state]
-    (prn "keyspace" (graph/hitch graph keyspace ks))
+    (graph/hitch graph keyspace ks)
     state))
 
 (def key
@@ -36,25 +36,22 @@
      :deps #{}})
   (clear [selector state])
   proto/InformedSelector
-  (dependency-added [_ added]
-    (prn  [:add-dep added])
+  (dependency-added [self added]
     [:add-dep added])
-  (dependency-removed [_ removed]
+  (dependency-removed [self removed]
     [:remove-dep removed])
   proto/SelectorEffects
   (-apply [selector old-state effect]
     (let [[key] effect]
-      (prn effect)
       (case key
         :add-dep  [(update old-state :deps conj (second effect))]
         :remove-dep  [(update old-state :deps disj (second effect))]
         :set-value (let [new-value (second effect)]
-
                      [(assoc old-state :val new-value)
-                      #_(into [] (comp
+                      (into [] (comp
                                  (filter #(instance? KeySelector %))
                                  (map (fn [selector]
-                                        [selector (get new-value (:k selector))])))
+                                        [selector [:set-value (get new-value (:k selector))]])))
                             (:deps old-state))]))))
   proto/SelectorValue
   (-value [this graph state]

@@ -51,18 +51,20 @@
                 :default :value-unchanged)]
 
       ret))
-  proto/IInternalSubscriber
-  (-internal? [sub graph] true)
   proto/INodeDependencyTracker
   (node-depend! [this dependent]                            ;returns new?
     (if (contains? subscribers dependent)
       nil
       (do (set! subscribers (conj subscribers dependent))
           (let [dep-sel (proto/-data-selector dependent)]
-            (prn "sel" dep-sel)
             (when (satisfies? proto/InformedSelector selector)
-              (prn "add dep " selector dep-sel)
-              (proto/-apply selector state (proto/dependency-added selector dep-sel)))))))
+              (let [[new-state new-effects] (proto/-apply selector state (proto/dependency-added selector dep-sel))]
+                (if (not= new-state state)
+                  (do
+                    (set! state new-state)
+                    [new-effects #{this}])
+                  [new-effects])
+                ))))))
   (node-undepend! [this dependent]                          ;returns last-removed?
     (let [newdeps (disj subscribers dependent)]
       (when (not= subscribers newdeps)
@@ -70,7 +72,12 @@
           (set! subscribers newdeps)
           (let [dep-sel (proto/-data-selector dependent)]
             (when (satisfies? proto/InformedSelector selector)
-              (proto/-apply selector state (proto/dependency-removed selector dep-sel))))))))
+              (let [[new-state new-effects] (proto/-apply selector state (proto/dependency-removed selector dep-sel))]
+                (if (not= new-state state)
+                  (do
+                    (set! state new-state)
+                    [new-effects #{this}])
+                  [new-effects]))))))))
   IPrintWithWriter
   (-pr-writer [_ writer opts]
     (-write writer "#node {:value ")
