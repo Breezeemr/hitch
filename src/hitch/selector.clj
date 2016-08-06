@@ -42,8 +42,6 @@
   (clojure.core/mapv (clojure.core/juxt clojure.core/gensym clojure.core/identity) binding-form))
 
 (clojure.core/defmacro defselector [name constructor-binding-forms & body]
-  (clojure.core/assert (clojure.core/every? clojure.core/symbol? constructor-binding-forms))
-  ;(prn constructor-binding-forms)
   (let [symbol-binding-pairs (create-binding-syms constructor-binding-forms)
         eval-fn-name (clojure.core/gensym (clojure.core/str name "-eval-fn"))
         selector-name (clojure.core/gensym (clojure.core/str name "-selector"))]
