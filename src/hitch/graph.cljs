@@ -13,9 +13,11 @@
 (defn get-or-create-node! [graph selector]
   (if-let [n (proto/get-node graph selector)]
     n
-    (let [n (proto/add-node! graph selector (if (satisfies? proto/ICreateNode selector)
-                                              (proto/-create-node selector graph)
-                                              (node selector)))]
+    (let [n (node selector)
+          _ (if (satisfies? proto/StatefulSelector selector)
+               (set! (.-state node) (proto/init selector))
+               n)
+          _ (proto/add-node! graph selector n)]
       (proto/-recalculate! n graph)
       n)))
 
