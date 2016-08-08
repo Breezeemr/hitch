@@ -11,9 +11,6 @@
 
 (clojure.core/defn selector-record [selector-name eval-fn-name constructor-binding-forms body]
   `(defrecord ~selector-name ~(clojure.core/into []  (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
-     hitch.protocols/ICreateNode
-     (~'-create-node [~'this ~'graph]
-       (hitch.nodes.simple/node ~'this))
      hitch.protocols/SelectorValue
      (~'-value [~'selector ~(clojure.core/ffirst constructor-binding-forms) ~'state]
        (assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
