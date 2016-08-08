@@ -15,7 +15,7 @@
     n
     (let [n (node selector)
           _ (if (satisfies? proto/StatefulSelector selector)
-               (set! (.-state node) (proto/init selector))
+               (set! (.-state n) (proto/init selector))
                n)
           _ (proto/add-node! graph selector n)]
       (proto/-recalculate! n graph)
