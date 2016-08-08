@@ -59,7 +59,7 @@
                                        :output-dir     "resources/public/js/out"
                                        :optimizations  :none
                                        :source-map     true
-                                       ;:source-map-timestamp true
+                                       :source-map-timestamp false
                                        :cache-analysis true}}
                        {:id           "test"
                         :source-paths ["src" "test"]
@@ -73,7 +73,7 @@
                                        :optimizations :none
                                        :source-map true
                                        :source-map-timestamp false
-                                       ;:cache-analysis true
+                                       :cache-analysis true
                                        }}
                        {:id           "min"
                         :source-paths ["src"]
