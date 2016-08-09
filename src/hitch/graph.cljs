@@ -45,6 +45,14 @@
   ([graph selector-constructor a b c d f g h] (selector-constructor graph a b c d f g h)))
 (declare apply-effects invalidate-nodes)
 
+(defn hitch-sel [graph selector]
+  (assert proto/*current-node*)
+  (let [node (get-or-create-node! graph selector)
+        [more-effects invalidated] (proto/depend! graph node proto/*current-node*)]
+    (apply-effects graph more-effects)
+    (invalidate-nodes graph invalidated)
+    node))
+
 (defn hitch
   ([graph selector-constructor]
    (assert proto/*current-node*)
