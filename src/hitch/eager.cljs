@@ -23,7 +23,7 @@
         nc      (count takeables)
         waiting (volatile! nc)
         a       (object-array nc)]
-    (run! (map-indexed
+    (dorun (map-indexed
             (fn [i takeable]
               (if-some [v (async/poll! takeable)]
                 (do
@@ -36,8 +36,8 @@
                                  (do
                                    (aset a i v)
                                    (when (zero? (vswap! waiting dec))
-                                     (async/offer! p (into [] a))))))))))
-          takeables)
+                                     (async/offer! p (into [] a)))))))))
+            takeables))
     (when (zero? @waiting)
       (async/offer! p (into [] a)))
     p))
