@@ -11,7 +11,7 @@
                  [org.clojure/core.async  "0.2.385"]]
   :profiles {
              :dev {
-                   :dependencies []
+                   :dependencies [[devcards "0.2.1"]]
                    :plugins [                               ;[lein-cljsbuild "1.1.1"]
                              [lein-figwheel "0.5.4-7"]]
                    :figwheel { :http-server-root "public"
@@ -70,6 +70,20 @@
                                        :asset-path    "js/testout"
                                        :output-to     "resources/public/js/hitch_test.js"
                                        :output-dir    "resources/public/js/testout"
+                                       :optimizations :none
+                                       :source-map true
+                                       :source-map-timestamp false
+                                       :cache-analysis true
+                                       }}
+                       {:id           "devcards"
+                        :source-paths ["src" "test"]
+
+                        :figwheel     {:devcards true}
+
+                        :compiler     {:main          hitch.test-runner
+                                       :asset-path    "js/devcardsout"
+                                       :output-to     "resources/public/js/hitch_devcards.js"
+                                       :output-dir    "resources/public/js/devcardsout"
                                        :optimizations :none
                                        :source-map true
                                        :source-map-timestamp false
