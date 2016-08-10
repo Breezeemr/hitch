@@ -82,6 +82,8 @@
   (-pr-writer [_ writer opts]
     (-write writer "#node {:value ")
     (pr-writer value writer opts)
+    (-write writer "\n:state ")
+    (pr-writer state writer opts)
     ;(-write writer " :dependents ")
     ;(pr-writer dependents #_(into #{} (map #(.-selector %)) dependents) writer opts)
     ;(-write writer " :refs ")
