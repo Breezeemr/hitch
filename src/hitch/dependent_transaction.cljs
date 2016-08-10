@@ -4,19 +4,23 @@
             [clojure.set]
             [cljs.core.async.impl.protocols :as impl]))
 
-(deftype TX [graph ^:mutable requests]
-  proto/IDependencyTracker
-  (depend! [_ dependee dependent]
-    (set! requests (conj requests dependent))
-    (proto/depend! graph dependee dependent))
-  (undepend! [_ dependee dependent]
-    (proto/undepend! graph dependee dependent))
+(deftype TX [graph target ^:mutable requests]
+  proto/IBatching
+  (-request-effect [_ effect]
+    (proto/-request-effect graph effect))
+  (-request-invalidations [_ invalidations]
+    (proto/-request-invalidations graph invalidations))
   proto/IDependencyGraph
-  (get-node [this data-selector]
+  (peek-node [this data-selector]
+    (proto/peek-node graph data-selector))
+  (subscribe-node [this data-selector]
     (set! requests (conj requests data-selector))
-    (proto/get-node graph data-selector))
-  (add-node! [this data-selector new-node]
-    (proto/add-node! graph data-selector new-node))
+    (let [n (proto/get-or-create-node graph data-selector)
+          changes (proto/node-depend! n target)]
+      (when-let [[new-effects new-invalidates] changes]
+        (proto/-request-effect graph new-effects)
+        (proto/-request-invalidations graph new-invalidates))
+      n))
   #_(clear-graph! [this]
                   (proto/clear! graph))
   #_(gc [this data-selector]
@@ -26,8 +30,10 @@
   )
 
 
-(defn tx [graph]
-  (TX. graph #{}))
+(defn tx[graph target]
+  (if (instance? TX graph)
+    (TX. (.-graph graph) target #{})
+    (TX. graph target #{})))
 
 (defn new-selectors [oldtx newtx]
   (if oldtx
@@ -40,16 +46,24 @@
     #{}))
 
 (defn run-tx-computation [graph selector node]
-  (let [dtransact (tx graph)]
-    (binding [proto/*current-node* node]
-      (when-let [computation (proto/-value selector dtransact (.-state node))]
-        (let [new-value (if (satisfies? impl/ReadPort computation)
-                          (async/poll! computation)
-                          computation)]
-          (doseq [retired-selector (retired-selectors (proto/get-tx node) dtransact)
-                  :let [retired-node (proto/get-node graph retired-selector)]
-                  :when retired-node]
-            (proto/undepend! graph retired-node node))
-          (proto/set-tx! node dtransact)
-          new-value)))
+  (assert node)
+  ;(prn "run-tx-computation" (.-state node))
+  (let [dtransact (tx graph node)]
+    (binding [proto/*read-mode* true]
+      (let [computation (proto/-value selector dtransact (.-state node))
+            new-value (if (satisfies? impl/ReadPort computation)
+                        (async/poll! computation)
+                        computation)]
+        (doseq [retired-selector (retired-selectors (proto/get-tx node) dtransact)
+                :let [retired-node (proto/peek-node graph retired-selector)]
+                :when retired-node
+                :let [changes (proto/node-undepend! retired-node node)]
+                :when changes
+                :let [[new-effects new-invalidates] changes]]
+          (proto/-request-effect graph new-effects)
+          (proto/-request-invalidations graph new-invalidates))
+        (proto/set-tx! node dtransact)
+
+        ;(prn "new val" selector new-value )
+        new-value))
     ))

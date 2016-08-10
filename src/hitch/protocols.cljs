@@ -1,17 +1,13 @@
 (ns hitch.protocols)
 
-(def ^:dynamic *current-node* nil)
+(def ^:dynamic *read-mode* false)
 
-(defonce NOT-LOADED (reify Object
-                      (toString [this] "not-loaded")))
-
-(defn not-loaded? [a]
-  (or (identical? a NOT-LOADED)
-      (and (satisfies? IDeref a)
-           (identical? (deref a) NOT-LOADED))))
-
-(def loaded? (complement not-loaded?))
-
+(defonce NIL-SENTINAL (reify Object
+                      (toString [this] "NIL-SENTINAL")))
+(defn fixnil [v]
+  (if (identical? v NIL-SENTINAL)
+    nil
+    v))
 (defprotocol ISubscriber
   (-recalculate! [sub graph]))
 
@@ -24,21 +20,15 @@
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
-  (get-node [this data-selector] "gets node for dataselector")
+  (peek-node [this data-selector] "gets node for dataselector")
+  (subscribe-node [this data-selector] "gets node for dataselector")
   #_(create-node! [this data-selector]
                   "create node and follow init lifecycle")
-  (add-node! [this data-selector node]
-             "adds node")
+  (create-node! [this data-selector]
+                "adds node")
   (clear-graph! [this])
   (gc [this data-selector]
       "Schedule clean up of the resources for dataselector"))
-
-(defprotocol IDependencyTracker
-  "Implemented by function and component caches"
-  (depend! [graph dependee dependent]
-           "Dependency sources call this method if a tracker is bound in the current
-            context with dependencies that are encountered during query processing.")
-  (undepend! [graph dependee dependent]))
 
 (defprotocol INodeDependencyTracker
   "Implemented by function and component caches"
@@ -104,5 +94,19 @@
 (defprotocol SelectorValue
   (-value [selector graph state]))
 
+
+(defprotocol IBatching
+  (-request-effect [graph effect])
+  (-request-invalidations [graph effect])
+  (take-effects! [graph])
+  (take-invalidations! [graph]))
+
+
+(defn get-or-create-node [graph data-selector]
+  (if-let [n (peek-node graph data-selector)]
+    n
+    (let [n (create-node! graph data-selector)]
+      (-request-invalidations graph #{n})
+      n)))
 
 
