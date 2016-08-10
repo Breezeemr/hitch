@@ -1,6 +1,7 @@
 (ns hitch.selectors.mutable-var-test
-  (:require-macros [hitch.eager :refer [go]])
-  (:require [cljs.test :refer [] :refer-macros [is deftest run-tests async]]
+  (:require-macros [hitch.eager :refer [go]]
+                   [devcards.core :as dc :refer [deftest]])
+  (:require [cljs.test :refer [] :refer-macros [is run-tests async]]
             [hitch.protocols :as proto]
             [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as graph]
