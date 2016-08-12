@@ -13,6 +13,8 @@
   proto/IDependencyGraph
   (peek-node [this data-selector]
     (proto/peek-node graph data-selector))
+  (create-node! [this data-selector]
+    (proto/create-node! graph data-selector))
   (subscribe-node [this data-selector]
     (set! requests (conj requests data-selector))
     (let [n (proto/get-or-create-node graph data-selector)
