@@ -56,9 +56,9 @@
     (if (contains? subscribers dependent)
       nil
       (do (set! subscribers (conj subscribers dependent))
-          (let [dep-sel (proto/-data-selector dependent)]
-            (when (satisfies? proto/InformedSelector selector)
-              (let [[new-state new-effects] (proto/-apply selector state (proto/dependency-added selector dep-sel))]
+          (when (satisfies? proto/InformedSelector selector)
+            (when (satisfies? proto/IDependencyNode dependent)
+              (let [[new-state new-effects] (proto/-apply selector state (proto/dependency-added selector (proto/-data-selector dependent)))]
                 (if (not= new-state state)
                   (do
                     (set! state new-state)
@@ -70,9 +70,9 @@
       (when (not= subscribers newdeps)
         (do
           (set! subscribers newdeps)
-          (let [dep-sel (proto/-data-selector dependent)]
-            (when (satisfies? proto/InformedSelector selector)
-              (let [[new-state new-effects] (proto/-apply selector state (proto/dependency-removed selector dep-sel))]
+          (when (satisfies? proto/InformedSelector selector)
+            (when (satisfies? proto/IDependencyNode dependent)
+              (let [[new-state new-effects] (proto/-apply selector state (proto/dependency-removed selector (proto/-data-selector dependent)))]
                 (if (not= new-state state)
                   (do
                     (set! state new-state)

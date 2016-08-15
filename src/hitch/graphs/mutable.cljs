@@ -24,9 +24,9 @@
             (proto/undepend! this d))
           true))
   proto/IBatching
-  (-request-effect [graph effect]
+  (-request-effects [graph effect]
     (when effect
-      (set! effects (conj effects effect))))
+      (set! effects (into effects effect))))
   (-request-invalidations [graph invalidaitons]
     (set! internal-invalidated (into internal-invalidated invalidaitons )))
   (take-effects! [graph]

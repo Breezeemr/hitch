@@ -96,8 +96,8 @@
 
 
 (defprotocol IBatching
-  (-request-effect [graph effect])
-  (-request-invalidations [graph effect])
+  (-request-effects [graph selector-effect-pairs])
+  (-request-invalidations [graph invalidations])
   (take-effects! [graph])
   (take-invalidations! [graph]))
 

@@ -6,8 +6,8 @@
 
 (deftype TX [graph target ^:mutable requests]
   proto/IBatching
-  (-request-effect [_ effect]
-    (proto/-request-effect graph effect))
+  (-request-effects [_ effect]
+    (proto/-request-effects graph effect))
   (-request-invalidations [_ invalidations]
     (proto/-request-invalidations graph invalidations))
   proto/IDependencyGraph
@@ -20,7 +20,7 @@
     (let [n (proto/get-or-create-node graph data-selector)
           changes (proto/node-depend! n target)]
       (when-let [[new-effects new-invalidates] changes]
-        (proto/-request-effect graph new-effects)
+        (proto/-request-effects graph new-effects)
         (proto/-request-invalidations graph new-invalidates))
       n))
   #_(clear-graph! [this]
@@ -62,7 +62,7 @@
                 :let [changes (proto/node-undepend! retired-node node)]
                 :when changes
                 :let [[new-effects new-invalidates] changes]]
-          (proto/-request-effect graph new-effects)
+          (proto/-request-effects graph new-effects)
           (proto/-request-invalidations graph new-invalidates))
         (proto/set-tx! node dtransact)
 
