@@ -146,24 +146,21 @@
            ))
        (persistent! invalidated-nodes))))
 
-(defn apply-effects [graph selector-effect-pairs]
-  (binding [proto/*read-mode* true]
-    (->> (-apply-effects graph selector-effect-pairs)
-         (invalidate-nodes graph))))
+
 
 (defn normalize-tx! [graph effects invalidations]
   (binding [proto/*read-mode* true]
     (loop [stage :effects effects effects invalidations invalidations]
       (when (or (not-empty effects) (not-empty invalidations))
-        ;(prn stage)
+        ;(prn stage (count effects) (count invalidations))
         ;(prn :effects effects)
         ;(prn :invaldations invalidations)
         (case stage
-          :effects (let [invals (reduce (fn [acc effect]
-                                          (into acc (-apply-effects graph effect)))
-                                        invalidations
-                                        effects)]
+          :effects (let [invals (into invalidations (-apply-effects graph effects))]
                      (recur :invalidate (proto/take-effects! graph) (into invals (proto/take-invalidations! graph))))
           :invalidate (let [_ (invalidate-nodes graph invalidations)
                             effs (proto/take-effects! graph)]
                         (recur :effects (into effects effs) (proto/take-invalidations! graph))))))))
+
+(defn apply-effects [graph selector-effect-pairs]
+  (normalize-tx! graph selector-effect-pairs #{}))
