@@ -10,6 +10,8 @@
     (proto/-request-effects graph effect))
   (-request-invalidations [_ invalidations]
     (proto/-request-invalidations graph invalidations))
+  (take-effects! [_] (proto/take-effects! graph))
+  (take-invalidations! [_] (proto/take-invalidations! graph))
   proto/IDependencyGraph
   (peek-node [this data-selector]
     (proto/peek-node graph data-selector))
