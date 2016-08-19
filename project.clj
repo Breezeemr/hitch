@@ -7,11 +7,11 @@
 
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/clojurescript "1.9.93" :scope "provided"]
-                 [com.cemerick/piggieback "0.2.1"]    ; needed by figwheel nrepl
                  [org.clojure/core.async  "0.2.385"]]
   :profiles {
              :dev {
-                   :dependencies [[devcards "0.2.1"]]
+                   :dependencies [[com.cemerick/piggieback "0.2.1"]    ; needed by figwheel nrepl
+                                  [devcards "0.2.1"]]
                    :plugins [                               ;[lein-cljsbuild "1.1.1"]
                              [lein-figwheel "0.5.4-7"]]
                    :figwheel { :http-server-root "public"
