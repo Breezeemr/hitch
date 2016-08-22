@@ -103,7 +103,7 @@
           :value-changed (do                                ;(prn  :value-changed)
                            (recur (rest nodes)
                                   (reduce conj! newitems  (proto/get-dependents node))
-                                  (assoc! external-invalids (proto/get-value node) (proto/-take-one-time-dependents! node))))
+                                  (conj! external-invalids [(proto/get-value node) (proto/-take-one-time-dependents! node)])))
           :value-unchanged (recur (rest nodes) newitems external-invalids)
           :stale (recur (rest nodes) newitems external-invalids)
           ;:transient-error   (recur (rest nodes) newitems external-invalids)
@@ -113,7 +113,7 @@
        external-invalids])))
 (defn invalidate-nodes [graph nodes]
   ;(prn "invalidate-nodes")
-  (loop [[nodes external-invalids] (invalidate-level graph nodes (transient {}))]
+  (loop [[nodes external-invalids] (invalidate-level graph nodes (transient []))]
     (if (not-empty nodes)
       (recur (invalidate-level graph nodes external-invalids))
       (doseq [[value ext-items] (persistent! external-invalids)]
