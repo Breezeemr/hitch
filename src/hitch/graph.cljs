@@ -126,8 +126,12 @@
                                             (remove nil?))
                                           selectors)))))
 
+(def mcident (mapcat identity))
+(defn educat [items]
+  (eduction mcident items))
+
 (defn -apply-effects [graph selector-effect-pairs]
-  (loop [invalidated-nodes (transient #{}) selector-effect-pairs selector-effect-pairs]
+  (loop [invalidated-nodes (transient #{}) selector-effect-pairs selector-effect-pairs selector-effect-pairs-acc (transient [])]
      (if-let [[selector effects] (first selector-effect-pairs)]
        (let [node (proto/peek-node graph selector)]
          (assert node "you cannot apply effects to a selector that is not depended on")
@@ -139,12 +143,16 @@
                     (set! (.-state node) new-state)
                     (recur (-> (reduce conj! invalidated-nodes nodes)
                                (conj! node))
-                           (into (rest selector-effect-pairs) new-selector-effect-pairs)))
+                           (rest selector-effect-pairs)
+                           (conj! selector-effect-pairs-acc new-selector-effect-pairs)))
                   (recur (into invalidated-nodes nodes)
-                         (into (rest selector-effect-pairs) new-selector-effect-pairs))))
-             (recur invalidated-nodes (rest selector-effect-pairs))
-           ))
-       (persistent! invalidated-nodes))))
+                         (rest selector-effect-pairs)
+                         (conj! selector-effect-pairs-acc  new-selector-effect-pairs))))
+             (recur invalidated-nodes (rest selector-effect-pairs) selector-effect-pairs-acc)))
+       (let [persistent-selector-effect-pairs-acc (persistent! selector-effect-pairs-acc)]
+         (if (not-empty persistent-selector-effect-pairs-acc)
+           (recur invalidated-nodes (educat persistent-selector-effect-pairs-acc) (transient []))
+           (persistent! invalidated-nodes))))))
 
 
 
@@ -156,11 +164,13 @@
         ;(prn :effects effects)
         ;(prn :invaldations invalidations)
         (case stage
-          :effects (let [invals (into invalidations (-apply-effects graph effects))]
-                     (recur :invalidate (proto/take-effects! graph) (into invals (proto/take-invalidations! graph))))
-          :invalidate (let [_ (invalidate-nodes graph invalidations)
-                            effs (proto/take-effects! graph)]
-                        (recur :effects (into effects effs) (proto/take-invalidations! graph))))))))
+          :effects (recur :invalidate
+                          (proto/take-effects! graph)
+                          (educat [invalidations
+                                   (-apply-effects graph effects)
+                                   (proto/take-invalidations! graph)]))
+          :invalidate (do (invalidate-nodes graph invalidations)
+                        (recur :effects (educat [effects (proto/take-effects! graph)]) (proto/take-invalidations! graph))))))))
 
 (defn apply-effects [graph selector-effect-pairs]
   (normalize-tx! graph selector-effect-pairs #{}))

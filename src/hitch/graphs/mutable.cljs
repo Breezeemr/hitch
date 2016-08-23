@@ -26,21 +26,22 @@
   proto/IBatching
   (-request-effects [graph effect]
     (when effect
-      (set! effects (into effects effect))))
+      (set! effects (conj! effects effect))))
   (-request-invalidations [graph invalidaitons]
-    (set! internal-invalidated (into internal-invalidated invalidaitons )))
+    (when invalidaitons
+      (set! internal-invalidated (conj! internal-invalidated invalidaitons))))
   (take-effects! [graph]
     (let [ret effects]
-      (set! effects [])
-      ret
+      (set! effects (transient []))
+      (eduction (mapcat identity) (persistent! ret))
       ))
   (take-invalidations! [graph]
     (let [ret internal-invalidated]
-      (set! internal-invalidated #{})
-      ret)))
+      (set! internal-invalidated (transient []))
+      (eduction (mapcat identity) (persistent! ret)))))
 
 (defn graph []
-  (DependencyGraph. {} [] #{} #{} identity))
+  (DependencyGraph. {} [] (transient []) (transient []) identity))
 
 (defn get-node-map [graph]
   (.-nodemap graph))
