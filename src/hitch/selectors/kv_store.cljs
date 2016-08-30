@@ -36,10 +36,6 @@
      :deps #{}})
   (clear [selector state])
   proto/InformedSelector
-  (dependency-added [self added]
-    [:add-dep added])
-  (dependency-removed [self removed]
-    [:remove-dep removed])
   proto/SelectorEffects
   (-apply [selector old-state effect]
     (let [[key] effect]

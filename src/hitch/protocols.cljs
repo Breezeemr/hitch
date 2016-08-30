@@ -37,7 +37,12 @@
                  context with dependencies that are encountered during query processing.")
   (node-undepend! [dependee dependent]))
 
+
 (defprotocol InformedSelector
+  "A marker protocol. When present, a :hitch.protocol/child-changes effect are
+  added to the selector's effect queue which inform when child selectors begin
+  to or cease depending on the current selector.")
+#_(defprotocol InformedSelector
   (dependency-added [dependant-selector dependee-selector ]     ;[dependee-state dependee-effect depender-selector]
                     ;=> new-dependee-effect
                     "Called to inform a selector (the dependee) that another selector (the
