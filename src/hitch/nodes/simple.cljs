@@ -3,12 +3,13 @@
             [hitch.dependent-transaction :as dtx]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :as impl]
-            [cljs.core.async.impl.channels :as imp-chan]))
+            [cljs.core.async.impl.channels :as imp-chan]
+            hitch.values))
 
 
 
 
-(deftype Node [selector ^:mutable value ^:mutable state ^:mutable stale? ^:mutable subscribers ^:mutable one-time-subscribers ^:mutable refs]
+(deftype Node [selector ^:mutable value ^:mutable state ^:mutable stale? ^:mutable subscribers ^:mutable external-dependencies ^:mutable refs]
   proto/IDependencyNode
   (-get-value [_]
     (proto/get-value value))                                ;unwrap references
@@ -16,17 +17,19 @@
     (set! value new-value))
   (-dependents [_]
     subscribers)
-  (-take-one-time-dependents! [_]
-    ;(prn "one" one-time-subscribers)
-    (let [ret one-time-subscribers]
+  (-add-external-dependent [this dependent]
 
-      (set! one-time-subscribers #{})
-      ;(prn "ret" ret)
-      ret))
+    (set! external-dependencies ((fnil conj #{}) external-dependencies dependent)))
+  (-remove-external-dependent [this dependent]
+    (set! external-dependencies (not-empty (disj external-dependencies dependent))))
+  (-get-external-dependents [_]
+    external-dependencies)
   (-data-selector [_]
     selector)
   (clear-node! [this graph]
     (set! value nil)
+    (when (satisfies? proto/StatefulSelector selector)
+      (set! state (proto/init selector)))
     (set! stale? true)
     (set! subscribers #{}))
   proto/IDynamicDepNode
@@ -40,44 +43,8 @@
         (let [_ (impl/commit handler)]
           (imp-chan/box value))
         (do
-          (set! one-time-subscribers (conj one-time-subscribers handler))
+          ;(set! external-dependencies (conj external-dependencies handler))
           nil))))
-  proto/ISubscriber
-  (-recalculate! [node graph]
-    (let [new-value (dtx/run-tx-computation graph selector node)
-          ret (cond
-                (and value (nil? new-value)) :stale
-                (not= value new-value) (do #_(prn "changein") (set! value new-value) :value-changed)
-                :default :value-unchanged)]
-
-      ret))
-  proto/INodeDependencyTracker
-  (node-depend! [this dependent]                            ;returns new?
-    (if (contains? subscribers dependent)
-      nil
-      (do (set! subscribers (conj subscribers dependent))
-          (when (satisfies? proto/InformedSelector selector)
-            (when (satisfies? proto/IDependencyNode dependent)
-              (let [[new-state new-effects] (proto/-apply selector state [:add-dep (proto/-data-selector dependent)])]
-                (if (not= new-state state)
-                  (do
-                    (set! state new-state)
-                    [new-effects #{this}])
-                  [new-effects])
-                ))))))
-  (node-undepend! [this dependent]                          ;returns last-removed?
-    (let [newdeps (disj subscribers dependent)]
-      (when (not= subscribers newdeps)
-        (do
-          (set! subscribers newdeps)
-          (when (satisfies? proto/InformedSelector selector)
-            (when (satisfies? proto/IDependencyNode dependent)
-              (let [[new-state new-effects] (proto/-apply selector state [:remove-dep (proto/-data-selector dependent)])]
-                (if (not= new-state state)
-                  (do
-                    (set! state new-state)
-                    [new-effects #{this}])
-                  [new-effects]))))))))
   IPrintWithWriter
   (-pr-writer [_ writer opts]
     (-write writer "#node {:value ")
@@ -93,6 +60,6 @@
 (defn node
   ([sel] (node sel nil))
   ([sel val]
-   (->Node sel val nil true #{} #{} #{})))
+   (->Node sel val nil true #{} nil #{})))
 
 

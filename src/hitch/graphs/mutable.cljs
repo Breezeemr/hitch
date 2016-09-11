@@ -3,7 +3,7 @@
             [hitch.nodes.simple :refer [node]]))
 
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
-(deftype DependencyGraph [^:mutable nodemap ^:mutable gc-list ^:mutable internal-invalidated
+(deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate ^:mutable internal-invalidated
                           ^:mutable effects ^:mutable external-invalidate!]
   proto/IDependencyGraph
   (peek-node [this data-selector]
@@ -18,30 +18,25 @@
     (doseq [node (vals nodemap)]
       (proto/clear-node! node dgraph))
     (set! nodemap {})
-    (set! gc-list []))
+    (set! tempstate  {}))
   (gc [this data-selector]
     #_(do (doseq [d (proto/selector-dependencies data-selector)]
             (proto/undepend! this d))
           true))
   proto/IBatching
-  (-request-effects [graph effect]
-    (when effect
-      (set! effects (conj! effects effect))))
-  (-request-invalidations [graph invalidaitons]
-    (when invalidaitons
-      (set! internal-invalidated (conj! internal-invalidated invalidaitons))))
-  (take-effects! [graph]
-    (let [ret effects]
-      (set! effects (transient []))
-      (eduction (mapcat identity) (persistent! ret))
-      ))
+  (-request-invalidations [graph invalidaiton]
+    (if internal-invalidated
+      (set! internal-invalidated (conj! internal-invalidated invalidaiton))
+      (set! internal-invalidated (transient [invalidaiton]))))
+  (peek-invalidations [graph]
+    internal-invalidated)
   (take-invalidations! [graph]
-    (let [ret internal-invalidated]
-      (set! internal-invalidated (transient []))
-      (eduction (mapcat identity) (persistent! ret)))))
+    (when-let [ret internal-invalidated]
+      (set! internal-invalidated nil)
+      (persistent! ret))))
 
 (defn graph []
-  (DependencyGraph. {} [] (transient []) (transient []) identity))
+  (DependencyGraph. {}  {} (transient []) (transient []) identity))
 
 (defn get-node-map [graph]
   (.-nodemap graph))

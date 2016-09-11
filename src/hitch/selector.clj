@@ -10,13 +10,19 @@
        ~@body)))
 
 (clojure.core/defn selector-record [selector-name eval-fn-name constructor-binding-forms body]
-  `(defrecord ~selector-name ~(clojure.core/into []  (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
-     hitch.protocols/SelectorValue
-     (~'-value [~'selector ~(clojure.core/ffirst constructor-binding-forms) ~'state]
-       (assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
-       ~(clojure.core/->> constructor-binding-forms
-                          (clojure.core/map clojure.core/first)
-                          (clojure.core/cons eval-fn-name)))))
+  (let [graphsymbol (->> constructor-binding-forms clojure.core/ffirst)]
+    `(defrecord ~selector-name ~(clojure.core/into [] (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
+       hitch.protocols/SelectorValue
+       (~'-value [~'selector ~graphsymbol ~'state]
+         (assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
+         (cljs.core/let [~'dtx (hitch.dependent-transaction/tx ~graphsymbol ~'selector)]
+           (hitch.selector/handle-selector-value
+             ~'dtx
+             ~(clojure.core/->> constructor-binding-forms
+                                clojure.core/rest
+                                (clojure.core/map clojure.core/first)
+                                (clojure.core/cons 'dtx)
+                                (clojure.core/cons eval-fn-name))))))))
 
 (clojure.core/defn sel-constructor [name eval-fn-name selector-name constructor-binding-forms body]
   `(def ~name
