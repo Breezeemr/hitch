@@ -15,32 +15,35 @@
 (deftest firstt
   (let [graph (mgraph/graph)]
     (async done
-      (let [node1 (graph/hook graph key :main :test)
+      (let [ks-sel (proto/-selector keyspace :main)
+            node1 (graph/get-or-create-node! graph (proto/-selector key ks-sel :test))
             ks-node (graph/hook graph keyspace :main)
-            ks-sel (proto/-selector keyspace :main)]
+            ]
         (is (= (async/poll! node1) nil))
         (graph/apply-effects graph [[ks-sel [:set-value {:test :cat}]]])
         (go
-          (is (= (async/poll! node1) :cat))
+          (is (= (async/<! node1) :cat))
           (done))
         ))))
 
 (deftest firstasync
   (let [graph (mgraph/graph)]
     (async done
-      (let [node1 (graph/hook graph key :main :test)
+      (let [testsel (proto/-selector keyspace :main)        ;(proto/-selector key :main :test)
+            node1 (graph/get-or-create-node! graph (proto/-selector key testsel :test))
             ks-node (graph/hook graph keyspace :main)
-            testsel (proto/-selector keyspace :main)        ;(proto/-selector key :main :test)
+
             ks (async/poll! ks-node)]
+        (prn node1)
         (go
           ;(prn 1)
-          (is (= (async/<! node1) 7))
+          (is (= (async/<! (graph/hook graph key testsel :test)) 7))
           ;(prn 2)
           (proto/clear-node! node1 graph)
-          (is (= (async/<! node1) 8))
+          (is (= (async/<! (graph/hook graph key testsel :test)) 8))
           ;(prn 3)
           (proto/clear-node! node1 graph)
-          (is (= (async/<! node1) 9))
+          (is (= (async/<! (graph/hook graph key testsel :test)) 9))
           ;(prn 4)
           (done))
         (graph/apply-effects graph [[testsel [:set-value {:test 7}]]])

@@ -2,56 +2,67 @@
   (:refer-clojure :exclude [key])
   (:require [hitch.protocols :as proto]
             [hitch.graph :as graph]
-
+            [hitch.values :refer [->Realized ->NotRealized]]
             [hitch.nodes.simple :as node]
             [hitch.graph :as graph]
-            [hitch.selector :refer-macros [defselector]])
+            [hitch.selector :refer-macros [defselector]]
+            [cljs.core.async :as async])
   )
 
 (declare  keyspace)
-(defrecord KeySelector [ks k]
-  proto/SelectorEffects
-  (-apply [selector old-state effect]
-    (let [[key newvalue] effect]
-      (case key
-        :set-value [(second effect)])))
-  proto/SelectorValue
-  (-value [this graph state]
-    (graph/hitch graph keyspace ks)
-    state))
+;(defrecord KeySelector [ks k]
+;  proto/SelectorValue
+;  (-value [this graph state]
+;    (let [keyspace-selector (proto/-selector keyspace ks)]
+;      (if-let [kstore (some-> (proto/peek-node graph keyspace-selector)
+;                              async/poll!)]
+;
+;        (->Realized (get kstore k) #{keyspace-selector})
+;        (->NotRealized #{keyspace-selector})))
+;    ))
+;
+;(def key
+;  (reify
+;    IFn
+;    (-invoke [this graph ks k]
+;      (assert nil "alias is stateful and should not be evaled"))
+;    proto/ISelectorFactory
+;    (-selector [this ks k]
+;      (->KeySelector ks k))))
 
-(def key
-  (reify
-    IFn
-    (-invoke [this graph ks k]
-      (assert nil "alias is stateful and should not be evaled"))
-    proto/ISelectorFactory
-    (-selector [this ks k]
-      (->KeySelector ks k))))
+(defselector key [graph sel k]
+  (get (-> (graph/hitch-sel graph sel)
+           async/<!) k)
+  )
 
 (defrecord KVStoreServiceSelector [keyspace]
   proto/StatefulSelector
   (init [selector]
-    {:val nil
+    {:val proto/NIL-SENTINAL
      :deps #{}})
   (clear [selector state])
   proto/InformedSelector
-  proto/SelectorEffects
-  (-apply [selector old-state effect]
-    (let [[key] effect]
+  proto/EffectableSelector
+  (effect-accumulator
+    [s state] state)
+  (effect-step [s acc event]
+    ;(prn "effect " event)
+    (let [[key] event]
       (case key
-        :add-dep  [(update old-state :deps conj (second effect))]
-        :remove-dep  [(update old-state :deps disj (second effect))]
-        :set-value (let [new-value (second effect)]
-                     [(assoc old-state :val new-value)
-                      (into [] (comp
-                                 (filter #(instance? KeySelector %))
-                                 (map (fn [selector]
-                                        [selector [:set-value (get new-value (:k selector))]])))
-                            (:deps old-state))]))))
+        :add-dep (update acc :deps conj (second event))
+        :remove-dep (update acc :deps disj (second event))
+        :set-value (let [new-value (second event)]
+                     (assoc acc :val new-value)
+                     ))))
+  (effect-result [s acc]
+    ;(prn "acc" acc)
+    (proto/->EffectResult acc))
   proto/SelectorValue
   (-value [this graph state]
-    keyspace))
+    ;(prn "state" state)
+    (if (identical? (:val state) proto/NIL-SENTINAL)
+      (->NotRealized nil)
+      (->Realized (:val state) nil))))
 
 (def keyspace
   (reify
