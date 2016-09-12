@@ -193,10 +193,6 @@
         (recur (invalidate-level graph newinvalids external-invalids))
         (persistent! external-invalids)))))
 
-(def mcident (mapcat identity))
-(defn educat [items]
-  (eduction mcident items))
-
 (defn -apply-selector-effects [graph selector effect]
   (let [state-atom (proto/get-temp-state graph selector)]
     (swap! state-atom #(proto/effect-step selector % effect))))
