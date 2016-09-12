@@ -4,7 +4,7 @@
 
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate ^:mutable internal-invalidated
-                          ^:mutable effects ^:mutable external-invalidate!]
+                          ^:mutable external-invalidate!]
   proto/IDependencyGraph
   (peek-node [this data-selector]
     (get nodemap data-selector))
@@ -36,7 +36,7 @@
       (persistent! ret))))
 
 (defn graph []
-  (DependencyGraph. {}  {} (transient []) (transient []) identity))
+  (DependencyGraph. {}  {} nil identity))
 
 (defn get-node-map [graph]
   (.-nodemap graph))
