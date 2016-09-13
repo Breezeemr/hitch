@@ -106,28 +106,29 @@
 
 (defn filtered-set-add [target selector source filter ]
   ;(prn "filtered-set-add" selector source filter)
-  (transduce (comp (remove filter)
-                   (map (fn [a] [selector a])))
-             conj! target  source))
-(declare -apply-selector-effects)
+  (conj! target [selector (eduction (remove filter) source)]))
+
+(declare -apply-selector-effect)
 (defn update-dependencies! [graph newdeps retiredeps]
   ;(prn "newdeps retiredeps" newdeps retiredeps)
-  (doseq [[child parent] newdeps]
+  (doseq [[child parents] newdeps
+          parent parents]
           (let [parentnode (proto/get-or-create-node graph parent)
                 subscribers (.-subscribers parentnode)]
             (when-not (contains? subscribers child)
               ;(prn "add subscrption" child "to " parent)
               (set! (.-subscribers parentnode) (conj subscribers child)))
             (when (satisfies? proto/InformedSelector parent)
-              (-apply-selector-effects graph parent [:add-dep child]))
+              (-apply-selector-effect graph parent [:add-dep child]))
             ))
-  (doseq [[child parent] retiredeps]
+  (doseq [[child parents] retiredeps
+          parent parents]
     (let [parentnode (proto/get-or-create-node graph parent)
           subscribers (.-subscribers parentnode)]
       (when (contains? subscribers child)
         (set! (.-subscribers parentnode) (disj subscribers child)))
       (when (satisfies? proto/InformedSelector parent)
-        (-apply-selector-effects graph parent [:remove-dep child])))))
+        (-apply-selector-effect graph parent [:remove-dep child])))))
 
 ;;;; new api
 (defn invalidate-level [graph selectors external-invalids]
@@ -135,8 +136,8 @@
                      selectors
                      (-iterator selectors))
          newitems (transient #{})
-         newdeps (transient #{})
-         retiredeps (transient #{})
+         newdeps (transient [])
+         retiredeps (transient [])
          external-invalids external-invalids]
     (if-let [selector (first selectors)]
       (if-let [node (proto/peek-node graph selector)]
@@ -193,7 +194,7 @@
         (recur (invalidate-level graph newinvalids external-invalids))
         (persistent! external-invalids)))))
 
-(defn -apply-selector-effects [graph selector effect]
+(defn -apply-selector-effect [graph selector effect]
   (let [state-atom (proto/get-temp-state graph selector)]
     (swap! state-atom #(proto/effect-step selector % effect))))
 
@@ -216,8 +217,7 @@
 
 (defn -apply-selector-effect-pairs [graph selector-effect-pairs]
   (doseq [[selector effects] selector-effect-pairs]
-    (-apply-selector-effects graph selector effects)
-    ))
+    (-apply-selector-effect graph selector effects)))
 
 
 
