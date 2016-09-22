@@ -8,7 +8,7 @@
 
 
 (def ^:dynamic *execution-mode* true)
-(declare apply-effects invalidate-nodes normalize-tx!)
+(declare apply-effects invalidate-nodes normalize-tx! schedule-actions)
 
 (defn get-or-create-node! [graph selector]
   (let [n (binding [proto/*read-mode* true] (proto/get-or-create-node graph selector))]
@@ -211,7 +211,7 @@
                             (when (instance? proto/EffectResultAction selector)
                               (when-not @proto/scheduled-actions
                                 (vreset! proto/scheduled-actions true)
-                                (proto/schedule-actions graph))
+                                (schedule-actions graph))
                               (vswap! proto/pending-actions conj (:action result)))
                             (if (satisfies? proto/SilentSelector selector)
                               (eduction cat [[selector] (:recalc-child-selectors result) ])
@@ -240,3 +240,19 @@
  (binding [proto/*read-mode* true]
      (-apply-selector-effect-pairs graph selector-effect-pairs)
      (normalize-tx! graph)))
+
+(defn process-actions [graph]
+  (fn []
+    (let [simple-graph (reify ILookup
+                         (-lookup [this k]
+                           (-lookup this k nil))
+                         (-lookup [this k not-found]
+                           (if-let [node (proto/peek-node graph k)]
+                             (.-value node)
+                             not-found)))]
+      (vreset! proto/scheduled-actions true)
+      (doseq [scheduled-action @proto/scheduled-actions]
+        (scheduled-action simple-graph (fn [selector-effect-pairs] (apply-effects graph selector-effect-pairs)))))))
+
+(defn schedule-actions [graph]
+  (goog.async.nextTick (process-actions graph)))
