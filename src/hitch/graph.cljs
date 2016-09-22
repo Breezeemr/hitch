@@ -208,7 +208,7 @@
                           (let [{new-state :state :as result} (proto/effect-result selector @v)]
                             ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                             (set! (.-state node) new-state)
-                            (when (instance? proto/EffectResultAction selector)
+                            (when (instance? proto/EffectResultAction result)
                               (when-not @proto/scheduled-actions
                                 (vreset! proto/scheduled-actions true)
                                 (schedule-actions graph))
@@ -251,7 +251,7 @@
                              (.-value node)
                              not-found)))]
       (vreset! proto/scheduled-actions true)
-      (doseq [scheduled-action @proto/scheduled-actions]
+      (doseq [scheduled-action @proto/pending-actions]
         (scheduled-action simple-graph (fn [selector-effect-pairs] (apply-effects graph selector-effect-pairs)))))))
 
 (defn schedule-actions [graph]
