@@ -24,7 +24,9 @@
                    (fn [e] (cb (deserializer e))))
     (events/listen xhr EventType/ERROR
                    (fn [e] e))
-    (.send xhr (str url) (meths method) (serializer content) headers)
+    (.send xhr (str url) (meths method) (if serializer
+                                          (serializer content)
+                                          content) headers)
     ))
 
 (defrecord HTTPSelector [url method serializer deserializer content headers]
@@ -38,7 +40,6 @@
   (effect-accumulator
     [s state] state)
   (effect-step [s acc event]
-    ;(prn "effect " event)
     (let [[key] event]
       (case key
         :add-dep (update acc :deps conj (second event))
