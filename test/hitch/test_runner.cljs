@@ -2,6 +2,7 @@
   (:require [hitch.core-test]
             [hitch.selectors.mutable-var-test]
             [hitch.selectors.kv-store-test]
+            [hitch.selectors.http-test]
             [cljs.test :as test :include-macros true :refer [report]])
   (:import [goog.dom DomHelper]
            [goog dom]))
