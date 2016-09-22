@@ -208,6 +208,11 @@
                           (let [{new-state :state :as result} (proto/effect-result selector @v)]
                             ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                             (set! (.-state node) new-state)
+                            (when (instance? proto/EffectResultAction selector)
+                              (when-not @proto/scheduled-actions
+                                (vreset! proto/scheduled-actions true)
+                                (proto/schedule-actions graph))
+                              (vswap! proto/pending-actions conj (:action result)))
                             (if (satisfies? proto/SilentSelector selector)
                               (eduction cat [[selector] (:recalc-child-selectors result) ])
                               [selector]))

@@ -1,8 +1,11 @@
 (ns hitch.protocols
   (:require [cljs.core.async.impl.protocols :as impl]
-            [cljs.core.async.impl.channels :as imp-chan]))
+            [cljs.core.async.impl.channels :as imp-chan])
+  (:import goog.async.nextTick))
 
 (def ^:dynamic *read-mode* false)
+(def pending-actions (volatile! #{}))
+(def scheduled-actions (volatile! false))
 
 (defonce NIL-SENTINAL (reify Object
                       (toString [this] "NIL-SENTINAL")))
@@ -174,3 +177,19 @@
           nil)))))
 (defn mkhook [node]
   (->Hook node #{}))
+
+
+(defn process-actions [graph]
+  (fn []
+    (let [simple-graph (reify ILookup
+                         (-lookup [this k]
+                           (-lookup this k nil))
+                         (-lookup [this k not-found]
+                           (if-let [node (peek-node graph k)]
+                             (.-value node))))]
+      (vreset! scheduled-actions true)
+      (doseq [scheduled-action scheduled-actions]
+        (scheduled-action simple-graph)))))
+
+(defn schedule-actions [graph]
+  (goog.async.nextTick (process-actions graph)))
