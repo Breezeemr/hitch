@@ -30,7 +30,8 @@
 (defrecord HTTPSelector [url method serializer deserializer content headers]
   proto/StatefulSelector
   (init [selector]
-    {:val proto/NIL-SENTINAL})
+    {:val proto/NIL-SENTINAL
+     :action true})
   (clear [selector state])
   proto/InformedSelector
   proto/EffectableSelector
@@ -40,11 +41,7 @@
     ;(prn "effect " event)
     (let [[key] event]
       (case key
-        :add-dep (if (empty? (:deps acc))
-                   (-> acc
-                       (update :deps conj (second event))
-                       (assoc :action true))
-                   (update acc :deps conj (second event)))
+        :add-dep (update acc :deps conj (second event))
         :remove-dep acc
         :set-value (let [new-value (second event)]
                      (assoc acc :val new-value)))))
