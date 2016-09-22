@@ -51,6 +51,7 @@
     'hitch.core-test
     'hitch.selectors.mutable-var-test
     'hitch.selectors.kv-store-test
+    'hitch.selectors.http-test
     ))
 
 (defn ^:export on-js-reload []
