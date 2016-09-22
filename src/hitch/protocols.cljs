@@ -6,10 +6,10 @@
 (def pending-actions (volatile! []))
 (def scheduled-actions (volatile! false))
 
-(defonce NIL-SENTINAL (reify Object
-                      (toString [this] "NIL-SENTINAL")))
+(defonce NIL-SENTINEL (reify Object
+                      (toString [this] "NIL-SENTINEL")))
 (defn fixnil [v]
-  (if (identical? v NIL-SENTINAL)
+  (if (identical? v NIL-SENTINEL)
     nil
     v))
 #_(defprotocol ISubscriber
