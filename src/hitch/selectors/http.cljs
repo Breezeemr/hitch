@@ -59,3 +59,12 @@
     (if (identical? (:val state) proto/NIL-SENTINAL)
       (->NotRealized nil)
       (->Realized (:val state) nil))))
+
+(def http
+  (reify
+    IFn
+    (-invoke [this graph url method serializer deserializer content headers]
+      (assert nil "alias is stateful and should not be evaled"))
+    proto/ISelectorFactory
+    (-selector [this url method serializer deserializer content headers]
+      (->HTTPSelector url method serializer deserializer content headers))))
