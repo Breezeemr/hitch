@@ -11,7 +11,7 @@
   (create-node! [this data-selector]
     (let [new-node (node data-selector)]
       (when (satisfies? proto/StatefulSelector data-selector)
-        (set! (.-state new-node) (proto/init data-selector)))
+        (set! tempstate (assoc tempstate data-selector (atom (proto/init data-selector)))))
       (set! nodemap (assoc nodemap data-selector new-node))
       new-node))
   (clear-graph! [dgraph]
