@@ -3,7 +3,7 @@
             [cljs.core.async.impl.channels :as imp-chan]))
 
 (def ^:dynamic *read-mode* false)
-(def pending-actions (volatile! #{}))
+(def pending-actions (volatile! []))
 (def scheduled-actions (volatile! false))
 
 (defonce NIL-SENTINAL (reify Object
