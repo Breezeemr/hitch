@@ -19,9 +19,9 @@
 
 (defn mk-xhr [url method serializer deserializer content headers cb]
   (let [xhr (XhrIo.)]
-    (.setWithCredentials xhr true)
+    ;(.setWithCredentials xhr true)
     (events/listen xhr EventType/SUCCESS
-                   (fn [e] (cb (deserializer e))))
+                   (fn [e] (cb (deserializer (some-> e  .-target .getResponseText)))))
     (events/listen xhr EventType/ERROR
                    (fn [e] e))
     (.send xhr (str url) (meths method) (if serializer
