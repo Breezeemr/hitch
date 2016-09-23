@@ -160,9 +160,10 @@
   (-change-notify [this graph selector-changed]
     (let [val (.-value n)]
       (-remove-external-dependent n this)
-      (doseq [handler handlers]
-        (let [real-handler (impl/commit handler)]
-          (real-handler val))))
+      (run! (fn [handler]
+              (let [real-handler (impl/commit handler)]
+                (real-handler val)))
+            handlers))
     )
   impl/ReadPort
   (take! [this ^not-native new-handler]

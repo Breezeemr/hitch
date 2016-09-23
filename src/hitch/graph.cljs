@@ -98,10 +98,11 @@
   ([graph selector-constructor a b c d f g h] ((if *execution-mode* hook-node hitch-eval) graph selector-constructor a b c d f g h)))
 
 (defn invalidate-external-items [graph ext-items]
-  (doseq [changed-selector ext-items
-          :let [changed-node (proto/peek-node graph changed-selector)]
-          external-dep (proto/-get-external-dependents changed-node)]
-    (proto/-change-notify external-dep graph changed-selector)))
+  (run! (fn [changed-selector]
+          (run! (fn [external-dep]
+                  (proto/-change-notify external-dep graph changed-selector))
+                (proto/-get-external-dependents (proto/peek-node graph changed-selector))))
+        ext-items))
 
 
 (defn filtered-set-add [target selector source filter ]
@@ -111,24 +112,30 @@
 (declare -apply-selector-effect)
 (defn update-dependencies! [graph newdeps retiredeps]
   ;(prn "newdeps retiredeps" newdeps retiredeps)
-  (doseq [[child parents] newdeps
-          parent parents]
-          (let [parentnode (proto/get-or-create-node graph parent)
-                subscribers (.-subscribers parentnode)]
-            (when-not (contains? subscribers child)
-              ;(prn "add subscrption" child "to " parent)
-              (set! (.-subscribers parentnode) (conj subscribers child)))
-            (when (satisfies? proto/InformedSelector parent)
-              (-apply-selector-effect graph parent [:add-dep child]))
-            ))
-  (doseq [[child parents] retiredeps
-          parent parents]
-    (let [parentnode (proto/get-or-create-node graph parent)
-          subscribers (.-subscribers parentnode)]
-      (when (contains? subscribers child)
-        (set! (.-subscribers parentnode) (disj subscribers child)))
-      (when (satisfies? proto/InformedSelector parent)
-        (-apply-selector-effect graph parent [:remove-dep child])))))
+  (run!
+    (fn [[child parents]]
+       (run! (fn [parent]
+               (let [parentnode (proto/get-or-create-node graph parent)
+                     subscribers (.-subscribers parentnode)]
+                 (when-not (contains? subscribers child)
+                   ;(prn "add subscrption" child "to " parent)
+                   (set! (.-subscribers parentnode) (conj subscribers child)))
+                 (when (satisfies? proto/InformedSelector parent)
+                   (-apply-selector-effect graph parent [:add-dep child]))
+                 ))
+             parents))
+    newdeps)
+  (run!
+    (fn [[child parents]]
+      (run! (fn [parent]
+              (let [parentnode (proto/get-or-create-node graph parent)
+                    subscribers (.-subscribers parentnode)]
+                (when (contains? subscribers child)
+                  (set! (.-subscribers parentnode) (disj subscribers child)))
+                (when (satisfies? proto/InformedSelector parent)
+                  (-apply-selector-effect graph parent [:remove-dep child]))))
+            parents))
+    retiredeps))
 
 ;;;; new api
 (defn invalidate-level [graph selectors external-invalids]
@@ -221,8 +228,9 @@
           newstate-map)))
 
 (defn -apply-selector-effect-pairs [graph selector-effect-pairs]
-  (doseq [[selector effects] selector-effect-pairs]
-    (-apply-selector-effect graph selector effects)))
+  (run! (fn [[selector effects]]
+          (-apply-selector-effect graph selector effects))
+        selector-effect-pairs))
 
 
 
@@ -251,8 +259,9 @@
                              (.-value node)
                              not-found)))]
       (vreset! proto/scheduled-actions true)
-      (doseq [scheduled-action @proto/pending-actions]
-        (scheduled-action simple-graph (fn [selector-effect-pairs] (apply-effects graph selector-effect-pairs)))))))
+      (run! (fn [scheduled-action]
+              (scheduled-action simple-graph (fn [selector-effect-pairs] (apply-effects graph selector-effect-pairs))))
+            @proto/pending-actions))))
 
 (defn schedule-actions [graph]
   (goog.async.nextTick (process-actions graph)))
