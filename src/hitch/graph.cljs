@@ -258,7 +258,7 @@
                            (if-let [node (proto/peek-node graph k)]
                              (.-value node)
                              not-found)))]
-      (vreset! proto/scheduled-actions true)
+      (vreset! proto/scheduled-actions false)
       (run! (fn [scheduled-action]
               (scheduled-action simple-graph (fn [selector-effect-pairs] (apply-effects graph selector-effect-pairs))))
             @proto/pending-actions))))
