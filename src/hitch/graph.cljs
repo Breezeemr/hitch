@@ -250,8 +250,9 @@
      (normalize-tx! graph)))
 
 (defn process-actions [graph]
-  (fn [pending-actions @proto/pending-actions]
-    (let [simple-graph (reify ILookup
+  (fn []
+    (let [pending-actions @proto/pending-actions
+          simple-graph (reify ILookup
                          (-lookup [this k]
                            (-lookup this k nil))
                          (-lookup [this k not-found]
