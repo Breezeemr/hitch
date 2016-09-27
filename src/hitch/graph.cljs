@@ -250,7 +250,7 @@
      (normalize-tx! graph)))
 
 (defn process-actions [graph]
-  (fn []
+  (fn [pending-actions @proto/pending-actions]
     (let [simple-graph (reify ILookup
                          (-lookup [this k]
                            (-lookup this k nil))
@@ -259,9 +259,10 @@
                              (.-value node)
                              not-found)))]
       (vreset! proto/scheduled-actions false)
+      (vreset! proto/pending-actions [])
       (run! (fn [scheduled-action]
               (scheduled-action simple-graph (fn [selector-effect-pairs] (apply-effects graph selector-effect-pairs))))
-            @proto/pending-actions))))
+            pending-actions))))
 
 (defn schedule-actions [graph]
   (goog.async.nextTick (process-actions graph)))
