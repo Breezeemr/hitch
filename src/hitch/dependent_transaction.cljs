@@ -1,5 +1,5 @@
 (ns hitch.dependent-transaction
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [cljs.core.async :as async]
             [clojure.set]
             [cljs.core.async.impl.protocols :as impl]))

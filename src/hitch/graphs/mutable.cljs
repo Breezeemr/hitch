@@ -1,5 +1,5 @@
 (ns hitch.graphs.mutable
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [hitch.nodes.simple :refer [node]]))
 
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"

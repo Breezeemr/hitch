@@ -1,4 +1,4 @@
-(ns hitch.protocols
+(ns hitch.oldprotocols
   (:require [cljs.core.async.impl.protocols :as impl]
             [cljs.core.async.impl.channels :as imp-chan]))
 

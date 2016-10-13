@@ -1,5 +1,5 @@
 (ns hitch.selectors.reference
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [hitch.graph :as graph]
             [hitch.selector :refer-macros [defselector]]))
 

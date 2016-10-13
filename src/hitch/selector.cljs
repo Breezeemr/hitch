@@ -1,6 +1,6 @@
 (ns hitch.selector
   (:require-macros [hitch.eager :refer [go]])
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [hitch.dependent-transaction :refer []]
             [hitch.values :refer [->Realized ->NotRealized]]
             [cljs.core.async.impl.channels :as impl-chan]

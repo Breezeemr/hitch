@@ -1,5 +1,5 @@
 (ns hitch.selectors.mutable-var
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [hitch.graph :as graph]
             [hitch.values :refer [->Realized ->NotRealized]]
             [hitch.selector :refer-macros [defselector]]))

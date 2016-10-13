@@ -1,5 +1,5 @@
 (ns ^:figwheel-always hitch.core
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [hitch.graph])
   )
 

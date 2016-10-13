@@ -1,5 +1,5 @@
 (ns hitch.selectors.http
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [hitch.graph :as graph]
             [hitch.values :refer [->Realized ->NotRealized]]
             [hitch.nodes.simple :as node]

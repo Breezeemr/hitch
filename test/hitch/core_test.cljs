@@ -3,7 +3,7 @@
                    [hitch.selector :refer [defselector]])
   (:require [cljs.test :refer [] :refer-macros [is deftest run-tests async]]
             [hitch.core :as core]
-            [hitch.protocols :as proto]
+            [hitch.oldprotocols :as proto]
             [hitch.selectors.kv-store :as kv :refer [keyspace]]
             [hitch.graph :as graph]
             [cljs.core.async :as async]))

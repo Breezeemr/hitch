@@ -5,7 +5,7 @@
   (:require [cljs.test :refer [] :refer-macros [is run-tests async]]
             [devcards.core :as dc :refer-macros [deftest]]
             [hitch.core :as core]
-            [hitch.protocols :as proto]
+            [hitch.oldprotocols :as proto]
             [hitch.selectors.http :refer [HTTPSelector http]]
             [hitch.graph :as graph]
             [cljs.core.async :as async]

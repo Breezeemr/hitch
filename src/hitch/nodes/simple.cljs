@@ -1,5 +1,5 @@
 (ns hitch.nodes.simple
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [hitch.dependent-transaction :as dtx]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :as impl]

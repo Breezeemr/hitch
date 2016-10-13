@@ -1,6 +1,6 @@
 (ns hitch.graph
   (:require-macros [hitch.eager :refer [go]])
-  (:require [hitch.protocols :as proto]
+  (:require [hitch.oldprotocols :as proto]
             [hitch.graphs.mutable :as mgraph]
             [hitch.nodes.simple :refer [node]]
             [cljs.core.async.impl.protocols :as impl]
