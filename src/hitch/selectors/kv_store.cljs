@@ -37,11 +37,11 @@
   )
 
 (defrecord KVStoreServiceSelector [keyspace]
-  oldproto/StatefulSelector
-  (init [selector]
+  proto/StatefulSelector
+  (create [selector]
     {:val  oldproto/NIL-SENTINEL
      :deps #{}})
-  (clear [selector state])
+  (destroy [selector state])
   oldproto/InformedSelector
   proto/CommandableSelector
   (command-accumulator

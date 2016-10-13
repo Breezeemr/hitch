@@ -29,8 +29,8 @@
     selector)
   (clear-node! [this graph]
     (set! value nil)
-    (when (satisfies? oldproto/StatefulSelector selector)
-      (set! state (oldproto/init selector)))
+    (when (satisfies? proto/StatefulSelector selector)
+      (set! state (proto/create selector)))
     (set! stale? true)
     (set! subscribers #{}))
   oldproto/IDynamicDepNode

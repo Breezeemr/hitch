@@ -77,25 +77,6 @@
   (-data-selector node))
 
 
-(defprotocol StatefulSelector
-  (init [selector] ;=> state
-        "Return opaque state object which should be associated with the selector.)
-
-        This is an opportunity to initialize and acquire stateful or mutable
-        resources.")
-
-  (clear [selector state] ;=> nil
-         "Clear any stateful or mutable resources. Return value is ignored.
-         This is an opportunity to clean up before destruction."))
-
-(defprotocol SelectorEffects
-  (-apply [selector old-state effects]))
-
-(defprotocol SilentSelector
-  "If this protocol is present, child selectors values are *not* recalculated
-  when this selector changes. Instead, this selector must mark them stale in
-  the return value of effect-result")
-
 (defrecord EffectResult [state])
 (defrecord EffectResultAction [state action])
 

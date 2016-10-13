@@ -31,11 +31,11 @@
     ))
 
 (defrecord HTTPSelector [url method serializer deserializer content headers]
-  oldproto/StatefulSelector
-  (init [selector]
+  proto/StatefulSelector
+  (create [selector]
     {:val    oldproto/NIL-SENTINEL
      :action true})
-  (clear [selector state])
+  (destroy [selector state])
   oldproto/InformedSelector
   proto/CommandableSelector
   (command-accumulator

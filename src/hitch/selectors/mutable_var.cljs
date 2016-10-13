@@ -6,9 +6,9 @@
             [hitch.selector :refer-macros [defselector]]))
 
 (defrecord MutableVar [n]
-  oldproto/StatefulSelector
-  (init [selector] nil)
-  (clear [selector state])
+  proto/StatefulSelector
+  (create [selector] nil)
+  (destroy [selector state])
   proto/CommandableSelector
   (command-accumulator
     [s state] state)

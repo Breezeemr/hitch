@@ -172,7 +172,7 @@
 
                                               ;:value-changed
                                               (recur (rest selectors)
-                                                     (if (satisfies? oldproto/SilentSelector selector)
+                                                     (if (satisfies? proto/SilentSelector selector)
                                                        newitems
                                                        (reduce conj! newitems (oldproto/get-dependents node)))
                                                      (filtered-set-add newdeps selector dependencies old-deps)
@@ -221,7 +221,7 @@
                                 (vreset! oldproto/scheduled-actions true)
                                 (schedule-actions graph))
                               (vswap! oldproto/pending-actions conj (:action result)))
-                            (if (satisfies? oldproto/SilentSelector selector)
+                            (if (satisfies? proto/SilentSelector selector)
                               (eduction cat [[selector] (:recalc-child-selectors result) ])
                               [selector]))
                           (prn "node not found"))))

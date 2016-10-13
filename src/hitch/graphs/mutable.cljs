@@ -14,8 +14,8 @@
   oldproto/IDependencyGraph
   (create-node! [this data-selector]
     (let [new-node (node data-selector)]
-      (when (satisfies? oldproto/StatefulSelector data-selector)
-        (set! tempstate (assoc tempstate data-selector (atom (oldproto/init data-selector)))))
+      (when (satisfies? proto/StatefulSelector data-selector)
+        (set! tempstate (assoc tempstate data-selector (atom (proto/create data-selector)))))
       (set! nodemap (assoc nodemap data-selector new-node))
       new-node))
   (clear-graph! [dgraph]
