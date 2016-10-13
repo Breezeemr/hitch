@@ -1,6 +1,7 @@
 (ns hitch.oldprotocols
   (:require [cljs.core.async.impl.protocols :as impl]
-            [cljs.core.async.impl.channels :as imp-chan]))
+            [cljs.core.async.impl.channels :as imp-chan]
+            [hitch.protocol :as proto]))
 
 (def ^:dynamic *read-mode* false)
 (def pending-actions (volatile! []))
@@ -102,30 +103,6 @@
 
 (defrecord EffectError [accumulator pending-effects bad-effect error])
 
-(defprotocol EffectableSelector
-  "Allows a selector to receive effects and alter its state based on effects.
-  These methods are only called if a selector has effects in the current
-  transaction."
-  (effect-accumulator
-    [s state] "Return an opaque accumulator for effect-step. `state` will be
-    nil if it has never been initialized via StatefulSelector or a previous
-    effect-result call.")
-  (effect-step [s accumulator event]
-               "Accept an event and return a new accumulator. This method is called once
-               per event.
-               At any time this function may return an EffectError which the caller may
-               use to determine how to handle the error. It should be possible in principle
-               (although not necessarily in practice) to resume the effect reduction
-               process using the data in an EffectError.")
-  (effect-result [s accumulator]
-                 "Return an StateAction after all effects have been processed, which
-                 contains the new state and an action.
-                 If this selector also implements SilentSelector, it may return an
-                 StateActionUpdate instead which also returns a list of children to
-                 invalidate."))
-
-
-
 (defprotocol SelectorValue
   (-value [selector graph state]))
 
@@ -144,11 +121,11 @@
       n)))
 
 (defn get-temp-state [graph selector]
-  (assert (satisfies? EffectableSelector selector) )
+  (assert (satisfies? proto/CommandableSelector selector) )
   (if-let [ts (get (.-tempstate graph) selector)]
     ts
     (let [node (get-or-create-node graph selector)
-          ts (atom (effect-accumulator selector (.-state node)))]
+          ts (atom (proto/command-accumulator selector (.-state node)))]
       (set! (.-tempstate graph) (assoc (.-tempstate graph) selector ts))
       ts)))
 

@@ -43,10 +43,10 @@
      :deps #{}})
   (clear [selector state])
   oldproto/InformedSelector
-  oldproto/EffectableSelector
-  (effect-accumulator
+  proto/CommandableSelector
+  (command-accumulator
     [s state] state)
-  (effect-step [s acc event]
+  (command-step [s acc event]
     ;(prn "effect " event)
     (let [[key] event]
       (case key
@@ -55,7 +55,7 @@
         :set-value (let [new-value (second event)]
                      (assoc acc :val new-value)
                      ))))
-  (effect-result [s acc]
+  (command-result [s acc]
     ;(prn "acc" acc)
     (oldproto/->EffectResult acc))
   oldproto/SelectorValue

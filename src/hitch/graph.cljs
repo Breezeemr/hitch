@@ -204,7 +204,7 @@
 
 (defn -apply-selector-effect [graph selector effect]
   (let [state-atom (oldproto/get-temp-state graph selector)]
-    (swap! state-atom #(oldproto/effect-step selector % effect))))
+    (swap! state-atom #(proto/command-step selector % effect))))
 
 (defn finalize-effects [graph]
   (let [newstate-map (.-tempstate graph)]
@@ -213,7 +213,7 @@
                       (fn [[selector v]]
                         ;(prn "selector v " selector v)
                         (if-let [node (get graph selector)]
-                          (let [{new-state :state :as result} (oldproto/effect-result selector @v)]
+                          (let [{new-state :state :as result} (proto/command-result selector @v)]
                             ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                             (set! (.-state node) new-state)
                             (when (instance? oldproto/EffectResultAction result)
