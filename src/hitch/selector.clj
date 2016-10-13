@@ -13,7 +13,7 @@
   (let [graphsymbol (->> constructor-binding-forms clojure.core/ffirst)]
     `(defrecord ~selector-name ~(clojure.core/into [] (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
        hitch.protocol/Selector
-       (~'-value [~'selector ~graphsymbol ~'state]
+       (~'value [~'selector ~graphsymbol ~'state]
          (assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
          (cljs.core/let [~'dtx (hitch.dependent-transaction/tx ~graphsymbol ~'selector)]
            (hitch.selector/handle-selector-value
