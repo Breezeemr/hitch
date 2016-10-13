@@ -36,7 +36,7 @@
     n))
 
 (defn try-to-get-node [dependency-graph data-selector]
-  (oldproto/peek-node dependency-graph data-selector))
+  (get dependency-graph data-selector))
 
 (defn hitch-node
   ([graph selector-constructor] (hitch-sel graph (oldproto/-selector selector-constructor)))
@@ -102,7 +102,7 @@
   (run! (fn [changed-selector]
           (run! (fn [external-dep]
                   (oldproto/-change-notify external-dep graph changed-selector))
-                (oldproto/-get-external-dependents (oldproto/peek-node graph changed-selector))))
+                (oldproto/-get-external-dependents (get graph changed-selector))))
         ext-items))
 
 
@@ -148,7 +148,7 @@
          retiredeps (transient [])
          external-invalids external-invalids]
     (if-let [selector (first selectors)]
-      (if-let [node (oldproto/peek-node graph selector)]
+      (if-let [node (get graph selector)]
         (let [{new-value :value dependencies :dependencies :as vcontainer} (oldproto/-value selector graph (.-state node))
               old-deps (.-refs node)]
           (set! (.-refs node) dependencies)
@@ -212,7 +212,7 @@
     (into [] (comp (map
                       (fn [[selector v]]
                         ;(prn "selector v " selector v)
-                        (if-let [node (oldproto/peek-node graph selector)]
+                        (if-let [node (get graph selector)]
                           (let [{new-state :state :as result} (oldproto/effect-result selector @v)]
                             ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                             (set! (.-state node) new-state)
@@ -257,7 +257,7 @@
                          (-lookup [this k]
                            (-lookup this k nil))
                          (-lookup [this k not-found]
-                           (if-let [node (oldproto/peek-node graph k)]
+                           (if-let [node (get graph k)]
                              (.-value node)
                              not-found)))]
       (vreset! oldproto/scheduled-actions false)

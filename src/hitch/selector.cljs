@@ -14,7 +14,7 @@
   (let [graph (.-graph tx)
         child-selector (.-target tx)
         requests (.-requests tx)
-        child-node (oldproto/peek-node graph child-selector)]
+        child-node (get graph child-selector)]
     (if-some [val (if (satisfies? impl/ReadPort value)
                      (async/poll! value)
                      value)]

@@ -18,8 +18,6 @@
     (oldproto/peek-invalidations graph))
   (take-invalidations! [_] (oldproto/take-invalidations! graph))
   oldproto/IDependencyGraph
-  (peek-node [this data-selector]
-    (oldproto/peek-node graph data-selector))
   (create-node! [this data-selector]
     (oldproto/create-node! graph data-selector))
   (subscribe-node [this data-selector]

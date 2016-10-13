@@ -12,8 +12,6 @@
   (-lookup [o data-selector not-found]
     (-lookup nodemap data-selector not-found))
   oldproto/IDependencyGraph
-  (peek-node [this data-selector]
-    (get nodemap data-selector))
   (create-node! [this data-selector]
     (let [new-node (node data-selector)]
       (when (satisfies? oldproto/StatefulSelector data-selector)
