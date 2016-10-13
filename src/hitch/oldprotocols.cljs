@@ -24,7 +24,6 @@
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
-  (peek-node [this data-selector] "gets node for dataselector")
   (subscribe-node [this data-selector] "gets node for dataselector")
   #_(create-node! [this data-selector]
                   "create node and follow init lifecycle")
