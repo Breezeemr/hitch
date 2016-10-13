@@ -32,8 +32,7 @@
          (assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
          ~(clojure.core/->> constructor-binding-forms
                             (clojure.core/map clojure.core/first)
-                            (clojure.core/cons eval-fn-name))
-         )
+                            (clojure.core/cons eval-fn-name)))
        cljs.core/IFn
        (~'-invoke ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
          ~(clojure.core/->> constructor-binding-forms
