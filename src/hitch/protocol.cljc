@@ -184,6 +184,8 @@
   commands are added to the selector's command queue which inform when child
   selectors begin or cease depending on the current selector.")
 
+(deftype State [state])
+
 (deftype StateEffect [state effect])
 
 (deftype StateEffectRefresh [state effect recalc-child-selectors])
