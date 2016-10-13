@@ -1,6 +1,7 @@
 (ns hitch.graph
   (:require-macros [hitch.eager :refer [go]])
-  (:require [hitch.oldprotocols :as proto]
+  (:require [hitch.oldprotocols :as oldproto]
+            [hitch.protocol :as proto]
             [hitch.graphs.mutable :as mgraph]
             [hitch.nodes.simple :refer [node]]
             [cljs.core.async.impl.protocols :as impl]
@@ -11,51 +12,51 @@
 (declare apply-effects invalidate-nodes normalize-tx! schedule-actions)
 
 (defn get-or-create-node! [graph selector]
-  (let [n (binding [proto/*read-mode* true] (proto/get-or-create-node graph selector))]
-    (when (not proto/*read-mode*)
+  (let [n (binding [oldproto/*read-mode* true] (oldproto/get-or-create-node graph selector))]
+    (when (not oldproto/*read-mode*)
       (normalize-tx! graph))
     n))
 (defn make-hook [graph selector]
   (let [n (get-or-create-node! graph selector)
-        h  (proto/mkhook n)]
-    (proto/-add-external-dependent n h)
+        h  (oldproto/mkhook n)]
+    (oldproto/-add-external-dependent n h)
     h
     #_(if-some [val (.-value n)]
         (async/put! prom val)
-        (let [h (proto/->Hook n nil)]
+        (let [h (oldproto/->Hook n nil)]
           (prn "made hook")
-          (proto/-add-external-dependent n h)))
+          (oldproto/-add-external-dependent n h)))
     ;prom
     ))
 
 (defn hitch-sel [graph selector]
-  (let [n (binding [proto/*read-mode* true] (proto/subscribe-node graph selector))]
-    (when (not proto/*read-mode*)
+  (let [n (binding [oldproto/*read-mode* true] (oldproto/subscribe-node graph selector))]
+    (when (not oldproto/*read-mode*)
       (normalize-tx! graph))
     n))
 
 (defn try-to-get-node [dependency-graph data-selector]
-  (proto/peek-node dependency-graph data-selector))
+  (oldproto/peek-node dependency-graph data-selector))
 
 (defn hitch-node
-  ([graph selector-constructor] (hitch-sel graph (proto/-selector selector-constructor)))
-  ([graph selector-constructor a] (hitch-sel graph (proto/-selector selector-constructor a)))
-  ([graph selector-constructor a b] (hitch-sel graph (proto/-selector selector-constructor a b)))
-  ([graph selector-constructor a b c] (hitch-sel graph (proto/-selector selector-constructor a b c)))
-  ([graph selector-constructor a b c d] (hitch-sel graph (proto/-selector selector-constructor a b c d)))
-  ([graph selector-constructor a b c d f] (hitch-sel graph (proto/-selector selector-constructor a b c d f)))
-  ([graph selector-constructor a b c d f g] (hitch-sel graph (proto/-selector selector-constructor a b c d f g)))
-  ([graph selector-constructor a b c d f g h] (hitch-sel graph (proto/-selector selector-constructor a b c d f g h))))
+  ([graph selector-constructor] (hitch-sel graph (oldproto/-selector selector-constructor)))
+  ([graph selector-constructor a] (hitch-sel graph (oldproto/-selector selector-constructor a)))
+  ([graph selector-constructor a b] (hitch-sel graph (oldproto/-selector selector-constructor a b)))
+  ([graph selector-constructor a b c] (hitch-sel graph (oldproto/-selector selector-constructor a b c)))
+  ([graph selector-constructor a b c d] (hitch-sel graph (oldproto/-selector selector-constructor a b c d)))
+  ([graph selector-constructor a b c d f] (hitch-sel graph (oldproto/-selector selector-constructor a b c d f)))
+  ([graph selector-constructor a b c d f g] (hitch-sel graph (oldproto/-selector selector-constructor a b c d f g)))
+  ([graph selector-constructor a b c d f g h] (hitch-sel graph (oldproto/-selector selector-constructor a b c d f g h))))
 
 (defn hook-node
-  ([graph selector-constructor] (make-hook graph (proto/-selector selector-constructor)))
-  ([graph selector-constructor a] (make-hook graph (proto/-selector selector-constructor a)))
-  ([graph selector-constructor a b] (make-hook graph (proto/-selector selector-constructor a b)))
-  ([graph selector-constructor a b c] (make-hook graph (proto/-selector selector-constructor a b c)))
-  ([graph selector-constructor a b c d] (make-hook graph (proto/-selector selector-constructor a b c d)))
-  ([graph selector-constructor a b c d f] (make-hook graph (proto/-selector selector-constructor a b c d f)))
-  ([graph selector-constructor a b c d f g] (make-hook graph (proto/-selector selector-constructor a b c d f g)))
-  ([graph selector-constructor a b c d f g h] (make-hook graph (proto/-selector selector-constructor a b c d f g h))))
+  ([graph selector-constructor] (make-hook graph (oldproto/-selector selector-constructor)))
+  ([graph selector-constructor a] (make-hook graph (oldproto/-selector selector-constructor a)))
+  ([graph selector-constructor a b] (make-hook graph (oldproto/-selector selector-constructor a b)))
+  ([graph selector-constructor a b c] (make-hook graph (oldproto/-selector selector-constructor a b c)))
+  ([graph selector-constructor a b c d] (make-hook graph (oldproto/-selector selector-constructor a b c d)))
+  ([graph selector-constructor a b c d f] (make-hook graph (oldproto/-selector selector-constructor a b c d f)))
+  ([graph selector-constructor a b c d f g] (make-hook graph (oldproto/-selector selector-constructor a b c d f g)))
+  ([graph selector-constructor a b c d f g h] (make-hook graph (oldproto/-selector selector-constructor a b c d f g h))))
 
 (defn hitch-eval
   ([graph selector-constructor] (selector-constructor graph))
@@ -100,8 +101,8 @@
 (defn invalidate-external-items [graph ext-items]
   (run! (fn [changed-selector]
           (run! (fn [external-dep]
-                  (proto/-change-notify external-dep graph changed-selector))
-                (proto/-get-external-dependents (proto/peek-node graph changed-selector))))
+                  (oldproto/-change-notify external-dep graph changed-selector))
+                (oldproto/-get-external-dependents (oldproto/peek-node graph changed-selector))))
         ext-items))
 
 
@@ -115,12 +116,12 @@
   (run!
     (fn [[child parents]]
        (run! (fn [parent]
-               (let [parentnode (proto/get-or-create-node graph parent)
+               (let [parentnode (oldproto/get-or-create-node graph parent)
                      subscribers (.-subscribers parentnode)]
                  (when-not (contains? subscribers child)
                    ;(prn "add subscrption" child "to " parent)
                    (set! (.-subscribers parentnode) (conj subscribers child)))
-                 (when (satisfies? proto/InformedSelector parent)
+                 (when (satisfies? oldproto/InformedSelector parent)
                    (-apply-selector-effect graph parent [:add-dep child]))
                  ))
              parents))
@@ -128,11 +129,11 @@
   (run!
     (fn [[child parents]]
       (run! (fn [parent]
-              (let [parentnode (proto/get-or-create-node graph parent)
+              (let [parentnode (oldproto/get-or-create-node graph parent)
                     subscribers (.-subscribers parentnode)]
                 (when (contains? subscribers child)
                   (set! (.-subscribers parentnode) (disj subscribers child)))
-                (when (satisfies? proto/InformedSelector parent)
+                (when (satisfies? oldproto/InformedSelector parent)
                   (-apply-selector-effect graph parent [:remove-dep child]))))
             parents))
     retiredeps))
@@ -147,8 +148,8 @@
          retiredeps (transient [])
          external-invalids external-invalids]
     (if-let [selector (first selectors)]
-      (if-let [node (proto/peek-node graph selector)]
-        (let [{new-value :value dependencies :dependencies :as vcontainer} (proto/-value selector graph (.-state node))
+      (if-let [node (oldproto/peek-node graph selector)]
+        (let [{new-value :value dependencies :dependencies :as vcontainer} (oldproto/-value selector graph (.-state node))
               old-deps (.-refs node)]
           (set! (.-refs node) dependencies)
           ;(prn "dependencies " dependencies)
@@ -171,12 +172,12 @@
 
                                               ;:value-changed
                                               (recur (rest selectors)
-                                                     (if (satisfies? proto/SilentSelector selector)
+                                                     (if (satisfies? oldproto/SilentSelector selector)
                                                        newitems
-                                                       (reduce conj! newitems (proto/get-dependents node)))
+                                                       (reduce conj! newitems (oldproto/get-dependents node)))
                                                      (filtered-set-add newdeps selector dependencies old-deps)
                                                      (filtered-set-add retiredeps selector old-deps dependencies)
-                                                     (if (proto/-get-external-dependents node)
+                                                     (if (oldproto/-get-external-dependents node)
                                                        (conj! external-invalids selector)
                                                        external-invalids)))))
 
@@ -197,13 +198,13 @@
     ;(prn "invalidate " selectors)
     (if (not-empty selectors)
       (recur (invalidate-level graph selectors external-invalids))
-      (if-let [newinvalids (not-empty (proto/take-invalidations! graph))]
+      (if-let [newinvalids (not-empty (oldproto/take-invalidations! graph))]
         (recur (invalidate-level graph newinvalids external-invalids))
         (persistent! external-invalids)))))
 
 (defn -apply-selector-effect [graph selector effect]
-  (let [state-atom (proto/get-temp-state graph selector)]
-    (swap! state-atom #(proto/effect-step selector % effect))))
+  (let [state-atom (oldproto/get-temp-state graph selector)]
+    (swap! state-atom #(oldproto/effect-step selector % effect))))
 
 (defn finalize-effects [graph]
   (let [newstate-map (.-tempstate graph)]
@@ -211,16 +212,16 @@
     (into [] (comp (map
                       (fn [[selector v]]
                         ;(prn "selector v " selector v)
-                        (if-let [node (proto/peek-node graph selector)]
-                          (let [{new-state :state :as result} (proto/effect-result selector @v)]
+                        (if-let [node (oldproto/peek-node graph selector)]
+                          (let [{new-state :state :as result} (oldproto/effect-result selector @v)]
                             ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                             (set! (.-state node) new-state)
-                            (when (instance? proto/EffectResultAction result)
-                              (when-not @proto/scheduled-actions
-                                (vreset! proto/scheduled-actions true)
+                            (when (instance? oldproto/EffectResultAction result)
+                              (when-not @oldproto/scheduled-actions
+                                (vreset! oldproto/scheduled-actions true)
                                 (schedule-actions graph))
-                              (vswap! proto/pending-actions conj (:action result)))
-                            (if (satisfies? proto/SilentSelector selector)
+                              (vswap! oldproto/pending-actions conj (:action result)))
+                            (if (satisfies? oldproto/SilentSelector selector)
                               (eduction cat [[selector] (:recalc-child-selectors result) ])
                               [selector]))
                           (prn "node not found"))))
@@ -235,8 +236,8 @@
 
 
 (defn normalize-tx! [graph]
-  (binding [proto/*read-mode* true]
-    (loop [invalidations (proto/take-invalidations! graph) external-invalids (transient [])]
+  (binding [oldproto/*read-mode* true]
+    (loop [invalidations (oldproto/take-invalidations! graph) external-invalids (transient [])]
       ;(prn "invalidations " invalidations (.-tempstate graph))
       (if (not-empty invalidations)
         (recur [] (conj! external-invalids (invalidate-selectors graph invalidations)))
@@ -245,22 +246,22 @@
           (invalidate-external-items graph (eduction cat (persistent! external-invalids))))))))
 
 (defn apply-effects [graph selector-effect-pairs]
- (binding [proto/*read-mode* true]
+ (binding [oldproto/*read-mode* true]
      (-apply-selector-effect-pairs graph selector-effect-pairs)
      (normalize-tx! graph)))
 
 (defn process-actions [graph]
   (fn []
-    (let [pending-actions @proto/pending-actions
+    (let [pending-actions @oldproto/pending-actions
           simple-graph (reify ILookup
                          (-lookup [this k]
                            (-lookup this k nil))
                          (-lookup [this k not-found]
-                           (if-let [node (proto/peek-node graph k)]
+                           (if-let [node (oldproto/peek-node graph k)]
                              (.-value node)
                              not-found)))]
-      (vreset! proto/scheduled-actions false)
-      (vreset! proto/pending-actions [])
+      (vreset! oldproto/scheduled-actions false)
+      (vreset! oldproto/pending-actions [])
       (run! (fn [scheduled-action]
               (scheduled-action simple-graph (fn [selector-effect-pairs] (apply-effects graph selector-effect-pairs))))
             pending-actions))))

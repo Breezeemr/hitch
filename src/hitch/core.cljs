@@ -1,6 +1,5 @@
 (ns ^:figwheel-always hitch.core
-  (:require [hitch.oldprotocols :as proto]
-            [hitch.graph])
+  (:require [hitch.graph])
   )
 
 (enable-console-print!)

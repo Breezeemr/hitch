@@ -1,24 +1,25 @@
 (ns hitch.dependent-transaction
-  (:require [hitch.oldprotocols :as proto]
+  (:require [hitch.oldprotocols :as oldproto]
+            [hitch.protocol :as proto]
             [cljs.core.async :as async]
             [clojure.set]
             [cljs.core.async.impl.protocols :as impl]))
 
 (deftype TX [graph target ^:mutable requests]
-  proto/IBatching
+  oldproto/IBatching
   (-request-invalidations [_ invalidations]
-    (proto/-request-invalidations graph invalidations))
+    (oldproto/-request-invalidations graph invalidations))
   (peek-invalidations [_]
-    (proto/peek-invalidations graph))
-  (take-invalidations! [_] (proto/take-invalidations! graph))
-  proto/IDependencyGraph
+    (oldproto/peek-invalidations graph))
+  (take-invalidations! [_] (oldproto/take-invalidations! graph))
+  oldproto/IDependencyGraph
   (peek-node [this data-selector]
-    (proto/peek-node graph data-selector))
+    (oldproto/peek-node graph data-selector))
   (create-node! [this data-selector]
-    (proto/create-node! graph data-selector))
+    (oldproto/create-node! graph data-selector))
   (subscribe-node [this data-selector]
     (set! requests (conj requests data-selector))
-    (proto/get-or-create-node graph data-selector))
+    (oldproto/get-or-create-node graph data-selector))
   #_(clear-graph! [this]
                   (proto/clear! graph))
   #_(gc [this data-selector]

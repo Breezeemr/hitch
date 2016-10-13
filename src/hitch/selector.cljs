@@ -1,6 +1,7 @@
 (ns hitch.selector
   (:require-macros [hitch.eager :refer [go]])
-  (:require [hitch.oldprotocols :as proto]
+  (:require [hitch.oldprotocols :as oldproto]
+            [hitch.protocol :as proto]
             [hitch.dependent-transaction :refer []]
             [hitch.values :refer [->Realized ->NotRealized]]
             [cljs.core.async.impl.channels :as impl-chan]
@@ -13,7 +14,7 @@
   (let [graph (.-graph tx)
         child-selector (.-target tx)
         requests (.-requests tx)
-        child-node (proto/peek-node graph child-selector)]
+        child-node (oldproto/peek-node graph child-selector)]
     (if-some [val (if (satisfies? impl/ReadPort value)
                      (async/poll! value)
                      value)]

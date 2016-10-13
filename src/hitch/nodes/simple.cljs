@@ -1,5 +1,6 @@
 (ns hitch.nodes.simple
-  (:require [hitch.oldprotocols :as proto]
+  (:require [hitch.oldprotocols :as oldproto]
+            [hitch.protocol :as proto]
             [hitch.dependent-transaction :as dtx]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :as impl]
@@ -10,9 +11,9 @@
 
 
 (deftype Node [selector ^:mutable value ^:mutable state ^:mutable stale? ^:mutable subscribers ^:mutable external-dependencies ^:mutable refs]
-  proto/IDependencyNode
+  oldproto/IDependencyNode
   (-get-value [_]
-    (proto/get-value value))                                ;unwrap references
+    (oldproto/get-value value))                                ;unwrap references
   (set-value! [_ new-value]
     (set! value new-value))
   (-dependents [_]
@@ -28,11 +29,11 @@
     selector)
   (clear-node! [this graph]
     (set! value nil)
-    (when (satisfies? proto/StatefulSelector selector)
-      (set! state (proto/init selector)))
+    (when (satisfies? oldproto/StatefulSelector selector)
+      (set! state (oldproto/init selector)))
     (set! stale? true)
     (set! subscribers #{}))
-  proto/IDynamicDepNode
+  oldproto/IDynamicDepNode
   (get-tx [self] refs)
   (set-tx! [self newtx] (set! refs newtx))
   impl/ReadPort

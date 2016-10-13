@@ -5,7 +5,8 @@
                    [devcards.core :as dc :refer [deftest]])
   (:require [cljs.test :refer [] :refer-macros [is run-tests async]]
             [hitch.core :as core]
-            [hitch.oldprotocols :as proto]
+            [hitch.oldprotocols :as oldproto]
+            [hitch.protocol :as proto]
             [hitch.selectors.kv-store :as kv :refer [keyspace key]]
             [hitch.graph :as graph]
             [cljs.core.async :as async]
@@ -15,8 +16,8 @@
 (deftest firstt
   (let [graph (mgraph/graph)]
     (async done
-      (let [ks-sel (proto/-selector keyspace :main)
-            node1 (graph/get-or-create-node! graph (proto/-selector key ks-sel :test))
+      (let [ks-sel (oldproto/-selector keyspace :main)
+            node1 (graph/get-or-create-node! graph (oldproto/-selector key ks-sel :test))
             ks-node (graph/hook graph keyspace :main)
             ]
         (is (= (async/poll! node1) nil))
@@ -29,8 +30,8 @@
 (deftest firstasync
   (let [graph (mgraph/graph)]
     (async done
-      (let [testsel (proto/-selector keyspace :main)        ;(proto/-selector key :main :test)
-            node1 (graph/get-or-create-node! graph (proto/-selector key testsel :test))
+      (let [testsel (oldproto/-selector keyspace :main)        ;(proto/-selector key :main :test)
+            node1 (graph/get-or-create-node! graph (oldproto/-selector key testsel :test))
             ks-node (graph/hook graph keyspace :main)
 
             ks (async/poll! ks-node)]
@@ -39,10 +40,10 @@
           ;(prn 1)
           (is (= (async/<! (graph/hook graph key testsel :test)) 7))
           ;(prn 2)
-          (proto/clear-node! node1 graph)
+          (oldproto/clear-node! node1 graph)
           (is (= (async/<! (graph/hook graph key testsel :test)) 8))
           ;(prn 3)
-          (proto/clear-node! node1 graph)
+          (oldproto/clear-node! node1 graph)
           (is (= (async/<! (graph/hook graph key testsel :test)) 9))
           ;(prn 4)
           (done))

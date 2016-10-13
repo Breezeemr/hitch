@@ -1,6 +1,7 @@
 (ns hitch.selectors.kv-store
   (:refer-clojure :exclude [key])
-  (:require [hitch.oldprotocols :as proto]
+  (:require [hitch.oldprotocols :as oldproto]
+            [hitch.protocol :as proto]
             [hitch.graph :as graph]
             [hitch.values :refer [->Realized ->NotRealized]]
             [hitch.nodes.simple :as node]
@@ -36,13 +37,13 @@
   )
 
 (defrecord KVStoreServiceSelector [keyspace]
-  proto/StatefulSelector
+  oldproto/StatefulSelector
   (init [selector]
-    {:val  proto/NIL-SENTINEL
+    {:val  oldproto/NIL-SENTINEL
      :deps #{}})
   (clear [selector state])
-  proto/InformedSelector
-  proto/EffectableSelector
+  oldproto/InformedSelector
+  oldproto/EffectableSelector
   (effect-accumulator
     [s state] state)
   (effect-step [s acc event]
@@ -56,11 +57,11 @@
                      ))))
   (effect-result [s acc]
     ;(prn "acc" acc)
-    (proto/->EffectResult acc))
-  proto/SelectorValue
+    (oldproto/->EffectResult acc))
+  oldproto/SelectorValue
   (-value [this graph state]
     ;(prn "state" state)
-    (if (identical? (:val state) proto/NIL-SENTINEL)
+    (if (identical? (:val state) oldproto/NIL-SENTINEL)
       (->NotRealized nil)
       (->Realized (:val state) nil))))
 
@@ -69,7 +70,7 @@
     IFn
     (-invoke [this graph ks]
       (assert nil "alias is stateful and should not be evaled"))
-    proto/ISelectorFactory
+    oldproto/ISelectorFactory
     (-selector [this ks]
       (->KVStoreServiceSelector ks))))
 

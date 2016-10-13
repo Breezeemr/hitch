@@ -1,5 +1,6 @@
 (ns hitch.selectors.http
-  (:require [hitch.oldprotocols :as proto]
+  (:require [hitch.oldprotocols :as oldproto]
+            [hitch.protocol :as proto]
             [hitch.graph :as graph]
             [hitch.values :refer [->Realized ->NotRealized]]
             [hitch.nodes.simple :as node]
@@ -30,13 +31,13 @@
     ))
 
 (defrecord HTTPSelector [url method serializer deserializer content headers]
-  proto/StatefulSelector
+  oldproto/StatefulSelector
   (init [selector]
-    {:val    proto/NIL-SENTINEL
+    {:val    oldproto/NIL-SENTINEL
      :action true})
   (clear [selector state])
-  proto/InformedSelector
-  proto/EffectableSelector
+  oldproto/InformedSelector
+  oldproto/EffectableSelector
   (effect-accumulator
     [s state] state)
   (effect-step [s acc event]
@@ -48,16 +49,16 @@
                      (assoc acc :val new-value)))))
   (effect-result [s acc]
     (if (:action acc)
-      (proto/->EffectResultAction (dissoc acc :action)
-                                  (fn [simple-graph effect-sink]
+      (oldproto/->EffectResultAction (dissoc acc :action)
+                                     (fn [simple-graph effect-sink]
                                     (mk-xhr url method serializer deserializer content headers
                                             (fn [result]
                                               (effect-sink [[s [:set-value result]]])))))
-      (proto/->EffectResult acc)))
-  proto/SelectorValue
+      (oldproto/->EffectResult acc)))
+  oldproto/SelectorValue
   (-value [this graph state]
     ;(prn "state" state)
-    (if (identical? (:val state) proto/NIL-SENTINEL)
+    (if (identical? (:val state) oldproto/NIL-SENTINEL)
       (->NotRealized nil)
       (->Realized (:val state) nil))))
 
@@ -66,6 +67,6 @@
     IFn
     (-invoke [this graph url method serializer deserializer content headers]
       (assert nil "alias is stateful and should not be evaled"))
-    proto/ISelectorFactory
+    oldproto/ISelectorFactory
     (-selector [this url method serializer deserializer content headers]
       (->HTTPSelector url method serializer deserializer content headers))))

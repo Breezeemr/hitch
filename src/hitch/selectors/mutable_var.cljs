@@ -1,14 +1,15 @@
 (ns hitch.selectors.mutable-var
-  (:require [hitch.oldprotocols :as proto]
+  (:require [hitch.oldprotocols :as oldproto]
+            [hitch.protocol :as proto]
             [hitch.graph :as graph]
             [hitch.values :refer [->Realized ->NotRealized]]
             [hitch.selector :refer-macros [defselector]]))
 
 (defrecord MutableVar [n]
-  proto/StatefulSelector
+  oldproto/StatefulSelector
   (init [selector] nil)
   (clear [selector state])
-  proto/EffectableSelector
+  oldproto/EffectableSelector
   (effect-accumulator
     [s state] state)
   (effect-step [s acc event]
@@ -16,14 +17,14 @@
       (case key
         :set-value (second event))))
   (effect-result [s acc]
-    (proto/->EffectResult acc))
-  proto/SelectorValue
+    (oldproto/->EffectResult acc))
+  oldproto/SelectorValue
   (-value [selector graph state]
     (if state
       (->Realized state nil)
       (->NotRealized nil))))
 
 (def mutable-var
-  (reify proto/ISelectorFactory
+  (reify oldproto/ISelectorFactory
     (-selector [_ n]
       (->MutableVar n))))
