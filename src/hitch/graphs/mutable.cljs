@@ -6,6 +6,11 @@
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate ^:mutable internal-invalidated
                           ^:mutable external-invalidate!]
+  ILookup
+  (-lookup [o data-selector]
+    (-lookup o data-selector nil))
+  (-lookup [o data-selector not-found]
+    (-lookup nodemap data-selector not-found))
   oldproto/IDependencyGraph
   (peek-node [this data-selector]
     (get nodemap data-selector))

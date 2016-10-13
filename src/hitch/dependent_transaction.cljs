@@ -6,6 +6,11 @@
             [cljs.core.async.impl.protocols :as impl]))
 
 (deftype TX [graph target ^:mutable requests]
+  ILookup
+  (-lookup [o data-selector]
+    (-lookup o data-selector nil))
+  (-lookup [o data-selector not-found]
+    (-lookup graph data-selector not-found))
   oldproto/IBatching
   (-request-invalidations [_ invalidations]
     (oldproto/-request-invalidations graph invalidations))
