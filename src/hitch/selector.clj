@@ -12,9 +12,9 @@
 (clojure.core/defn selector-record [selector-name eval-fn-name constructor-binding-forms body]
   (let [graphsymbol (->> constructor-binding-forms clojure.core/ffirst)]
     `(defrecord ~selector-name ~(clojure.core/into [] (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
-       hitch.protocols/SelectorValue
+       hitch.oldprotocols/SelectorValue
        (~'-value [~'selector ~graphsymbol ~'state]
-         (assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
+         (assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
          (cljs.core/let [~'dtx (hitch.dependent-transaction/tx ~graphsymbol ~'selector)]
            (hitch.selector/handle-selector-value
              ~'dtx
@@ -29,12 +29,12 @@
      (cljs.core/reify
        cljs.core/IFn
        (~'-invoke ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) constructor-binding-forms)
-         (assert (cljs.core/satisfies? hitch.protocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
+         (assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
          ~(clojure.core/->> constructor-binding-forms
                             (clojure.core/map clojure.core/first)
                             (clojure.core/cons eval-fn-name))
          )
-       hitch.protocols/ISelectorFactory
+       hitch.oldprotocols/ISelectorFactory
        (~'-selector ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
          ~(clojure.core/->> constructor-binding-forms
                             (clojure.core/map clojure.core/first)
