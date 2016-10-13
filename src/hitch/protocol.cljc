@@ -162,8 +162,6 @@
   (value [s selector-values state]
     "Return a SelectorValue or SelectorUnresolved."))
 
-(deftype StateEffect [state effect])
-
 (defprotocol StatefulSelector
   "Private state, initializer, and finalizer for Selectors."
   (create [s]
