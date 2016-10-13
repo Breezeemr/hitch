@@ -149,7 +149,7 @@
          external-invalids external-invalids]
     (if-let [selector (first selectors)]
       (if-let [node (get graph selector)]
-        (let [{new-value :value dependencies :dependencies :as vcontainer} (oldproto/-value selector graph (.-state node))
+        (let [{new-value :value dependencies :dependencies :as vcontainer} (proto/value selector graph (.-state node))
               old-deps (.-refs node)]
           (set! (.-refs node) dependencies)
           ;(prn "dependencies " dependencies)

@@ -55,8 +55,8 @@
                                             (fn [result]
                                               (effect-sink [[s [:set-value result]]])))))
       (oldproto/->EffectResult acc)))
-  oldproto/SelectorValue
-  (-value [this graph state]
+  proto/Selector
+  (value [this graph state]
     ;(prn "state" state)
     (if (identical? (:val state) oldproto/NIL-SENTINEL)
       (->NotRealized nil)

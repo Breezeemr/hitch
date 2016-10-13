@@ -18,8 +18,8 @@
         :set-value (second event))))
   (command-result [s acc]
     (oldproto/->EffectResult acc))
-  oldproto/SelectorValue
-  (-value [selector graph state]
+  proto/Selector
+  (value [selector graph state]
     (if state
       (->Realized state nil)
       (->NotRealized nil))))
