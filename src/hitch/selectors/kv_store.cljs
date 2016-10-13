@@ -12,8 +12,8 @@
 
 (declare  keyspace)
 ;(defrecord KeySelector [ks k]
-;  proto/SelectorValue
-;  (-value [this graph state]
+;  proto/Selector
+;  (value [this graph state]
 ;    (let [keyspace-selector (proto/-selector keyspace ks)]
 ;      (if-let [kstore (some-> (proto/peek-node graph keyspace-selector)
 ;                              async/poll!)]

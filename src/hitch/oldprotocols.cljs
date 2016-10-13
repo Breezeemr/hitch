@@ -84,10 +84,6 @@
 
 (defrecord EffectError [accumulator pending-effects bad-effect error])
 
-(defprotocol SelectorValue
-  (-value [selector graph state]))
-
-
 (defprotocol IBatching
   (-request-invalidations [graph invalidations])
   (peek-invalidations [graph])
