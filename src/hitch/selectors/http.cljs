@@ -65,5 +65,5 @@
 (def http
   (reify
     IFn
-    (-invoke [this graph url method serializer deserializer content headers]
+    (-invoke [this url method serializer deserializer content headers]
       (->HTTPSelector url method serializer deserializer content headers))))

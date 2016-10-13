@@ -68,6 +68,6 @@
 (def keyspace
   (reify
     IFn
-    (-invoke [this graph ks]
+    (-invoke [this ks]
       (->KVStoreServiceSelector ks))))
 
