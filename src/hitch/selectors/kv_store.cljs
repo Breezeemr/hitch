@@ -57,7 +57,7 @@
                      ))))
   (command-result [s acc]
     ;(prn "acc" acc)
-    (oldproto/->EffectResult acc))
+    (proto/->State acc))
   proto/Selector
   (value [this graph state]
     ;(prn "state" state)

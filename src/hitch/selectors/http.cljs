@@ -49,12 +49,12 @@
                      (assoc acc :val new-value)))))
   (command-result [s acc]
     (if (:action acc)
-      (oldproto/->EffectResultAction (dissoc acc :action)
+      (proto/->StateEffect (dissoc acc :action)
                                      (fn [simple-graph effect-sink]
                                     (mk-xhr url method serializer deserializer content headers
                                             (fn [result]
                                               (effect-sink [[s [:set-value result]]])))))
-      (oldproto/->EffectResult acc)))
+      (proto/->State acc)))
   proto/Selector
   (value [this graph state]
     ;(prn "state" state)

@@ -216,7 +216,7 @@
                           (let [{new-state :state :as result} (proto/command-result selector @v)]
                             ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                             (set! (.-state node) new-state)
-                            (when (instance? oldproto/EffectResultAction result)
+                            (when-let [effects (:effect result)]
                               (when-not @oldproto/scheduled-actions
                                 (vreset! oldproto/scheduled-actions true)
                                 (schedule-actions graph))

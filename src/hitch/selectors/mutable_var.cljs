@@ -17,7 +17,7 @@
       (case key
         :set-value (second event))))
   (command-result [s acc]
-    (oldproto/->EffectResult acc))
+    (proto/->State acc))
   proto/Selector
   (value [selector graph state]
     (if state
