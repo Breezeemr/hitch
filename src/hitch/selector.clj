@@ -27,15 +27,15 @@
 (clojure.core/defn sel-constructor [name eval-fn-name selector-name constructor-binding-forms body]
   `(def ~name
      (cljs.core/reify
-       cljs.core/IFn
-       (~'-invoke ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) constructor-binding-forms)
+       hitch.oldprotocols/ISelectorFactory
+       (~'inline ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) constructor-binding-forms)
          (assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
          ~(clojure.core/->> constructor-binding-forms
                             (clojure.core/map clojure.core/first)
                             (clojure.core/cons eval-fn-name))
          )
-       hitch.oldprotocols/ISelectorFactory
-       (~'-selector ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
+       cljs.core/IFn
+       (~'-invoke ~(clojure.core/into ['this] (clojure.core/map clojure.core/first) (clojure.core/rest constructor-binding-forms))
          ~(clojure.core/->> constructor-binding-forms
                             (clojure.core/map clojure.core/first)
                             clojure.core/rest

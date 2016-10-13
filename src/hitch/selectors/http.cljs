@@ -66,7 +66,4 @@
   (reify
     IFn
     (-invoke [this graph url method serializer deserializer content headers]
-      (assert nil "alias is stateful and should not be evaled"))
-    oldproto/ISelectorFactory
-    (-selector [this url method serializer deserializer content headers]
       (->HTTPSelector url method serializer deserializer content headers))))

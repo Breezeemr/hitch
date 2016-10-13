@@ -25,6 +25,6 @@
       (->NotRealized nil))))
 
 (def mutable-var
-  (reify oldproto/ISelectorFactory
-    (-selector [_ n]
+  (reify IFn
+    (-invoke [_ n]
       (->MutableVar n))))

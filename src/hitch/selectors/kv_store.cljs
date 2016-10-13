@@ -69,8 +69,5 @@
   (reify
     IFn
     (-invoke [this graph ks]
-      (assert nil "alias is stateful and should not be evaled"))
-    oldproto/ISelectorFactory
-    (-selector [this ks]
       (->KVStoreServiceSelector ks))))
 

@@ -14,15 +14,15 @@
   (let [graph (mgraph/graph)]
     (let [node1 (graph/hook graph mutable-var :test)]
       (is (= (async/poll! node1) nil))
-      (graph/apply-effects graph [[(oldproto/-selector mutable-var :test) [:set-value 5]]])
+      (graph/apply-effects graph [[(mutable-var :test) [:set-value 5]]])
       (is (= (async/poll! node1) 5))
       (is (= (async/poll! (graph/hook graph mutable-var :test)) 5)))))
 
 (deftest firstasync
   (let [graph (mgraph/graph)]
     (async done
-      (let [node1 (graph/get-or-create-node! graph (oldproto/-selector mutable-var :test))
-            testsel (oldproto/-selector mutable-var :test)]
+      (let [node1 (graph/get-or-create-node! graph (mutable-var :test))
+            testsel (mutable-var :test)]
         (go
           (is (= (async/<! (graph/hook graph  mutable-var :test)) 7))
           (oldproto/clear-node! node1 graph)
@@ -37,7 +37,7 @@
 (deftest single-hook
          (let [graph (mgraph/graph)]
            (async done
-             (let [testsel (oldproto/-selector mutable-var :test)
+             (let [testsel (mutable-var :test)
                    node1 (graph/get-or-create-node! graph testsel)
                    hook (graph/hook graph  mutable-var :test)]
                (go
@@ -52,8 +52,8 @@
 (deftest take-as-many-as-you-want
   (let [graph (mgraph/graph)]
     (async done
-      (let [node1 (graph/get-or-create-node! graph (oldproto/-selector mutable-var :test))
-            testsel (oldproto/-selector mutable-var :test)]
+      (let [node1 (graph/get-or-create-node! graph (mutable-var :test))
+            testsel (mutable-var :test)]
         (go
           (is (= (async/<! (graph/hook graph mutable-var :test)) 7))
           (is (= (async/<! (graph/hook graph mutable-var :test)) 7))
