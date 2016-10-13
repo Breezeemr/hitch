@@ -184,13 +184,13 @@
   commands are added to the selector's command queue which inform when child
   selectors begin or cease depending on the current selector.")
 
-(deftype State [state])
+(defrecord State [state])
 
-(deftype StateEffect [state effect])
+(defrecord StateEffect [state effect])
 
-(deftype StateEffectRefresh [state effect recalc-child-selectors])
+(defrecord StateEffectRefresh [state effect recalc-child-selectors])
 
-(deftype CommandError [accumulator pending-commands bad-command error])
+(defrecord CommandError [accumulator pending-commands bad-command error])
 
 (defprotocol CommandableSelector
   "Allows a selector to receive commands and alter its state based on commands.
