@@ -137,7 +137,7 @@
 
 
 (defn get-or-create-node [graph data-selector]
-  (if-let [n (peek-node graph data-selector)]
+  (if-let [n (get graph data-selector)]
     n
     (let [n (create-node! graph data-selector)]
       (-request-invalidations graph data-selector)
