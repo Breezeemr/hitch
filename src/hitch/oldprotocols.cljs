@@ -76,14 +76,6 @@
 (defn get-data-selector [node]
   (-data-selector node))
 
-
-(defrecord EffectResult [state])
-(defrecord EffectResultAction [state action])
-
-(defrecord EffectResultRefresh [state recalc-child-selectors])
-
-(defrecord EffectError [accumulator pending-effects bad-effect error])
-
 (defprotocol IBatching
   (-request-invalidations [graph invalidations])
   (peek-invalidations [graph])
