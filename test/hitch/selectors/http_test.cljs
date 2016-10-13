@@ -13,9 +13,9 @@
 
 (deftest firstt3
          (let [graph (mgraph/graph)
-               node1 (graph/hook graph http "https://storage.googleapis.com/breeze-pgoa-picklist/peds-test.json" :get nil  (.-parse js/JSON) nil nil)]
+               node1 (graph/hook graph http "http://0.0.0.0:3449/test.json" :get nil  (.-parse js/JSON) nil nil)]
            (async done
              (go
-               (is (= (async/<! node1) :cat))
+               (is (= (async/<! node1) "cat"))
                (done)))))
 
