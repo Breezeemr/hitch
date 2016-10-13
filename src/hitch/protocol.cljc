@@ -144,7 +144,7 @@
     Effects are only called at the end of a successful transaction after all
     commands have been processed and new selector values recalculated.
     The effect function receives a Transactable Graph as its argument."
-  (:import (clojure.lang ILookup)))
+  #?(:clj (:import (clojure.lang ILookup))))
 
 
 (deftype SelectorUnresolved [parents])
