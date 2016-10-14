@@ -21,7 +21,7 @@
 (deftest firstasync
   (let [graph (mgraph/graph)]
     (async done
-      (let [node1 (graph/get-or-create-node! graph (mutable-var :test))
+      (let [node1 (oldproto/get-or-create-node graph (mutable-var :test))
             testsel (mutable-var :test)]
         (go
           (is (= (async/<! (graph/hook graph  mutable-var :test)) 7))
@@ -38,7 +38,7 @@
          (let [graph (mgraph/graph)]
            (async done
              (let [testsel (mutable-var :test)
-                   node1 (graph/get-or-create-node! graph testsel)
+                   node1 (oldproto/get-or-create-node graph testsel)
                    hook (graph/hook graph  mutable-var :test)]
                (go
                  (is (= (async/<! hook) 7))
@@ -52,7 +52,7 @@
 (deftest take-as-many-as-you-want
   (let [graph (mgraph/graph)]
     (async done
-      (let [node1 (graph/get-or-create-node! graph (mutable-var :test))
+      (let [node1 (oldproto/get-or-create-node graph (mutable-var :test))
             testsel (mutable-var :test)]
         (go
           (is (= (async/<! (graph/hook graph mutable-var :test)) 7))

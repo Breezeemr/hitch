@@ -9,6 +9,11 @@
 
 (defonce NIL-SENTINEL (reify Object
                       (toString [this] "NIL-SENTINEL")))
+
+(defonce NOT-FOUND-SENTINEL
+         (reify Object
+           (toString [this] "NOT-FOUND-SENTINEL")))
+
 (defn fixnil [v]
   (if (identical? v NIL-SENTINEL)
     nil
@@ -25,10 +30,10 @@
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
-  (subscribe-node [this data-selector] "gets node for dataselector")
-  #_(create-node! [this data-selector]
-                  "create node and follow init lifecycle")
-  (create-node! [this data-selector]
+  (depend! [this data-selector] "gets node for dataselector")
+  (undepend! [this data-selector] "gets node for dataselector")
+  (apply-commands [this selector-command-pairs])
+  (create-node! [this data-selector nf]
                 "adds node")
   (clear-graph! [this])
   (gc [this data-selector]
@@ -82,12 +87,18 @@
   (take-invalidations! [graph]))
 
 
-(defn get-or-create-node [graph data-selector]
-  (if-let [n (get graph data-selector)]
-    n
-    (let [n (create-node! graph data-selector)]
-      (-request-invalidations graph data-selector)
-      n)))
+(defn get-or-create-node
+  ([graph selector]
+   (get-or-create-node graph selector nil))
+  ([graph selector nf]
+   (let [n (get graph selector)]
+     (if (identical? n nf)
+       (let [n (create-node! graph selector nf)]
+         (if (identical? n nf)
+           nf
+           n))
+       n)
+     )))
 
 (defn get-temp-state [graph selector]
   (assert (satisfies? proto/CommandableSelector selector) )

@@ -17,7 +17,7 @@
   (let [graph (mgraph/graph)]
     (async done
       (let [ks-sel (keyspace :main)
-            node1 (graph/get-or-create-node! graph (key ks-sel :test))
+            node1 (oldproto/get-or-create-node graph (kv/key ks-sel :test))
             ks-node (graph/hook graph keyspace :main)
             ]
         (is (= (async/poll! node1) nil))
@@ -31,7 +31,7 @@
   (let [graph (mgraph/graph)]
     (async done
       (let [testsel (keyspace :main)        ;(proto/-selector key :main :test)
-            node1 (graph/get-or-create-node! graph (kv/key testsel :test))
+            node1 (oldproto/get-or-create-node graph (kv/key testsel :test))
             ks-node (graph/hook graph keyspace :main)
 
             ks (async/poll! ks-node)]

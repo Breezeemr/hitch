@@ -18,11 +18,14 @@
     (oldproto/peek-invalidations graph))
   (take-invalidations! [_] (oldproto/take-invalidations! graph))
   oldproto/IDependencyGraph
-  (create-node! [this data-selector]
-    (oldproto/create-node! graph data-selector))
-  (subscribe-node [this data-selector]
-    (set! requests (conj requests data-selector))
-    (oldproto/get-or-create-node graph data-selector))
+  (create-node! [this data-selector nf]
+    (oldproto/create-node! graph data-selector nf))
+  (apply-commands [_ selector-command-pairs]
+    (oldproto/apply-commands graph selector-command-pairs))
+  (depend! [this data-selector]
+    (set! requests (conj requests data-selector)))
+  (undepend! [this data-selector]
+    (set! requests (disj requests data-selector)))
   #_(clear-graph! [this]
                   (proto/clear! graph))
   #_(gc [this data-selector]

@@ -32,7 +32,7 @@
 ;      (->KeySelector ks k))))
 
 (defselector key [graph sel k]
-  (get (-> (graph/hitch-sel graph sel)
+  (get (-> (graph/dget! graph sel)
            async/<!) k)
   )
 
