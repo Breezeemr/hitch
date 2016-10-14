@@ -16,3 +16,5 @@ pom.xml
 /log
 *.iml
 id_file
+resources/public/js/devcardsout
+resources/public/js/hitch_devcards.js
