@@ -58,9 +58,11 @@
   proto/Selector
   (value [this graph state]
     ;(prn "state" state)
-    (if (identical? (:val state) oldproto/NIL-SENTINEL)
-      (->NotRealized nil)
-      (->Realized (:val state) nil))))
+    (if state
+      (if (identical? (:val state) oldproto/NIL-SENTINEL)
+        (->NotRealized nil)
+        (->Realized (:val state) nil))
+      (->NotRealized nil))))
 
 (def http
   (reify
