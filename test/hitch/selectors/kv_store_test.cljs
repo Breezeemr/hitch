@@ -20,7 +20,7 @@
             node1 (oldproto/get-or-create-node graph (kv/key ks-sel :test))
             ks-node (graph/hook graph keyspace :main)
             ]
-        (is (= (async/poll! node1) nil))
+        (is (= (get graph (kv/key ks-sel :test) nil) nil))
         (graph/apply-effects graph [[ks-sel [:set-value {:test :cat}]]])
         (go
           (is (= (async/<! node1) :cat))
