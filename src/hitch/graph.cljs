@@ -22,8 +22,6 @@
 
 
 (defn dget!
-  ([graph selector]
-   (dget! graph selector nil))
   ([graph selector nf]
    (let [n (oldproto/get-or-effect-graph graph selector nf)]
      (oldproto/depend! graph selector)
@@ -39,7 +37,7 @@
   ([graph selector-constructor a b c d f g] (make-hook graph (selector-constructor a b c d f g)))
   ([graph selector-constructor a b c d f g h] (make-hook graph (selector-constructor a b c d f g h))))
 
-(defn hitch*!
+(defn hitch!
   ([graph nf selector-constructor]
    (if *execution-mode*
      (dget! graph (selector-constructor) nf)
@@ -71,40 +69,6 @@
   ([graph nf selector-constructor a b c d e f g ]
    (if *execution-mode*
      (dget! graph (selector-constructor a b c d e f g) nf)
-     (oldproto/inline selector-constructor graph a b c d e f g))))
-
-(defn hitch!
-  ([graph selector-constructor]
-   (if *execution-mode*
-     (dget! graph (selector-constructor))
-     (oldproto/inline selector-constructor graph)))
-  ([graph selector-constructor a]
-   (if *execution-mode*
-     (dget! graph (selector-constructor a))
-     (oldproto/inline selector-constructor graph a)))
-  ([graph selector-constructor a b]
-   (if *execution-mode*
-     (dget! graph (selector-constructor a b))
-     (oldproto/inline selector-constructor graph a b)))
-  ([graph selector-constructor a b c]
-   (if *execution-mode*
-     (dget! graph (selector-constructor a b c))
-     (oldproto/inline selector-constructor graph a b c)))
-  ([graph selector-constructor a b c d]
-   (if *execution-mode*
-     (dget! graph (selector-constructor a b c d))
-     (oldproto/inline selector-constructor graph a b c d)))
-  ([graph selector-constructor a b c d e]
-   (if *execution-mode*
-     (dget! graph (selector-constructor a b c d e))
-     (oldproto/inline selector-constructor graph a b c d e)))
-  ([graph selector-constructor a b c d e f ]
-   (if *execution-mode*
-     (dget! graph (selector-constructor a b c d e f ))
-     (oldproto/inline selector-constructor graph a b c d e f )))
-  ([graph selector-constructor a b c d e f g ]
-   (if *execution-mode*
-     (dget! graph (selector-constructor a b c d e f g))
      (oldproto/inline selector-constructor graph a b c d e f g))))
 
 (defn apply-effects [graph selector-effect-pairs]
