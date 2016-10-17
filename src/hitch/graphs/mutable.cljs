@@ -3,6 +3,10 @@
             [hitch.protocol :as proto]
             [hitch.nodes.simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
 
+(def ^:dynamic *read-mode* false)
+(def pending-actions (volatile! []))
+(def scheduled-actions (volatile! false))
+
 (defn get-or-create-node [graph data-selector]
   (if-let [n (get (.-nodemap graph) data-selector)]
     n
@@ -45,7 +49,7 @@
                 (when-not (contains? subscribers child)
                   ;(prn "add subscrption" child "to " parent)
                   (set! (.-subscribers parentnode) (conj subscribers child)))
-                (when (satisfies? oldproto/InformedSelector parent)
+                (when (satisfies? proto/InformedSelector parent)
                   (-apply-selector-effect graph parent [:add-dep child]))
                 ))
             parents))
@@ -57,7 +61,7 @@
                     subscribers (.-subscribers parentnode)]
                 (when (contains? subscribers child)
                   (set! (.-subscribers parentnode) (disj subscribers child)))
-                (when (satisfies? oldproto/InformedSelector parent)
+                (when (satisfies? proto/InformedSelector parent)
                   (-apply-selector-effect graph parent [:remove-dep child]))))
             parents))
     retiredeps))
@@ -98,7 +102,7 @@
                                               (recur (rest selectors)
                                                      (if (satisfies? proto/SilentSelector selector)
                                                        newitems
-                                                       (reduce conj! newitems (oldproto/get-dependents node)))
+                                                       (reduce conj! newitems (oldproto/-dependents node)))
                                                      (filtered-set-add newdeps selector dependencies old-deps)
                                                      (filtered-set-add retiredeps selector old-deps dependencies)
                                                      (if (oldproto/-get-external-dependents graph selector)
@@ -141,10 +145,10 @@
                            ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                            (set! (.-state node) new-state)
                            (when-let [effect (:effect result)]
-                             (when-not @oldproto/scheduled-actions
-                               (vreset! oldproto/scheduled-actions true)
+                             (when-not @scheduled-actions
+                               (vreset! scheduled-actions true)
                                (schedule-actions graph))
-                             (vswap! oldproto/pending-actions conj effect))
+                             (vswap! pending-actions conj effect))
                            (if (satisfies? proto/SilentSelector selector)
                              (eduction cat [[selector] (:recalc-child-selectors result) ])
                              [selector]))
@@ -160,7 +164,7 @@
 
 
 (defn normalize-tx! [graph]
-  (binding [oldproto/*read-mode* true]
+  (binding [*read-mode* true]
     (loop [invalidations (oldproto/take-invalidations! graph) external-invalids (transient [])]
       ;(prn "invalidations " invalidations (.-tempstate graph))
       (if (not-empty invalidations)
@@ -173,7 +177,7 @@
 
 (defn process-actions [graph]
   (fn []
-    (let [pending-actions @oldproto/pending-actions
+    (let [current-pending-actions @pending-actions
           simple-graph (reify ILookup
                          (-lookup [this k]
                            (-lookup this k nil))
@@ -181,11 +185,11 @@
                            (if-let [node (get (.-nodemap graph) k)]
                              (.-value node)
                              not-found)))]
-      (vreset! oldproto/scheduled-actions false)
-      (vreset! oldproto/pending-actions [])
+      (vreset! scheduled-actions false)
+      (vreset! pending-actions [])
       (run! (fn [scheduled-action]
               (scheduled-action simple-graph (fn [selector-effect-pairs] (oldproto/apply-commands graph selector-effect-pairs))))
-            pending-actions))))
+            current-pending-actions))))
 
 (defn schedule-actions [graph]
   (goog.async.nextTick (process-actions graph)))
@@ -217,7 +221,7 @@
           (set! nodemap (assoc nodemap data-selector new-node))
           ;next two forms need to be resolved
           (oldproto/-request-invalidations graph data-selector)
-          (when-not oldproto/*read-mode*
+          (when-not *read-mode*
             (normalize-tx! graph))
           (let [v (.-value new-node)]
             (if (identical? v NODE-NOT-RESOLVED-SENTINEL)
@@ -228,7 +232,7 @@
             nf
             v)))))
   (apply-commands [graph selector-command-pairs]
-    (binding [oldproto/*read-mode* true]
+    (binding [*read-mode* true]
       (-apply-selector-effect-pairs graph selector-command-pairs)
       (normalize-tx! graph)))
   (-add-external-dependent [this parent child]

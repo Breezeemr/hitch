@@ -18,7 +18,7 @@
 (deftype Node [selector ^:mutable value ^:mutable state ^:mutable stale? ^:mutable subscribers ^:mutable external-dependencies ^:mutable refs]
   oldproto/IDependencyNode
   (-get-value [_]
-    (oldproto/get-value value))                                ;unwrap references
+    value)                                ;unwrap references
   (set-value! [_ new-value]
     (set! value new-value))
   (-dependents [_]
@@ -31,9 +31,6 @@
       (set! state (proto/create selector)))
     (set! stale? true)
     (set! subscribers #{}))
-  oldproto/IDynamicDepNode
-  (get-tx [self] refs)
-  (set-tx! [self newtx] (set! refs newtx))
   impl/ReadPort
   (take! [this ^not-native handler]
     (if (not ^boolean (impl/active? handler))

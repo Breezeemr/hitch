@@ -41,7 +41,7 @@
     {:val  oldproto/NIL-SENTINEL
      :deps #{}})
   (destroy [selector state])
-  oldproto/InformedSelector
+  proto/InformedSelector
   proto/CommandableSelector
   (command-accumulator
     [s state] state)

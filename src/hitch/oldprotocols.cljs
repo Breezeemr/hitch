@@ -3,9 +3,6 @@
             [cljs.core.async.impl.channels :as imp-chan]
             [hitch.protocol :as proto]))
 
-(def ^:dynamic *read-mode* false)
-(def pending-actions (volatile! []))
-(def scheduled-actions (volatile! false))
 
 (defonce NIL-SENTINEL (reify Object
                       (toString [this] "NIL-SENTINEL")
@@ -30,15 +27,10 @@
   (if (identical? v NIL-SENTINEL)
     nil
     v))
-#_(defprotocol ISubscriber
-  (-recalculate! [sub graph]))
 
 (defprotocol ISelectorFactory
   (inline [selector-factory] [selector-factory a] [selector-factory a b] [selector-factory a b c] [selector-factory a b c d] [selector-factory a b c d e] [selector-factory a b c d e f] [selector-factory a b c d e f g] [selector-factory a b c d e f g h] ))
 
-(defprotocol IDynamicDepNode
-  (get-tx [this])
-  (set-tx! [this tx]))
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
@@ -55,19 +47,6 @@
   (gc [this data-selector]
       "Schedule clean up of the resources for dataselector"))
 
-#_(defprotocol INodeDependencyTracker
-  "Implemented by function and component caches"
-  (node-depend! [dependee dependent]
-                "Dependency sources call this method if a tracker is bound in the current
-                 context with dependencies that are encountered during query processing.")
-  (node-undepend! [dependee dependent]))
-
-
-(defprotocol InformedSelector
-  "A marker protocol. When present, a :hitch.protocol/child-changes effect are
-  added to the selector's effect queue which inform when child selectors begin
-  to or cease depending on the current selector.")
-
 (defprotocol ExternalDependent
   (-change-notify [this graph selector-changed]))
 
@@ -83,15 +62,6 @@
   (-data-selector [this]
                   "The nodes that return this nodes value")
   (clear-node! [this graph]))
-
-(defn get-value [x]
-  (if (satisfies? IDependencyNode x)
-    (-get-value x)
-    x))
-(defn get-dependents [node]
-  (-dependents node))
-(defn get-data-selector [node]
-  (-data-selector node))
 
 (defprotocol IBatching
   (-request-invalidations [graph invalidations])
@@ -113,29 +83,4 @@
        n)
      )))
 
-(deftype Hook [graph selector ^:mutable handlers]
-  ExternalDependent
-  (-change-notify [this _ selector-changed]
 
-    (let [val (get graph selector NOT-FOUND-SENTINEL)]
-      ;(prn "notify" selector-changed val)
-      (when-not (identical? NOT-FOUND-SENTINEL val)
-        (-remove-external-dependent graph selector this)
-        (run! (fn [handler]
-                (let [real-handler (impl/commit handler)]
-                  (real-handler val)))
-              handlers))))
-  impl/ReadPort
-  (take! [this ^not-native new-handler]
-    (if (not ^boolean (impl/active? new-handler))
-      nil
-      (let [val (get-or-effect-graph graph selector NOT-FOUND-SENTINEL)]
-        ;(prn "take"  val)
-        (if (not (identical? val NOT-FOUND-SENTINEL))
-          (let [_ (impl/commit new-handler)]
-            (imp-chan/box val))
-          (do
-            (set! handlers (conj handlers new-handler))
-            nil))))))
-(defn mkhook [graph selector]
-  (->Hook graph selector #{}))

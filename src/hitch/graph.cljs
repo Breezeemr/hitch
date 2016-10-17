@@ -2,6 +2,7 @@
   (:require-macros [hitch.eager :refer [go]])
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
+            [hitch.hook :refer [mkhook]]
             [hitch.graphs.mutable :as mgraph]
             [hitch.nodes.simple :refer [node]]
             [cljs.core.async.impl.protocols :as impl]
@@ -13,7 +14,7 @@
 ;(declare apply-effects invalidate-nodes normalize-tx! schedule-actions)
 
 (defn make-hook [graph selector]
-  (let [h  (oldproto/mkhook graph selector)]
+  (let [h  (mkhook graph selector)]
     (oldproto/get-or-effect-graph graph selector)
     (oldproto/-add-external-dependent graph selector h)
     h
