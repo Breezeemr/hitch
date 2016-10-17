@@ -3,8 +3,8 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.hook :refer [mkhook]]
-            [hitch.graphs.mutable :as mgraph]
-            [hitch.nodes.simple :refer [node]]
+            [hitch.graphs.graph :as mgraph]
+            [hitch.nodes.node :refer [node]]
             [cljs.core.async.impl.protocols :as impl]
             [cljs.core.async :as async]))
 

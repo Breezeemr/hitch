@@ -1,7 +1,7 @@
-(ns hitch.graphs.mutable
+(ns hitch.graphs.graph
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.nodes.simple :as simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
+            [hitch.nodes.node :as simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
 
 (def ^:dynamic *read-mode* false)
 (def pending-actions (volatile! []))

@@ -2,11 +2,11 @@
   (:require-macros [hitch.eager :refer [go]])
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.dependent-transaction :refer []]
+            [hitch.tx :refer []]
             [hitch.values :refer [->Realized ->NotRealized]]
             [cljs.core.async.impl.channels :as impl-chan]
             [cljs.core.async.impl.protocols :as impl]
-            [hitch.nodes.simple]
+            [hitch.nodes.node]
             [cljs.core.async :as async]))
 
 (defn handle-selector-value [tx value]

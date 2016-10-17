@@ -4,7 +4,7 @@
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
             [hitch.values :refer [->Realized ->NotRealized]]
-            [hitch.nodes.simple :as node :refer [NODE-NOT-RESOLVED-SENTINEL]]
+            [hitch.nodes.node :as node :refer [NODE-NOT-RESOLVED-SENTINEL]]
             [hitch.graph :as graph]
             [hitch.selector :refer-macros [defselector]]
             [cljs.core.async :as async])

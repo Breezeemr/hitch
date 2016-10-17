@@ -5,12 +5,12 @@
                    [devcards.core :as dc :refer [deftest]])
   (:require [cljs.test :refer [] :refer-macros [is run-tests async]]
             [hitch.core :as core]
-            [hitch.nodes.simple :as simple]
+            [hitch.nodes.node :as simple]
             [hitch.protocol :as proto]
             [hitch.selectors.kv-store :as kv :refer [keyspace key]]
             [hitch.graph :as graph]
             [cljs.core.async :as async]
-            [hitch.graphs.mutable :as mgraph]))
+            [hitch.graphs.graph :as mgraph]))
 
 
 (deftest firstt

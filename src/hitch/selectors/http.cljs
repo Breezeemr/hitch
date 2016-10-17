@@ -3,7 +3,7 @@
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
             [hitch.values :refer [->Realized ->NotRealized]]
-            [hitch.nodes.simple :as node]
+            [hitch.nodes.node :as node]
             [hitch.graph :as graph]
             [hitch.selector :refer-macros [defselector]]
             [cljs.core.async :as async]

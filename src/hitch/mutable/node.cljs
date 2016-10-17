@@ -1,7 +1,7 @@
-(ns hitch.nodes.simple
+(ns hitch.nodes.node
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.dependent-transaction :as dtx]
+            [hitch.tx :as dtx]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :as impl]
             [cljs.core.async.impl.channels :as imp-chan]

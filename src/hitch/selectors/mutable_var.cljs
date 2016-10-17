@@ -2,7 +2,7 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
-            [hitch.nodes.simple :refer [NODE-NOT-RESOLVED-SENTINEL]]
+            [hitch.nodes.node :refer [NODE-NOT-RESOLVED-SENTINEL]]
             [hitch.values :refer [->Realized ->NotRealized]]
             [hitch.selector :refer-macros [defselector]]))
 

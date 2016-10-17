@@ -1,4 +1,4 @@
-(ns hitch.dependent-transaction
+(ns hitch.tx
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [cljs.core.async :as async]
