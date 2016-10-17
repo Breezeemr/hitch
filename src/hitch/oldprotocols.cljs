@@ -8,11 +8,23 @@
 (def scheduled-actions (volatile! false))
 
 (defonce NIL-SENTINEL (reify Object
-                      (toString [this] "NIL-SENTINEL")))
+                      (toString [this] "NIL-SENTINEL")
+                        IPrintWithWriter
+                        (-pr-writer [_ writer opts]
+                          (-write writer "#NIL-SENTINEL"))))
 
 (defonce NOT-FOUND-SENTINEL
          (reify Object
-           (toString [this] "NOT-FOUND-SENTINEL")))
+           (toString [this] "NOT-FOUND-SENTINEL")
+           IPrintWithWriter
+           (-pr-writer [_ writer opts]
+             (-write writer "#NOT-FOUND-SENTINEL"))))
+(defonce NOT-IN-GRAPH-SENTINEL
+         (reify Object
+           (toString [this] "NOT-IN-GRAPH-SENTINEL")
+           IPrintWithWriter
+           (-pr-writer [_ writer opts]
+             (-write writer "#NOT-IN-GRAPH-SENTINEL"))))
 
 (defn fixnil [v]
   (if (identical? v NIL-SENTINEL)
@@ -32,6 +44,10 @@
   "Implemented by function and component caches"
   (depend! [this data-selector] "gets node for dataselector")
   (undepend! [this data-selector] "gets node for dataselector")
+  (-add-external-dependent [this parent child])
+  (-remove-external-dependent [this parent child])
+  (-get-external-dependents [this parent]
+                            "The current dependencies encountered by this tracker")
   (apply-commands [this selector-command-pairs])
   (create-node! [this data-selector nf]
                 "adds node")
@@ -64,10 +80,6 @@
               "Informs store that a particular params yeilds value given current store + deps")
   (-dependents [this]
                "The current dependencies encountered by this tracker")
-  (-add-external-dependent [this dependent])
-  (-remove-external-dependent [this dependent])
-  (-get-external-dependents [this]
-                            "The current dependencies encountered by this tracker")
   (-data-selector [this]
                   "The nodes that return this nodes value")
   (clear-node! [this graph]))
@@ -86,19 +98,13 @@
   (peek-invalidations [graph])
   (take-invalidations! [graph]))
 
+(defn get-or-create-node [graph data-selector]
+  (if-let [n (get (.-nodemap graph) data-selector)]
+    n
+    (do                                                     ;(prn "get-or-create-node" )
+        (create-node! graph data-selector nil)
+        (get (.-nodemap graph) data-selector))))
 
-(defn get-or-create-node
-  ([graph selector]
-   (get-or-create-node graph selector nil))
-  ([graph selector nf]
-   (let [n (get graph selector)]
-     (if (identical? n nf)
-       (let [n (create-node! graph selector nf)]
-         (if (identical? n nf)
-           nf
-           n))
-       n)
-     )))
 
 (defn get-temp-state [graph selector]
   (assert (satisfies? proto/CommandableSelector selector) )
@@ -109,27 +115,43 @@
       (set! (.-tempstate graph) (assoc (.-tempstate graph) selector ts))
       ts)))
 
+(defn get-or-effect-graph
+  ([graph selector]
+   (get-or-effect-graph graph selector NOT-FOUND-SENTINEL))
+  ([graph selector nf]
+    ;(prn (get graph selector NOT-IN-GRAPH-SENTINEL))
+   (let [n (get graph selector NOT-IN-GRAPH-SENTINEL)]
+     (if (identical? n NOT-IN-GRAPH-SENTINEL)
+       (let [newval (create-node! graph selector NOT-IN-GRAPH-SENTINEL)]
+         (if (identical? newval NOT-IN-GRAPH-SENTINEL)
+           nf
+           newval))
+       n)
+     )))
 
-
-(deftype Hook [n ^:mutable handlers]
+(deftype Hook [graph selector ^:mutable handlers]
   ExternalDependent
-  (-change-notify [this graph selector-changed]
-    (let [val (.-value n)]
-      (-remove-external-dependent n this)
-      (run! (fn [handler]
-              (let [real-handler (impl/commit handler)]
-                (real-handler val)))
-            handlers))
-    )
+  (-change-notify [this _ selector-changed]
+
+    (let [val (get graph selector NOT-FOUND-SENTINEL)]
+      ;(prn "notify" selector-changed val)
+      (when-not (identical? NOT-FOUND-SENTINEL val)
+        (-remove-external-dependent graph selector this)
+        (run! (fn [handler]
+                (let [real-handler (impl/commit handler)]
+                  (real-handler val)))
+              handlers))))
   impl/ReadPort
   (take! [this ^not-native new-handler]
     (if (not ^boolean (impl/active? new-handler))
       nil
-      (if (not (nil? (.-value n)))
-        (let [_ (impl/commit new-handler)]
-          (imp-chan/box (.-value n)))
-        (do
-          (set! handlers (conj handlers new-handler))
-          nil)))))
-(defn mkhook [node]
-  (->Hook node #{}))
+      (let [val (get-or-effect-graph graph selector NOT-FOUND-SENTINEL)]
+        ;(prn "take"  val)
+        (if (not (identical? val NOT-FOUND-SENTINEL))
+          (let [_ (impl/commit new-handler)]
+            (imp-chan/box val))
+          (do
+            (set! handlers (conj handlers new-handler))
+            nil))))))
+(defn mkhook [graph selector]
+  (->Hook graph selector #{}))

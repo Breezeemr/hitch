@@ -8,7 +8,12 @@
             hitch.values))
 
 
-
+(defonce NODE-NOT-RESOLVED-SENTINEL
+         (reify Object
+           (toString [this] "NODE-NOT-RESOLVED-SENTINEL")
+           IPrintWithWriter
+           (-pr-writer [_ writer opts]
+             (-write writer "#NODE-NOT-RESOLVED-SENTINEL"))))
 
 (deftype Node [selector ^:mutable value ^:mutable state ^:mutable stale? ^:mutable subscribers ^:mutable external-dependencies ^:mutable refs]
   oldproto/IDependencyNode
@@ -18,17 +23,10 @@
     (set! value new-value))
   (-dependents [_]
     subscribers)
-  (-add-external-dependent [this dependent]
-
-    (set! external-dependencies ((fnil conj #{}) external-dependencies dependent)))
-  (-remove-external-dependent [this dependent]
-    (set! external-dependencies (not-empty (disj external-dependencies dependent))))
-  (-get-external-dependents [_]
-    external-dependencies)
   (-data-selector [_]
     selector)
   (clear-node! [this graph]
-    (set! value nil)
+    (set! value NODE-NOT-RESOLVED-SENTINEL)
     (when (satisfies? proto/StatefulSelector selector)
       (set! state (proto/create selector)))
     (set! stale? true)
@@ -59,7 +57,7 @@
     (-write writer "}")))
 
 (defn node
-  ([sel] (node sel nil))
+  ([sel] (node sel NODE-NOT-RESOLVED-SENTINEL))
   ([sel val]
    (->Node sel val nil true #{} nil #{})))
 

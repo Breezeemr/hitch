@@ -13,16 +13,10 @@
 ;(declare apply-effects invalidate-nodes normalize-tx! schedule-actions)
 
 (defn make-hook [graph selector]
-  (let [n (oldproto/get-or-create-node graph selector)
-        h  (oldproto/mkhook n)]
-    (oldproto/-add-external-dependent n h)
+  (let [h  (oldproto/mkhook graph selector)]
+    (oldproto/get-or-effect-graph graph selector)
+    (oldproto/-add-external-dependent graph selector h)
     h
-    #_(if-some [val (.-value n)]
-        (async/put! prom val)
-        (let [h (oldproto/->Hook n nil)]
-          (prn "made hook")
-          (oldproto/-add-external-dependent n h)))
-    ;prom
     ))
 
 
@@ -30,12 +24,9 @@
   ([graph selector]
    (dget! graph selector nil))
   ([graph selector nf]
-   (let [n (oldproto/get-or-create-node graph selector nf)]
+   (let [n (oldproto/get-or-effect-graph graph selector nf)]
      (oldproto/depend! graph selector)
      n)))
-
-(defn try-to-get-node [dependency-graph data-selector]
-  (get dependency-graph data-selector))
 
 (defn hook
   ([graph selector-constructor] (make-hook graph (selector-constructor)))

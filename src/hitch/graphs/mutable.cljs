@@ -1,14 +1,14 @@
 (ns hitch.graphs.mutable
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.nodes.simple :refer [node]]))
+            [hitch.nodes.simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
 
 (declare   schedule-actions)                                  ;invalidate-nodes normalize-tx!
 (defn invalidate-external-items [graph ext-items]
   (run! (fn [changed-selector]
           (run! (fn [external-dep]
                   (oldproto/-change-notify external-dep graph changed-selector))
-                (oldproto/-get-external-dependents (get graph changed-selector))))
+                (oldproto/-get-external-dependents graph changed-selector)))
         ext-items))
 
 
@@ -54,7 +54,7 @@
          retiredeps (transient [])
          external-invalids external-invalids]
     (if-let [selector (first selectors)]
-      (if-let [node (get graph selector)]
+      (if-let [node (get (.-nodemap graph) selector)]
         (let [{new-value :value dependencies :dependencies :as vcontainer} (proto/value selector graph (.-state node))
               old-deps (.-refs node)]
           (set! (.-refs node) dependencies)
@@ -73,7 +73,7 @@
                                                                                           (filtered-set-add retiredeps selector old-deps dependencies)
                                                                                           external-invalids))
             (not= (.-value node) new-value) (do
-                                              ;(prn " value changed" (type selector) (.-value node) new-value (proto/get-dependents node))
+                                              ;(prn " value changed" vcontainer(type selector) (.-value node) new-value )
                                               (set! (.-value node) new-value)
 
                                               ;:value-changed
@@ -83,11 +83,11 @@
                                                        (reduce conj! newitems (oldproto/get-dependents node)))
                                                      (filtered-set-add newdeps selector dependencies old-deps)
                                                      (filtered-set-add retiredeps selector old-deps dependencies)
-                                                     (if (oldproto/-get-external-dependents node)
+                                                     (if (oldproto/-get-external-dependents graph selector)
                                                        (conj! external-invalids selector)
                                                        external-invalids)))))
 
-        (do (prn "Invalidated selector must always be in the graph" selector)
+        (do                                                 ;(prn "Invalidated selector must always be in the graph" selector)
             (recur (rest selectors)
                    newitems
                    newdeps
@@ -118,7 +118,7 @@
     (into [] (comp (map
                      (fn [[selector v]]
                        ;(prn "selector v " selector v)
-                       (if-let [node (get graph selector)]
+                       (if-let [node (get (.-nodemap graph) selector)]
                          (let [{new-state :state :as result} (proto/command-result selector @v)]
                            ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                            (set! (.-state node) new-state)
@@ -160,7 +160,7 @@
                          (-lookup [this k]
                            (-lookup this k nil))
                          (-lookup [this k not-found]
-                           (if-let [node (get graph k)]
+                           (if-let [node (get (.-nodemap graph) k)]
                              (.-value node)
                              not-found)))]
       (vreset! oldproto/scheduled-actions false)
@@ -180,22 +180,53 @@
   (-lookup [o data-selector]
     (-lookup o data-selector nil))
   (-lookup [o data-selector not-found]
-    (-lookup nodemap data-selector not-found))
+    (let [n (get nodemap data-selector not-found)]
+      ;(prn n)
+      (if (identical? n not-found)
+        not-found
+        (let [val (.-value n)]
+          (if (identical? val NODE-NOT-RESOLVED-SENTINEL)
+            not-found
+            val)))))
   oldproto/IDependencyGraph
   (create-node! [graph data-selector nf]
-    (let [new-node (node data-selector)]
-      (when (satisfies? proto/StatefulSelector data-selector)
-        (set! tempstate (assoc tempstate data-selector (atom (proto/create data-selector)))))
-      (set! nodemap (assoc nodemap data-selector new-node))
-      ;next two forms need to be resolved
-      (oldproto/-request-invalidations graph data-selector)
-      (when-not oldproto/*read-mode*
-        (normalize-tx! graph))
-      new-node))
+    ;(prn "create " data-selector)
+    (let [n (get nodemap data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+      (if (identical? n oldproto/NOT-IN-GRAPH-SENTINEL)
+        (let [new-node (node data-selector)]
+          (when (satisfies? proto/StatefulSelector data-selector)
+            (set! tempstate (assoc tempstate data-selector (atom (proto/create data-selector)))))
+          (set! nodemap (assoc nodemap data-selector new-node))
+          ;next two forms need to be resolved
+          (oldproto/-request-invalidations graph data-selector)
+          (when-not oldproto/*read-mode*
+            (normalize-tx! graph))
+          (let [v (.-value new-node)]
+            (if (identical? v NODE-NOT-RESOLVED-SENTINEL)
+              nf
+              v)))
+        (let [v (.-value n)]
+          (if (identical? v NODE-NOT-RESOLVED-SENTINEL)
+            nf
+            v)))))
   (apply-commands [graph selector-command-pairs]
     (binding [oldproto/*read-mode* true]
       (-apply-selector-effect-pairs graph selector-command-pairs)
       (normalize-tx! graph)))
+  (-add-external-dependent [this parent child]
+    (when-let [n (get nodemap parent)]
+      (set! (.-external-dependencies n) ((fnil conj #{}) (.-external-dependencies n) child))
+      ;(prn "depadded " (.-external-dependencies n))
+      ))
+  (-remove-external-dependent [this parent child]
+    (when-let [n (get nodemap parent)]
+      (set! (.-external-dependencies n) (not-empty (disj (.-external-dependencies n) child)))
+      ))
+  (-get-external-dependents [this parent]
+    (when-let [n (get nodemap parent)]
+      ;(prn "Exdep" (.-external-dependencies n))
+      (.-external-dependencies n)
+      ))
   (clear-graph! [dgraph]
     (doseq [node (vals nodemap)]
       (oldproto/clear-node! node dgraph))
