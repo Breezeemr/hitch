@@ -2,11 +2,10 @@
   (:require-macros [hitch.eager :refer [go]])
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.tx :refer []]
-            [hitch.values :refer [->Realized ->NotRealized]]
+            [hitch.mutable.tx :refer []]
             [cljs.core.async.impl.channels :as impl-chan]
             [cljs.core.async.impl.protocols :as impl]
-            [hitch.nodes.node]
+            [hitch.mutable.node]
             [cljs.core.async :as async]))
 
 (defn handle-selector-value [tx value]
@@ -18,5 +17,5 @@
     (if-some [val (if (satisfies? impl/ReadPort value)
                      (async/poll! value)
                      value)]
-      (->Realized val requests)
-       (->NotRealized requests))))
+      (proto/->SelectorValue val requests)
+       (proto/->SelectorUnresolved requests))))

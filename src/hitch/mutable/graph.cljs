@@ -1,7 +1,7 @@
-(ns hitch.graphs.graph
+(ns hitch.mutable.graph
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.nodes.node :as simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
+            [hitch.mutable.node :as simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
 
 (def ^:dynamic *read-mode* false)
 (def pending-actions (volatile! []))
@@ -77,7 +77,7 @@
          external-invalids external-invalids]
     (if-let [selector (first selectors)]
       (if-let [node (get (.-nodemap graph) selector)]
-        (let [{new-value :value dependencies :dependencies :as vcontainer} (proto/value selector graph (.-state node))
+        (let [{new-value :value dependencies :parents :as vcontainer} (proto/value selector graph (.-state node))
               old-deps (.-refs node)]
           (set! (.-refs node) dependencies)
           ;(prn "dependencies " dependencies)
@@ -89,7 +89,7 @@
                                                   (filtered-set-add newdeps selector dependencies old-deps)
                                                   (filtered-set-add retiredeps selector old-deps dependencies)
                                                   external-invalids))
-            (and (.-value node) (instance? hitch.values/NotRealized vcontainer)) (do ; (prn " value-stale" (type selector) (.-value node)) ;:stale
+            (and (.-value node) (instance? proto/SelectorUnresolved vcontainer)) (do ; (prn " value-stale" (type selector) (.-value node)) ;:stale
                                                                                    (recur (rest selectors) newitems
                                                                                           (filtered-set-add newdeps selector dependencies old-deps)
                                                                                           (filtered-set-add retiredeps selector old-deps dependencies)

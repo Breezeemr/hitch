@@ -3,8 +3,7 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
-            [hitch.values :refer [->Realized ->NotRealized]]
-            [hitch.nodes.node :as node :refer [NODE-NOT-RESOLVED-SENTINEL]]
+            [hitch.mutable.node :as node :refer [NODE-NOT-RESOLVED-SENTINEL]]
             [hitch.graph :as graph]
             [hitch.selector :refer-macros [defselector]]
             [cljs.core.async :as async])
@@ -62,8 +61,8 @@
   (value [this graph state]
     ;(prn "state" state)
     (if (identical? (:val state) oldproto/NIL-SENTINEL)
-      (->NotRealized nil)
-      (->Realized (:val state) nil))))
+      (proto/->SelectorUnresolved nil)
+      (proto/->SelectorValue (:val state) nil))))
 
 (def keyspace
   (reify

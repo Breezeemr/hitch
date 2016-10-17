@@ -15,7 +15,7 @@
        hitch.protocol/Selector
        (~'value [~'selector ~graphsymbol ~'state]
          (assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
-         (cljs.core/let [~'dtx (hitch.dependent-transaction/tx ~graphsymbol ~'selector)]
+         (cljs.core/let [~'dtx (hitch.mutable.tx/tx ~graphsymbol ~'selector)]
            (hitch.selector/handle-selector-value
              ~'dtx
              ~(clojure.core/->> constructor-binding-forms

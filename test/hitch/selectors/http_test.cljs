@@ -8,7 +8,7 @@
             [hitch.selectors.http :refer [HTTPSelector http]]
             [hitch.graph :as graph]
             [cljs.core.async :as async]
-            [hitch.graphs.graph :as mgraph]))
+            [hitch.mutable.graph :as mgraph]))
 
 
 (deftest firstt3

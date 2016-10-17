@@ -2,8 +2,7 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
-            [hitch.values :refer [->Realized ->NotRealized]]
-            [hitch.nodes.node :as node]
+            [hitch.mutable.node :as node]
             [hitch.graph :as graph]
             [hitch.selector :refer-macros [defselector]]
             [cljs.core.async :as async]
@@ -60,9 +59,9 @@
     ;(prn "state" state)
     (if state
       (if (identical? (:val state) oldproto/NIL-SENTINEL)
-        (->NotRealized nil)
-        (->Realized (:val state) nil))
-      (->NotRealized nil))))
+        (proto/->SelectorUnresolved nil)
+        (proto/->SelectorValue (:val state) nil))
+      (proto/->SelectorUnresolved nil))))
 
 (def http
   (reify

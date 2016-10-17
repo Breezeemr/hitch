@@ -147,9 +147,9 @@
   #?(:clj (:import (clojure.lang ILookup))))
 
 
-(deftype SelectorUnresolved [parents])
+(defrecord SelectorUnresolved [parents])
 
-(deftype SelectorValue [value parents])
+(defrecord SelectorValue [value parents])
 
 (defprotocol Selector
   "Return a value and selectors read out of `selector-values`

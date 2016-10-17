@@ -7,7 +7,7 @@
             [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as graph]
             [cljs.core.async :as async]
-            [hitch.graphs.graph :as mgraph]))
+            [hitch.mutable.graph :as mgraph]))
 
 
 (deftest firstt

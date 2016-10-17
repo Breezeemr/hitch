@@ -1,4 +1,4 @@
-(ns hitch.tx
+(ns hitch.mutable.tx
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [cljs.core.async :as async]
@@ -41,7 +41,7 @@
   )
 
 
-(defn tx[graph target]
+(defn tx [graph target]
   (if (instance? TX graph)
     (TX. (.-graph graph) target #{})
     (TX. graph target #{})))

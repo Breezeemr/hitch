@@ -1,11 +1,10 @@
-(ns hitch.nodes.node
+(ns hitch.mutable.node
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.tx :as dtx]
+            [hitch.mutable.tx :as dtx]
             [cljs.core.async :as async]
             [cljs.core.async.impl.protocols :as impl]
-            [cljs.core.async.impl.channels :as imp-chan]
-            hitch.values))
+            [cljs.core.async.impl.channels :as imp-chan]))
 
 
 (defonce NODE-NOT-RESOLVED-SENTINEL

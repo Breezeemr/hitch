@@ -2,8 +2,7 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
-            [hitch.nodes.node :refer [NODE-NOT-RESOLVED-SENTINEL]]
-            [hitch.values :refer [->Realized ->NotRealized]]
+            [hitch.mutable.node :refer [NODE-NOT-RESOLVED-SENTINEL]]
             [hitch.selector :refer-macros [defselector]]))
 
 (defrecord MutableVar [n]
@@ -23,8 +22,8 @@
   proto/Selector
   (value [selector graph state]
     (if state
-      (->Realized state nil)
-      (->NotRealized nil))))
+      (proto/->SelectorValue state nil)
+      (proto/->SelectorUnresolved nil))))
 
 (def mutable-var
   (reify IFn
