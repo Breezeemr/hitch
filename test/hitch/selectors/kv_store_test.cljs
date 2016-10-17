@@ -5,7 +5,7 @@
                    [devcards.core :as dc :refer [deftest]])
   (:require [cljs.test :refer [] :refer-macros [is run-tests async]]
             [hitch.core :as core]
-            [hitch.oldprotocols :as oldproto]
+            [hitch.nodes.simple :as simple]
             [hitch.protocol :as proto]
             [hitch.selectors.kv-store :as kv :refer [keyspace key]]
             [hitch.graph :as graph]
@@ -37,10 +37,10 @@
           ;(prn 1)
           (is (= (async/<! (graph/hook graph key testsel :test)) 7))
           ;(prn 2)
-          (oldproto/clear-node! node1 graph)
+          (simple/clear-node! node1 graph)
           (is (= (async/<! (graph/hook graph key testsel :test)) 8))
           ;(prn 3)
-          (oldproto/clear-node! node1 graph)
+          (simple/clear-node! node1 graph)
           (is (= (async/<! (graph/hook graph key testsel :test)) 9))
           ;(prn 4)
           (done))

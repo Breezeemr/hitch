@@ -15,8 +15,21 @@
            (-pr-writer [_ writer opts]
              (-write writer "#NODE-NOT-RESOLVED-SENTINEL"))))
 
+(defprotocol IDependencyNode
+  "A utility API for tracking dependencies, allows us to provide more
+   advanced options for assembling tracker policies"
+  (-get-value [this]
+              "Returns cached value if exists for params")
+  (set-value! [this new-value]
+              "Informs store that a particular params yeilds value given current store + deps")
+  (-dependents [this]
+               "The current dependencies encountered by this tracker")
+  (-data-selector [this]
+                  "The nodes that return this nodes value")
+  (clear-node! [this graph]))
+
 (deftype Node [selector ^:mutable value ^:mutable state ^:mutable stale? ^:mutable subscribers ^:mutable external-dependencies ^:mutable refs]
-  oldproto/IDependencyNode
+  IDependencyNode
   (-get-value [_]
     value)                                ;unwrap references
   (set-value! [_ new-value]

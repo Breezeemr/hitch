@@ -50,18 +50,7 @@
 (defprotocol ExternalDependent
   (-change-notify [this graph selector-changed]))
 
-(defprotocol IDependencyNode
-  "A utility API for tracking dependencies, allows us to provide more
-   advanced options for assembling tracker policies"
-  (-get-value [this]
-              "Returns cached value if exists for params")
-  (set-value! [this new-value]
-              "Informs store that a particular params yeilds value given current store + deps")
-  (-dependents [this]
-               "The current dependencies encountered by this tracker")
-  (-data-selector [this]
-                  "The nodes that return this nodes value")
-  (clear-node! [this graph]))
+
 
 (defprotocol IBatching
   (-request-invalidations [graph invalidations])

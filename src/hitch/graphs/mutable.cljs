@@ -1,7 +1,7 @@
 (ns hitch.graphs.mutable
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.nodes.simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
+            [hitch.nodes.simple :as simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
 
 (def ^:dynamic *read-mode* false)
 (def pending-actions (volatile! []))
@@ -102,7 +102,7 @@
                                               (recur (rest selectors)
                                                      (if (satisfies? proto/SilentSelector selector)
                                                        newitems
-                                                       (reduce conj! newitems (oldproto/-dependents node)))
+                                                       (reduce conj! newitems (.-subscribers node)))
                                                      (filtered-set-add newdeps selector dependencies old-deps)
                                                      (filtered-set-add retiredeps selector old-deps dependencies)
                                                      (if (oldproto/-get-external-dependents graph selector)
@@ -251,7 +251,7 @@
       ))
   (clear-graph! [dgraph]
     (doseq [node (vals nodemap)]
-      (oldproto/clear-node! node dgraph))
+      (simple/clear-node! node dgraph))
     (set! nodemap {})
     (set! tempstate  {}))
   (gc [this data-selector]
