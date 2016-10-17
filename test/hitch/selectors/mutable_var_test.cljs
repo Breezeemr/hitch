@@ -21,13 +21,12 @@
 (deftest firstasync
   (let [graph (mgraph/graph)]
     (async done
-      (let [node1 (oldproto/get-or-create-node graph (mutable-var :test))
-            testsel (mutable-var :test)]
+      (let [testsel (mutable-var :test)]
         (go
           (is (= (async/<! (graph/hook graph  mutable-var :test)) 7))
-          (oldproto/clear-node! node1 graph)
+          (graph/apply-effects graph [[testsel [:clear]]])
           (is (= (async/<! (graph/hook graph  mutable-var :test)) 8))
-          (oldproto/clear-node! node1 graph)
+          (graph/apply-effects graph [[testsel [:clear]]])
           (is (= (async/<! (graph/hook graph  mutable-var :test)) 9))
           (done))
         (graph/apply-effects graph [[testsel [:set-value 7]]])

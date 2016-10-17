@@ -2,6 +2,7 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
+            [hitch.nodes.simple :refer [NODE-NOT-RESOLVED-SENTINEL]]
             [hitch.values :refer [->Realized ->NotRealized]]
             [hitch.selector :refer-macros [defselector]]))
 
@@ -15,7 +16,8 @@
   (command-step [s acc event]
     (let [[key] event]
       (case key
-        :set-value (second event))))
+        :set-value (second event)
+        :clear NODE-NOT-RESOLVED-SENTINEL)))
   (command-result [s acc]
     (proto/->State acc))
   proto/Selector

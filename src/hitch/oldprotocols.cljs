@@ -98,22 +98,6 @@
   (peek-invalidations [graph])
   (take-invalidations! [graph]))
 
-(defn get-or-create-node [graph data-selector]
-  (if-let [n (get (.-nodemap graph) data-selector)]
-    n
-    (do                                                     ;(prn "get-or-create-node" )
-        (create-node! graph data-selector nil)
-        (get (.-nodemap graph) data-selector))))
-
-
-(defn get-temp-state [graph selector]
-  (assert (satisfies? proto/CommandableSelector selector) )
-  (if-let [ts (get (.-tempstate graph) selector)]
-    ts
-    (let [node (get-or-create-node graph selector)
-          ts (atom (proto/command-accumulator selector (.-state node)))]
-      (set! (.-tempstate graph) (assoc (.-tempstate graph) selector ts))
-      ts)))
 
 (defn get-or-effect-graph
   ([graph selector]

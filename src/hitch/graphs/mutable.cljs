@@ -3,6 +3,24 @@
             [hitch.protocol :as proto]
             [hitch.nodes.simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
 
+(defn get-or-create-node [graph data-selector]
+  (if-let [n (get (.-nodemap graph) data-selector)]
+    n
+    (do                                                     ;(prn "get-or-create-node" )
+      (oldproto/create-node! graph data-selector nil)
+      (get (.-nodemap graph) data-selector))))
+
+
+
+(defn get-temp-state [graph selector]
+  (assert (satisfies? proto/CommandableSelector selector) )
+  (if-let [ts (get (.-tempstate graph) selector)]
+    ts
+    (let [node (get-or-create-node graph selector)
+          ts (atom (proto/command-accumulator selector (.-state node)))]
+      (set! (.-tempstate graph) (assoc (.-tempstate graph) selector ts))
+      ts)))
+
 (declare   schedule-actions)                                  ;invalidate-nodes normalize-tx!
 (defn invalidate-external-items [graph ext-items]
   (run! (fn [changed-selector]
@@ -22,7 +40,7 @@
   (run!
     (fn [[child parents]]
       (run! (fn [parent]
-              (let [parentnode (oldproto/get-or-create-node graph parent)
+              (let [parentnode (get-or-create-node graph parent)
                     subscribers (.-subscribers parentnode)]
                 (when-not (contains? subscribers child)
                   ;(prn "add subscrption" child "to " parent)
@@ -35,7 +53,7 @@
   (run!
     (fn [[child parents]]
       (run! (fn [parent]
-              (let [parentnode (oldproto/get-or-create-node graph parent)
+              (let [parentnode (get-or-create-node graph parent)
                     subscribers (.-subscribers parentnode)]
                 (when (contains? subscribers child)
                   (set! (.-subscribers parentnode) (disj subscribers child)))
@@ -109,7 +127,7 @@
         (persistent! external-invalids)))))
 
 (defn -apply-selector-effect [graph selector effect]
-  (let [state-atom (oldproto/get-temp-state graph selector)]
+  (let [state-atom (get-temp-state graph selector)]
     (swap! state-atom #(proto/command-step selector % effect))))
 
 (defn finalize-effects [graph]
