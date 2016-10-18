@@ -39,7 +39,7 @@
   [{:keys [graph state] old-value :value :as graph-node} cmds]
   ;; TODO: Run the reduction manually to allow resumption via CommandError
   ;; and a dynamic var
-  (let [command-result (reduce
+  (let [acc (reduce
                          (fn [acc cmd]
                            (let [new-acc (proto/command-step graph acc cmd)]
                              (if (instance? CommandError new-acc)
@@ -47,15 +47,15 @@
                                new-acc)))
                          (proto/command-accumulator graph state)
                          cmds)]
-    (if (instance? CommandError command-result)
-      (let [{:keys [bad-command]} command-result
+    (if (instance? CommandError acc)
+      (let [{:keys [bad-command]} acc
             pending-commands (->> cmds
                                   (drop-while #(not (identical? bad-command %)))
                                   first
                                   (into []))]
-        [:error graph-node (assoc command-result :pending-commands pending-commands)])
+        [:error graph-node (assoc acc :pending-commands pending-commands)])
       (let [{:keys [effect recalc-child-selectors] new-state :state}
-            command-result]
+            (proto/command-result graph acc)]
         [:ok (assoc graph-node :state new-state
                                :value (new-value graph old-value new-state))
          {:effect effect :recalc-external-children recalc-child-selectors}]))))
