@@ -143,8 +143,7 @@
   * Effect: A 1-arg function which, when called, performs some side-effect.
     Effects are only called at the end of a successful transaction after all
     commands have been processed and new selector values recalculated.
-    The effect function receives a Transactable Graph as its argument."
-  #?(:clj (:import (clojure.lang ILookup))))
+    The effect function receives a transactable GraphManager as its argument.")
 
 
 (defrecord SelectorUnresolved [parents])
@@ -167,7 +166,7 @@
   (create [s]
     "Return a `StateEffect` with an opaque value for this Selector's
     use in the Selector or CommandableSelector protocols, and an effect
-    (1-arg fn accepting transactable graph) to initialize the service.
+    (1-arg fn accepting a transactable GraphManager) to initialize the service.
     The effect may be `nil` if no effect function is needed.
     This `create` method must be pure: put side-effects in the effect.")
   (destroy [s state]
@@ -207,11 +206,29 @@
     At any time this function may return an CommandError which the caller may
     use to determine how to handle the error. It should be possible in principle
     (although not necessarily in practice) to resume the command reduction
-    process using the data in an CommandError.")
+    process using the data in a CommandError. :pending-commands and :bad-command
+    will be added by the caller of this method, so this method only needs to
+    supply :accumulator and :error.")
   (command-result [s accumulator]
-    "Return an StateEffect after all commands have been processed, which
+    "Return an StateEffectRefresh after all commands have been processed, which
     contains the new state and an effect.
 
-    If this selector also implements SilentSelector, it may return an
-    StateEffectUpdate instead which also returns a list of children to
-    invalidate."))
+    Only if this selector also implements SilentSelector may it include a
+    vector of children to recalculate using the :recalc-child-selectors key
+    of StateEffectRefresh."))
+
+(defprotocol GraphManager
+  (transact! [graph-manager cmds]
+    "Apply a transaction to a graph manager and mutate the graph.
+
+     This operation should mutate the graph manager so it contains the result
+     of its internal graph-node after applying the commands. The graph manager
+     must also ensure that any effects from the operation are executed and that
+     any external-children are recalculated.
+
+     It must return either:
+
+         [:hitch.protocol/tx-ok {:value-before             old-sel->value-map
+                                 :value-after              new-sel->value-map}]
+
+         [:hitch.protocol/tx-error hitch.protocol/CommandError-instance]"))
