@@ -71,5 +71,63 @@
      (dget! graph (selector-constructor a b c d e f g) nf)
      (oldproto/inline selector-constructor graph a b c d e f g))))
 
+(def berror (js/Error. "bomb"))
+(def bomb (reify
+            IDeref
+            (-deref [_]
+              (throw berror))
+            IPending
+            (-realized? [x]
+              false)))
+(deftype box [v]
+  IDeref
+  (-deref [_]
+    v)
+  IPending
+  (-realized? [x]
+    true))
+
+(defn select
+  ([graph selector-constructor]
+   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v))))
+  ([graph selector-constructor a]
+   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v))))
+  ([graph selector-constructor a b]
+   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v))))
+  ([graph selector-constructor a b c]
+   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v))))
+  ([graph selector-constructor a b c d]
+   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v))))
+  ([graph selector-constructor a b c d e]
+   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v))))
+  ([graph selector-constructor a b c d e f ]
+   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v))))
+  ([graph selector-constructor a b c d e f g ]
+   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f g)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v)))))
+
 (defn apply-effects [graph selector-effect-pairs]
   (oldproto/apply-commands graph selector-effect-pairs))
