@@ -31,7 +31,7 @@
     {:graph-node graph-node
      :effect     effect}))
 
-(defn transact-graph-node
+(defn apply-graph-node-commands
   "Apply commands to a graph node and return either:
 
       [:ok new-graph-node {:effect effect-fn :recalc-external-children [...]}]
@@ -61,7 +61,7 @@
          {:effect effect :recalc-external-children recalc-child-selectors}]))))
 
 (letfn [(swap-transact* [graph-node cmds v-tx-res]
-          (let [[_ new-gm :as res] (transact-graph-node graph-node cmds)]
+          (let [[_ new-gm :as res] (apply-graph-node-commands graph-node cmds)]
             (vreset! v-tx-res (conj res graph-node))
             new-gm))]
   (defn transact-swapable*!
