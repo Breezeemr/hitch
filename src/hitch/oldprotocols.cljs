@@ -32,10 +32,12 @@
   (inline [selector-factory] [selector-factory a] [selector-factory a b] [selector-factory a b c] [selector-factory a b c d] [selector-factory a b c d e] [selector-factory a b c d e f] [selector-factory a b c d e f g] [selector-factory a b c d e f g h] ))
 
 
+(defprotocol ITXManager
+  (depend! [this data-selector] "gets node for dataselector")
+  (undepend! [this data-selector] "gets node for dataselector"))
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
-  (depend! [this data-selector] "gets node for dataselector")
-  (undepend! [this data-selector] "gets node for dataselector")
+
   (-add-external-dependent [this parent child])
   (-remove-external-dependent [this parent child])
   (-get-external-dependents [this parent]

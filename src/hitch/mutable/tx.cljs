@@ -17,15 +17,16 @@
   (peek-invalidations [_]
     (oldproto/peek-invalidations graph))
   (take-invalidations! [_] (oldproto/take-invalidations! graph))
+  oldproto/ITXManager
+  (depend! [this data-selector]
+    (set! requests (conj requests data-selector)))
+  (undepend! [this data-selector]
+    (set! requests (disj requests data-selector)))
   oldproto/IDependencyGraph
   (create-node! [this data-selector nf]
     (oldproto/create-node! graph data-selector nf))
   (apply-commands [_ selector-command-pairs]
     (oldproto/apply-commands graph selector-command-pairs))
-  (depend! [this data-selector]
-    (set! requests (conj requests data-selector)))
-  (undepend! [this data-selector]
-    (set! requests (disj requests data-selector)))
   (-add-external-dependent [this parent child]
     (oldproto/-add-external-dependent graph parent child))
   (-remove-external-dependent [this parent child]
