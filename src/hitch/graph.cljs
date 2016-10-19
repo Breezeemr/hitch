@@ -16,7 +16,7 @@
 (defn make-hook [graph selector]
   (let [h  (mkhook graph selector)]
     (oldproto/get-or-effect-graph graph selector)
-    (oldproto/-add-external-dependent graph selector h)
+    (oldproto/update-parents  graph h #{selector} nil)
     h
     ))
 

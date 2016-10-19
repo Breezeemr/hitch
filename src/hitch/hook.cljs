@@ -11,7 +11,7 @@
     (let [val (get graph selector oldproto/NOT-FOUND-SENTINEL)]
       ;(prn "notify" selector-changed val)
       (when-not (identical? oldproto/NOT-FOUND-SENTINEL val)
-        (oldproto/-remove-external-dependent graph selector this)
+        (oldproto/update-parents  graph this nil #{selector})
         (run! (fn [handler]
                 (let [real-handler (impl/commit handler)]
                   (real-handler val)))

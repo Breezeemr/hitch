@@ -235,15 +235,15 @@
     (binding [*read-mode* true]
       (-apply-selector-effect-pairs graph selector-command-pairs)
       (normalize-tx! graph)))
-  (-add-external-dependent [this parent child]
-    (when-let [n (get nodemap parent)]
-      (set! (.-external-dependencies n) ((fnil conj #{}) (.-external-dependencies n) child))
-      ;(prn "depadded " (.-external-dependencies n))
-      ))
-  (-remove-external-dependent [this parent child]
-    (when-let [n (get nodemap parent)]
-      (set! (.-external-dependencies n) (not-empty (disj (.-external-dependencies n) child)))
-      ))
+  (update-parents [this child adds rms ]
+    (doseq [add adds
+            :let [n (get nodemap add)]
+            :when n]
+      (set! (.-external-dependencies n) ((fnil conj #{}) (.-external-dependencies n) child)))
+    (doseq [rm rms
+            :let [n (get nodemap rm)]
+            :when n]
+      (set! (.-external-dependencies n) (not-empty (disj (.-external-dependencies n) child)))))
   (-get-external-dependents [this parent]
     (when-let [n (get nodemap parent)]
       ;(prn "Exdep" (.-external-dependencies n))

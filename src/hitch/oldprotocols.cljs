@@ -40,8 +40,7 @@
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
-  (-add-external-dependent [this parent child])
-  (-remove-external-dependent [this parent child])
+  (update-parents [this child add rm ])
   (-get-external-dependents [this parent]
                             "The current dependencies encountered by this tracker")
   (apply-commands [this selector-command-pairs])
