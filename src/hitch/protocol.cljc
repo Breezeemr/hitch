@@ -148,6 +148,9 @@
 
 (defrecord SelectorUnresolved [parents])
 
+(defn selector-unresolved? [x]
+  (instance? SelectorUnresolved x))
+
 (defrecord SelectorValue [value parents])
 
 (defprotocol Selector
@@ -190,6 +193,9 @@
 (defrecord StateEffectRefresh [state effect recalc-child-selectors])
 
 (defrecord CommandError [accumulator pending-commands bad-command error])
+
+(defn command-error? [x]
+  (instance? CommandError x))
 
 (defprotocol CommandableSelector
   "Allows a selector to receive commands and alter its state based on commands.
