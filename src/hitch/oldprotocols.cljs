@@ -31,14 +31,15 @@
 (defprotocol ISelectorFactory
   (inline [selector-factory] [selector-factory a] [selector-factory a b] [selector-factory a b c] [selector-factory a b c d] [selector-factory a b c d e] [selector-factory a b c d e f] [selector-factory a b c d e f g] [selector-factory a b c d e f g h] ))
 
+(defprotocol IDependTrack
+  (depend! [this data-selector])
+  (get-depends [this]))
 
 (defprotocol ITXManager
-  (depend! [this data-selector] "gets node for dataselector")
-  (apply-tx! [this] "returns dependencies"))
+  (apply-tx! [this] "returns removed dependencies"))
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
-  (get-mutable-manager [this selector])
   (-add-external-dependent [this parent child])
   (-remove-external-dependent [this parent child])
   (-get-external-dependents [this parent]

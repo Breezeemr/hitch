@@ -11,10 +11,10 @@
     (-lookup o data-selector nil))
   (-lookup [o data-selector not-found]
     (-lookup graph data-selector not-found))
-  oldproto/ITXManager
+  oldproto/IDependTrack
   (depend! [this data-selector]
     (set! requests (conj requests data-selector)))
-  (apply-tx! [this] requests)
+  (get-depends [this] requests)
   oldproto/IDependencyGraph
   (create-node! [this data-selector nf]
     (oldproto/create-node! graph data-selector nf))
