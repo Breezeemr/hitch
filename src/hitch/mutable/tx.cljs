@@ -5,23 +5,16 @@
             [clojure.set]
             [cljs.core.async.impl.protocols :as impl]))
 
-(deftype TX [graph target ^:mutable requests]
+(deftype EagerTX [graph selector ^:mutable requests]
   ILookup
   (-lookup [o data-selector]
     (-lookup o data-selector nil))
   (-lookup [o data-selector not-found]
     (-lookup graph data-selector not-found))
-  oldproto/IBatching
-  (-request-invalidations [_ invalidations]
-    (oldproto/-request-invalidations graph invalidations))
-  (peek-invalidations [_]
-    (oldproto/peek-invalidations graph))
-  (take-invalidations! [_] (oldproto/take-invalidations! graph))
   oldproto/ITXManager
   (depend! [this data-selector]
     (set! requests (conj requests data-selector)))
-  (undepend! [this data-selector]
-    (set! requests (disj requests data-selector)))
+  (apply-tx! [this] requests)
   oldproto/IDependencyGraph
   (create-node! [this data-selector nf]
     (oldproto/create-node! graph data-selector nf))
@@ -43,9 +36,9 @@
 
 
 (defn tx [graph target]
-  (if (instance? TX graph)
-    (TX. (.-graph graph) target #{})
-    (TX. graph target #{})))
+  (if (instance? EagerTX graph)
+    (EagerTX. (.-graph graph) target #{})
+    (EagerTX. graph target #{})))
 
 (defn new-selectors [oldtx newtx]
   (if oldtx

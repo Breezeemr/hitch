@@ -8,14 +8,52 @@
             [hitch.mutable.node]
             [cljs.core.async :as async]))
 
-(defn handle-selector-value [tx value]
-  ;(prn "handle-selector-value")
-  (let [graph (.-graph tx)
-        child-selector (.-target tx)
-        requests (.-requests tx)
-        child-node (get graph child-selector)]
+(defn handle-selector-value [tx-manager value]
+  (let [requests (.-requests tx-manager)]
     (if-some [val (if (satisfies? impl/ReadPort value)
                      (async/poll! value)
                      value)]
       (proto/->SelectorValue val requests)
        (proto/->SelectorUnresolved requests))))
+
+(defn attempt
+  ([vfn tx-manager]
+   (try
+     (let [val (vfn tx-manager)]
+       (proto/->SelectorValue val (oldproto/apply-tx! tx-manager)))
+     (catch js/Error ex (proto/->SelectorUnresolved (oldproto/apply-tx! tx-manager)))))
+  ([vfn tx-manager a]
+   (try
+     (let [val (vfn tx-manager a)]
+       (proto/->SelectorValue val (oldproto/apply-tx! tx-manager)))
+     (catch js/Error ex (proto/->SelectorUnresolved (oldproto/apply-tx! tx-manager)))))
+  ([vfn tx-manager a b]
+   (try
+     (let [val (vfn tx-manager a b)]
+       (proto/->SelectorValue val (oldproto/apply-tx! tx-manager)))
+     (catch js/Error ex (proto/->SelectorUnresolved (oldproto/apply-tx! tx-manager)))))
+  ([vfn tx-manager a b c]
+   (try
+     (let [val (vfn tx-manager a b c)]
+       (proto/->SelectorValue val (oldproto/apply-tx! tx-manager)))
+     (catch js/Error ex (proto/->SelectorUnresolved (oldproto/apply-tx! tx-manager)))))
+  ([vfn tx-manager a b c d]
+   (try
+     (let [val (vfn tx-manager a b c d)]
+       (proto/->SelectorValue val (oldproto/apply-tx! tx-manager)))
+     (catch js/Error ex (proto/->SelectorUnresolved (oldproto/apply-tx! tx-manager)))))
+  ([vfn tx-manager a b c d e]
+   (try
+     (let [val (vfn tx-manager a b c d e)]
+       (proto/->SelectorValue val (oldproto/apply-tx! tx-manager)))
+     (catch js/Error ex (proto/->SelectorUnresolved (oldproto/apply-tx! tx-manager)))))
+  ([vfn tx-manager a b c d e f]
+   (try
+     (let [val (vfn tx-manager a b c d e f)]
+       (proto/->SelectorValue val (oldproto/apply-tx! tx-manager)))
+     (catch js/Error ex (proto/->SelectorUnresolved (oldproto/apply-tx! tx-manager)))))
+  ([vfn tx-manager a b c d e f g]
+   (try
+     (let [val (vfn tx-manager a b c d e f g)]
+       (proto/->SelectorValue val (oldproto/apply-tx! tx-manager)))
+     (catch js/Error ex (proto/->SelectorUnresolved (oldproto/apply-tx! tx-manager))))))

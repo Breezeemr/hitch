@@ -34,10 +34,11 @@
 
 (defprotocol ITXManager
   (depend! [this data-selector] "gets node for dataselector")
-  (undepend! [this data-selector] "gets node for dataselector"))
+  (apply-tx! [this] "returns dependencies"))
+
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
-
+  (get-mutable-manager [this selector])
   (-add-external-dependent [this parent child])
   (-remove-external-dependent [this parent child])
   (-get-external-dependents [this parent]
