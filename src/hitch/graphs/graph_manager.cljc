@@ -1,13 +1,12 @@
 (ns hitch.graphs.graph-manager
   (:require [hitch.protocol :as proto])
   #?(:clj
-     (:import (clojure.lang IDeref)
-              (hitch.protocol SelectorValue SelectorUnresolved CommandError))))
+     (:import (clojure.lang IDeref))))
 
 
 (defn- new-value [selector old-value state]
   (let [sv (proto/value selector old-value state)]
-    (if (instance? SelectorUnresolved sv)
+    (if (proto/selector-unresolved? sv)
       old-value
       (:value sv))))
 
@@ -40,14 +39,14 @@
   ;; TODO: Run the reduction manually to allow resumption via CommandError
   ;; and a dynamic var
   (let [acc (reduce
-                         (fn [acc cmd]
-                           (let [new-acc (proto/command-step graph acc cmd)]
-                             (if (instance? CommandError new-acc)
-                               (reduced (assoc new-acc :bad-command cmd))
-                               new-acc)))
-                         (proto/command-accumulator graph state)
-                         cmds)]
-    (if (instance? CommandError acc)
+              (fn [acc cmd]
+                (let [new-acc (proto/command-step graph acc cmd)]
+                  (if (proto/command-error? new-acc)
+                    (reduced (assoc new-acc :bad-command cmd))
+                    new-acc)))
+              (proto/command-accumulator graph state)
+              cmds)]
+    (if (proto/command-error? acc)
       (let [{:keys [bad-command]} acc
             pending-commands (->> cmds
                                   (drop-while #(not (identical? bad-command %)))
