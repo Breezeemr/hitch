@@ -23,7 +23,7 @@
   (get-depends [this]))
 
 (defprotocol ITXManager
-  (enque-dependency-changes [this] "returns removed dependencies"))
+  (enqueue-dependency-changes [this] "returns removed dependencies"))
 
 (defprotocol IEagerDepend
   (eager-depend! [this child parent]))
