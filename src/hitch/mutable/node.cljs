@@ -1,10 +1,7 @@
 (ns hitch.mutable.node
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.mutable.tx :as dtx]
-            [cljs.core.async :as async]
-            [cljs.core.async.impl.protocols :as impl]
-            [cljs.core.async.impl.channels :as imp-chan]))
+            [hitch.mutable.tx :as dtx]))
 
 
 (defonce NODE-NOT-RESOLVED-SENTINEL
@@ -43,16 +40,6 @@
       (set! state (proto/create selector)))
     (set! stale? true)
     (set! subscribers #{}))
-  impl/ReadPort
-  (take! [this ^not-native handler]
-    (if (not ^boolean (impl/active? handler))
-      nil
-      (if (not (nil? value))
-        (let [_ (impl/commit handler)]
-          (imp-chan/box value))
-        (do
-          ;(set! external-dependencies (conj external-dependencies handler))
-          nil))))
   IPrintWithWriter
   (-pr-writer [_ writer opts]
     (-write writer "#node {:value ")

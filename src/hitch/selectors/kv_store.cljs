@@ -5,8 +5,7 @@
             [hitch.graph :as graph]
             [hitch.mutable.node :as node :refer [NODE-NOT-RESOLVED-SENTINEL]]
             [hitch.graph :as graph]
-            [hitch.selector :refer-macros [defselector]]
-            [cljs.core.async :as async])
+            [hitch.selector :refer-macros [defselector]])
   )
 
 (declare  keyspace)

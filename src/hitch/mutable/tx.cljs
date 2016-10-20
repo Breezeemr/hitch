@@ -1,9 +1,7 @@
 (ns hitch.mutable.tx
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [cljs.core.async :as async]
-            [clojure.set]
-            [cljs.core.async.impl.protocols :as impl]))
+            [clojure.set]))
 
 (deftype EagerTX [graph selector ^:mutable requests]
   ILookup

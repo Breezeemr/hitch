@@ -5,7 +5,6 @@
             [hitch.mutable.node :as node]
             [hitch.graph :as graph]
             [hitch.selector :refer-macros [defselector]]
-            [cljs.core.async :as async]
             [goog.events :as events]
             [goog.net.EventType :as EventType])
   (:import (goog.net XhrIo)

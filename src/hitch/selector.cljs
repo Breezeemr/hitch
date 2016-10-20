@@ -3,18 +3,7 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.mutable.tx :refer []]
-            [cljs.core.async.impl.channels :as impl-chan]
-            [cljs.core.async.impl.protocols :as impl]
-            [hitch.mutable.node]
-            [cljs.core.async :as async]))
-
-(defn handle-selector-value [tx-manager value]
-  (let [requests (.-requests tx-manager)]
-    (if-some [val (if (satisfies? impl/ReadPort value)
-                     (async/poll! value)
-                     value)]
-      (proto/->SelectorValue val requests)
-       (proto/->SelectorUnresolved requests))))
+            [hitch.mutable.node]))
 
 (defn attempt
   ([vfn tx-manager]

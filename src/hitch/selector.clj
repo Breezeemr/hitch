@@ -6,8 +6,7 @@
 
 (clojure.core/defn eval-selector [eval-fn-name constructor-binding-forms body]
   `(defn ~eval-fn-name ~(clojure.core/into [] (clojure.core/map clojure.core/second) constructor-binding-forms)
-     (hitch.eager/go
-       ~@body)))
+     ~@body))
 
 (clojure.core/defn selector-record [selector-name eval-fn-name constructor-binding-forms body]
   (let [graphsymbol (->> constructor-binding-forms clojure.core/ffirst)]
@@ -16,13 +15,12 @@
        (~'value [~'selector ~graphsymbol ~'state]
          (assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(clojure.core/ffirst constructor-binding-forms)))
          (cljs.core/let [~'dtx (hitch.mutable.tx/tx ~graphsymbol ~'selector)]
-           (hitch.selector/handle-selector-value
-             ~'dtx
-             ~(clojure.core/->> constructor-binding-forms
-                                clojure.core/rest
-                                (clojure.core/map clojure.core/first)
-                                (clojure.core/cons 'dtx)
-                                (clojure.core/cons eval-fn-name))))))))
+           ~(clojure.core/->> constructor-binding-forms
+                              clojure.core/rest
+                              (clojure.core/map clojure.core/first)
+                              (clojure.core/cons 'dtx)
+                              (clojure.core/cons eval-fn-name)
+                              (clojure.core/cons (clojure.core/symbol (clojure.core/str "hitch.selector/attempt")))))))))
 
 (clojure.core/defn sel-constructor [name eval-fn-name selector-name constructor-binding-forms body]
   `(def ~name
@@ -52,4 +50,3 @@
        ~(selector-record selector-name eval-fn-name symbol-binding-pairs body)
        ~(sel-constructor name eval-fn-name selector-name symbol-binding-pairs body)
        )))
-

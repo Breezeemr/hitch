@@ -4,9 +4,7 @@
             [hitch.protocol :as proto]
             [hitch.hook :refer [mkhook]]
             [hitch.mutable.graph :as mgraph]
-            [hitch.mutable.node :refer [node]]
-            [cljs.core.async.impl.protocols :as impl]
-            [cljs.core.async :as async]))
+            [hitch.mutable.node :refer [node]]))
 
 
 (def ^:dynamic *execution-mode* true)

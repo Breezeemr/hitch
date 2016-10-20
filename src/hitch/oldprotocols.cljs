@@ -1,7 +1,5 @@
 (ns hitch.oldprotocols
-  (:require [cljs.core.async.impl.protocols :as impl]
-            [cljs.core.async.impl.channels :as imp-chan]
-            [hitch.protocol :as proto]))
+  (:require [hitch.protocol :as proto]))
 
 
 (defonce NIL-SENTINEL (reify Object

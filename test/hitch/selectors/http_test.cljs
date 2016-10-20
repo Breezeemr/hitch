@@ -1,6 +1,5 @@
 (ns hitch.selectors.http-test
   (:require-macros [hitch.eager :refer [go]]
-                   [cljs.core.async.macros]
                    [hitch.selector :refer [defselector]])
   (:require [cljs.test :refer [] :refer-macros [is run-tests async]]
             [devcards.core :as dc :refer-macros [deftest]]
