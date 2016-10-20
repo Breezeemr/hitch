@@ -20,14 +20,10 @@
 
 
 (defn make-hook [graph cb selector]
-  (let [val (get graph selector oldproto/NOT-FOUND-SENTINEL)]
+  (let [val (oldproto/get-or-effect-graph graph selector oldproto/NOT-FOUND-SENTINEL)]
     (if (identical? oldproto/NOT-FOUND-SENTINEL val)
       (let [h  (mkhook graph selector cb)]
-        (oldproto/get-or-effect-graph graph selector)
-        (let [val (get graph selector oldproto/NOT-FOUND-SENTINEL)]
-          (if (identical? oldproto/NOT-FOUND-SENTINEL val)
-            (oldproto/update-parents  graph h #{selector} nil)
-            (cb val))))
+        (oldproto/update-parents graph h #{selector} nil))
       (cb val)))
   nil)
 
