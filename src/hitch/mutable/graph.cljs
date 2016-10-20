@@ -217,7 +217,7 @@
       (if (identical? n oldproto/NOT-IN-GRAPH-SENTINEL)
         (let [new-node (node data-selector)]
           (when (satisfies? proto/StatefulSelector data-selector)
-            (set! tempstate (assoc tempstate data-selector (atom (proto/create data-selector)))))
+            (set! tempstate (assoc tempstate data-selector (atom (.-state new-node)))))
           (set! nodemap (assoc nodemap data-selector new-node))
           ;next two forms need to be resolved
           (oldproto/-request-invalidations graph data-selector)
