@@ -55,6 +55,6 @@
 (defn node
   ([sel] (node sel NODE-NOT-RESOLVED-SENTINEL))
   ([sel val]
-   (->Node sel val (proto/create sel) true #{} nil #{})))
+   (->Node sel val (when (satisfies? proto/StatefulSelector sel) (proto/create sel)) true #{} nil #{})))
 
 
