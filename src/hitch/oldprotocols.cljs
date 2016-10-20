@@ -23,7 +23,10 @@
   (get-depends [this]))
 
 (defprotocol ITXManager
-  (apply-tx! [this] "returns removed dependencies"))
+  (enque-dependency-changes [this] "returns removed dependencies"))
+
+(defprotocol IEagerDepend
+  (eager-depend! [this child parent]))
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
