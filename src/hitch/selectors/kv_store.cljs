@@ -36,7 +36,7 @@
 (defrecord KVStoreServiceSelector [keyspace]
   proto/StatefulSelector
   (create [selector]
-    {:val  oldproto/NIL-SENTINEL
+    {:val  oldproto/NOT-FOUND-SENTINEL
      :deps #{}})
   (destroy [selector state])
   proto/InformedSelector
@@ -59,7 +59,7 @@
   proto/Selector
   (value [this graph state]
     ;(prn "state" state)
-    (if (identical? (:val state) oldproto/NIL-SENTINEL)
+    (if (identical? (:val state) oldproto/NOT-FOUND-SENTINEL)
       (proto/->SelectorUnresolved nil)
       (proto/->SelectorValue (:val state) nil))))
 

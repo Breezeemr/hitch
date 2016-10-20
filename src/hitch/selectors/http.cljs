@@ -31,7 +31,7 @@
 (defrecord HTTPSelector [url method serializer deserializer content headers]
   proto/StatefulSelector
   (create [selector]
-    {:val    oldproto/NIL-SENTINEL
+    {:val    oldproto/NOT-FOUND-SENTINEL
      :action true})
   (destroy [selector state])
   proto/InformedSelector
@@ -57,7 +57,7 @@
   (value [this graph state]
     ;(prn "state" state)
     (if state
-      (if (identical? (:val state) oldproto/NIL-SENTINEL)
+      (if (identical? (:val state) oldproto/NOT-FOUND-SENTINEL)
         (proto/->SelectorUnresolved nil)
         (proto/->SelectorValue (:val state) nil))
       (proto/->SelectorUnresolved nil))))
