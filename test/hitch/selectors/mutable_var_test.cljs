@@ -1,5 +1,4 @@
 (ns hitch.selectors.mutable-var-test
-  (:require-macros [hitch.eager :refer [go]])
   (:require [cljs.test :refer [] :refer-macros [is run-tests async]]
             [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
@@ -12,51 +11,50 @@
 
 (deftest firstt
   (let [graph (mgraph/graph)]
-    (let [node1 (graph/hook graph mutable-var :test)]
-      (is (= (async/poll! node1) nil))
-      (graph/apply-effects graph [[(mutable-var :test) [:set-value 5]]])
-      (is (= (async/poll! node1) 5))
-      (is (= (async/poll! (graph/hook graph mutable-var :test)) 5)))))
+    (is (= (get graph (mutable-var :test)) nil))
+    (graph/apply-effects graph [[(mutable-var :test) [:set-value 5]]])
+    (is (= (get graph (mutable-var :test)) 5))))
 
 (deftest firstasync
   (let [graph (mgraph/graph)]
     (async done
-      (let [testsel (mutable-var :test)]
-        (go
-          (is (= (async/<! (graph/hook graph  mutable-var :test)) 7))
-          (graph/apply-effects graph [[testsel [:clear]]])
-          (is (= (async/<! (graph/hook graph  mutable-var :test)) 8))
-          (graph/apply-effects graph [[testsel [:clear]]])
-          (is (= (async/<! (graph/hook graph  mutable-var :test)) 9))
-          (done))
-        (graph/apply-effects graph [[testsel [:set-value 7]]])
-        (graph/apply-effects graph [[testsel [:set-value 8]]])
-        (graph/apply-effects graph [[testsel [:set-value 9]]])))))
+      (let [testsel (mutable-var :test)
+            firstfn (fn [val]
+                      (is (= val 7))
+                      (graph/apply-effects graph [[testsel [:clear]]])
+                      (graph/hook graph
+                                  (fn [val]
+                                    (is (= val 8))
+                                    (graph/apply-effects graph [[testsel [:clear]]])
+                                    (graph/hook graph
+                                                (fn [val]
+                                                  (is (= val 9))
+                                                  (done))
+                                                mutable-var :test)
+                                    (graph/apply-effects graph [[testsel [:set-value 9]]]))
+                                  mutable-var :test)
+                      (graph/apply-effects graph [[testsel [:set-value 8]]]))]
+        (graph/hook graph firstfn
+                    mutable-var :test)
+        (graph/apply-effects graph [[testsel [:set-value 7]]])))))
 
 (deftest single-hook
          (let [graph (mgraph/graph)]
            (async done
-             (let [testsel (mutable-var :test)
-                   hook (graph/hook graph  mutable-var :test)]
-               (go
-                 (is (= (async/<! hook) 7))
-                 (is (= (async/<! hook) 7))
-                 (is (= (async/<! hook) 7))
-                 (done))
+             (let [testsel (mutable-var :test)]
+               (graph/hook graph
+                           (fn [val]
+                             (is (= val 7)))
+                           mutable-var :test)
+               (graph/hook graph
+                           (fn [val]
+                             (is (= val 7)))
+                           mutable-var :test)
+               (graph/hook graph
+                           (fn [val]
+                             (is (= val 7)))
+                           mutable-var :test)
                (graph/apply-effects graph [[testsel [:set-value 7]]])
                (graph/apply-effects graph [[testsel [:set-value 8]]])
-               (graph/apply-effects graph [[testsel [:set-value 9]]])))))
-
-(deftest take-as-many-as-you-want
-  (let [graph (mgraph/graph)]
-    (async done
-      (let [testsel (mutable-var :test)]
-        (go
-          (is (= (async/<! (graph/hook graph mutable-var :test)) 7))
-          (is (= (async/<! (graph/hook graph mutable-var :test)) 7))
-          (is (= (async/<! (graph/hook graph mutable-var :test)) 7))
-          (done)
-          )
-        (graph/apply-effects graph [[testsel [:set-value 7]]])
-        (graph/apply-effects graph [[testsel [:set-value 8]]])
-        (graph/apply-effects graph [[testsel [:set-value 9]]])))))
+               (graph/apply-effects graph [[testsel [:set-value 9]]])
+               (done)))))

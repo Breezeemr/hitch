@@ -1,22 +1,35 @@
 (ns hitch.graph
-  (:require-macros [hitch.eager :refer [go]])
   (:require [hitch.oldprotocols :as oldproto]
-            [hitch.protocol :as proto]
-            [hitch.hook :refer [mkhook]]
-            [hitch.mutable.graph :as mgraph]
-            [hitch.mutable.node :refer [node]]))
+            [hitch.protocol :as proto]))
 
 
 (def ^:dynamic *execution-mode* true)
 
 ;(declare apply-effects invalidate-nodes normalize-tx! schedule-actions)
+(deftype Hook [graph selector cb]
+  oldproto/ExternalDependent
+  (-change-notify [this _ selector-changed]
+    (let [val (get graph selector oldproto/NOT-FOUND-SENTINEL)]
+      ;(prn "notify" selector-changed val)
+      (when-not (identical? oldproto/NOT-FOUND-SENTINEL val)
+        (oldproto/update-parents  graph this nil #{selector})
+        (cb val)))))
 
-(defn make-hook [graph selector]
-  (let [h  (mkhook graph selector)]
-    (oldproto/get-or-effect-graph graph selector)
-    (oldproto/update-parents  graph h #{selector} nil)
-    h
-    ))
+(defn mkhook [graph selector cb]
+  (->Hook graph selector cb))
+
+
+(defn make-hook [graph cb selector]
+  (let [val (get graph selector oldproto/NOT-FOUND-SENTINEL)]
+    (if (identical? oldproto/NOT-FOUND-SENTINEL val)
+      (let [h  (mkhook graph selector cb)]
+        (oldproto/get-or-effect-graph graph selector)
+        (let [val (get graph selector oldproto/NOT-FOUND-SENTINEL)]
+          (if (identical? oldproto/NOT-FOUND-SENTINEL val)
+            (oldproto/update-parents  graph h #{selector} nil)
+            (cb val))))
+      (cb val)))
+  nil)
 
 
 (defn dget!
@@ -26,14 +39,14 @@
      n)))
 
 (defn hook
-  ([graph selector-constructor] (make-hook graph (selector-constructor)))
-  ([graph selector-constructor a] (make-hook graph (selector-constructor a)))
-  ([graph selector-constructor a b] (make-hook graph (selector-constructor a b)))
-  ([graph selector-constructor a b c] (make-hook graph (selector-constructor a b c)))
-  ([graph selector-constructor a b c d] (make-hook graph (selector-constructor a b c d)))
-  ([graph selector-constructor a b c d f] (make-hook graph (selector-constructor a b c d f)))
-  ([graph selector-constructor a b c d f g] (make-hook graph (selector-constructor a b c d f g)))
-  ([graph selector-constructor a b c d f g h] (make-hook graph (selector-constructor a b c d f g h))))
+  ([graph cb selector-constructor] (make-hook graph cb (selector-constructor)))
+  ([graph cb selector-constructor a] (make-hook graph cb (selector-constructor a)))
+  ([graph cb selector-constructor a b] (make-hook graph cb (selector-constructor a b)))
+  ([graph cb selector-constructor a b c] (make-hook graph cb (selector-constructor a b c)))
+  ([graph cb selector-constructor a b c d] (make-hook graph cb (selector-constructor a b c d)))
+  ([graph cb selector-constructor a b c d f] (make-hook graph cb (selector-constructor a b c d f)))
+  ([graph cb selector-constructor a b c d f g] (make-hook graph cb (selector-constructor a b c d f g)))
+  ([graph cb selector-constructor a b c d f g h] (make-hook graph cb (selector-constructor a b c d f g h))))
 
 (defn hitch!
   ([graph nf selector-constructor]

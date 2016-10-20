@@ -1,48 +1,60 @@
 (ns hitch.selector
-  (:require-macros [hitch.eager :refer [go]])
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.selector-tx-manager :refer []]
             [hitch.mutable.node]))
 
+(defn create-resolved-value
+  ([vfn tx-manager]
+   (proto/->SelectorValue (vfn tx-manager) (oldproto/get-depends tx-manager)))
+  ([vfn tx-manager a]
+   (proto/->SelectorValue (vfn tx-manager a) (oldproto/get-depends tx-manager)))
+  ([vfn tx-manager a b]
+   (proto/->SelectorValue (vfn tx-manager a b) (oldproto/get-depends tx-manager)))
+  ([vfn tx-manager a b c]
+   (proto/->SelectorValue (vfn tx-manager a b c) (oldproto/get-depends tx-manager)))
+  ([vfn tx-manager a b c d]
+   (proto/->SelectorValue (vfn tx-manager a b c d) (oldproto/get-depends tx-manager)))
+  ([vfn tx-manager a b c d e]
+   (proto/->SelectorValue (vfn tx-manager a b c d e) (oldproto/get-depends tx-manager)))
+  ([vfn tx-manager a b c d e f]
+   (proto/->SelectorValue (vfn tx-manager a b c d e f) (oldproto/get-depends tx-manager)))
+  ([vfn tx-manager a b c d e f g]
+   (proto/->SelectorValue (vfn tx-manager a b c d e f g) (oldproto/get-depends tx-manager))))
+
+(defn create-unresolved-value [tx-manager]
+  (proto/->SelectorUnresolved (oldproto/get-depends tx-manager)))
+
 (defn attempt
   ([vfn tx-manager]
    (try
-     (let [val (vfn tx-manager)]
-       (proto/->SelectorValue val (oldproto/get-depends tx-manager)))
-     (catch :default ex (proto/->SelectorUnresolved (oldproto/get-depends tx-manager)))))
+     (create-resolved-value vfn tx-manager)
+     (catch :default ex (create-unresolved-value tx-manager))))
   ([vfn tx-manager a]
    (try
-     (let [val (vfn tx-manager a)]
-       (proto/->SelectorValue val (oldproto/get-depends tx-manager)))
-     (catch :default ex (proto/->SelectorUnresolved (oldproto/get-depends tx-manager)))))
+     (create-resolved-value vfn tx-manager a)
+     (catch :default ex (create-unresolved-value tx-manager))))
   ([vfn tx-manager a b]
    (try
-     (let [val (vfn tx-manager a b)]
-       (proto/->SelectorValue val (oldproto/get-depends tx-manager)))
-     (catch :default ex (proto/->SelectorUnresolved (oldproto/get-depends tx-manager)))))
+     (create-resolved-value vfn tx-manager a b)
+     (catch :default ex (create-unresolved-value tx-manager))))
   ([vfn tx-manager a b c]
    (try
-     (let [val (vfn tx-manager a b c)]
-       (proto/->SelectorValue val (oldproto/get-depends tx-manager)))
-     (catch :default ex (proto/->SelectorUnresolved (oldproto/get-depends tx-manager)))))
+     (create-resolved-value vfn tx-manager a b c)
+     (catch :default ex (create-unresolved-value tx-manager))))
   ([vfn tx-manager a b c d]
    (try
-     (let [val (vfn tx-manager a b c d)]
-       (proto/->SelectorValue val (oldproto/get-depends tx-manager)))
-     (catch :default ex (proto/->SelectorUnresolved (oldproto/get-depends tx-manager)))))
+     (create-resolved-value vfn tx-manager a b c d)
+     (catch :default ex (create-unresolved-value tx-manager))))
   ([vfn tx-manager a b c d e]
    (try
-     (let [val (vfn tx-manager a b c d e)]
-       (proto/->SelectorValue val (oldproto/get-depends tx-manager)))
-     (catch :default ex (proto/->SelectorUnresolved (oldproto/get-depends tx-manager)))))
+     (create-resolved-value vfn tx-manager a b c d e)
+     (catch :default ex (create-unresolved-value tx-manager))))
   ([vfn tx-manager a b c d e f]
    (try
-     (let [val (vfn tx-manager a b c d e f)]
-       (proto/->SelectorValue val (oldproto/get-depends tx-manager)))
-     (catch :default ex (proto/->SelectorUnresolved (oldproto/get-depends tx-manager)))))
+     (create-resolved-value vfn tx-manager a b c d e f)
+     (catch :default ex (create-unresolved-value tx-manager))))
   ([vfn tx-manager a b c d e f g]
    (try
-     (let [val (vfn tx-manager a b c d e f g)]
-       (proto/->SelectorValue val (oldproto/get-depends tx-manager)))
-     (catch :default ex (proto/->SelectorUnresolved (oldproto/get-depends tx-manager))))))
+     (create-resolved-value vfn tx-manager a b c d e f g)
+     (catch :default ex (create-unresolved-value tx-manager)))))

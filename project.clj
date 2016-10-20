@@ -6,8 +6,7 @@
   :scm "https://github.com/Breezeemr/hitch"
 
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.93" :scope "provided"]
-                 [org.clojure/core.async  "0.2.385"]]
+                 [org.clojure/clojurescript "1.9.93" :scope "provided"]]
   :profiles {
              :dev {
                    :dependencies [[com.cemerick/piggieback "0.2.1"]    ; needed by figwheel nrepl
