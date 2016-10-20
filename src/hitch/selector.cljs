@@ -2,7 +2,7 @@
   (:require-macros [hitch.eager :refer [go]])
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.mutable.tx :refer []]
+            [hitch.selector-tx-manager :refer []]
             [hitch.mutable.node]))
 
 (defn attempt

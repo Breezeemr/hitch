@@ -1,4 +1,4 @@
-(ns hitch.mutable.tx
+(ns hitch.selector-tx-manager
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [clojure.set]))
