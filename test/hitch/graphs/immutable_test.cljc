@@ -3,7 +3,7 @@
             [hitch.graphs.graph-manager :as gm]
             [hitch.protocol :as hp]
             [#?(:clj clojure.test :cljs cljs.test)
-             :as t :refer [deftest testing is]]
+             :as t #?(:clj :refer :cljs :refer-macros) [deftest testing is]]
             [hitch.protocol :as proto]))
 
 (defrecord Constant [v]
