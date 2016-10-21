@@ -19,7 +19,7 @@
   (->Hook graph selector cb))
 
 
-(defn make-hook [graph cb data-selector]
+(defn hook-sel [graph cb data-selector]
   (let [val (let [v (get graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
                  (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
                    (if (satisfies? oldproto/IEagerSelectorResolve graph)
@@ -35,14 +35,14 @@
 (def dget-sel! oldproto/dget-sel!)
 
 (defn hook
-  ([graph cb selector-constructor] (make-hook graph cb (selector-constructor)))
-  ([graph cb selector-constructor a] (make-hook graph cb (selector-constructor a)))
-  ([graph cb selector-constructor a b] (make-hook graph cb (selector-constructor a b)))
-  ([graph cb selector-constructor a b c] (make-hook graph cb (selector-constructor a b c)))
-  ([graph cb selector-constructor a b c d] (make-hook graph cb (selector-constructor a b c d)))
-  ([graph cb selector-constructor a b c d f] (make-hook graph cb (selector-constructor a b c d f)))
-  ([graph cb selector-constructor a b c d f g] (make-hook graph cb (selector-constructor a b c d f g)))
-  ([graph cb selector-constructor a b c d f g h] (make-hook graph cb (selector-constructor a b c d f g h))))
+  ([graph cb selector-constructor] (hook-sel graph cb (selector-constructor)))
+  ([graph cb selector-constructor a] (hook-sel graph cb (selector-constructor a)))
+  ([graph cb selector-constructor a b] (hook-sel graph cb (selector-constructor a b)))
+  ([graph cb selector-constructor a b c] (hook-sel graph cb (selector-constructor a b c)))
+  ([graph cb selector-constructor a b c d] (hook-sel graph cb (selector-constructor a b c d)))
+  ([graph cb selector-constructor a b c d f] (hook-sel graph cb (selector-constructor a b c d f)))
+  ([graph cb selector-constructor a b c d f g] (hook-sel graph cb (selector-constructor a b c d f g)))
+  ([graph cb selector-constructor a b c d f g h] (hook-sel graph cb (selector-constructor a b c d f g h))))
 
 (defn dget!
   ([graph nf selector-constructor]
