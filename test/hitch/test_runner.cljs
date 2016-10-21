@@ -3,6 +3,7 @@
             [hitch.selectors.mutable-var-test]
             [hitch.selectors.kv-store-test]
             [hitch.selectors.http-test]
+            [hitch.graphs.immutable-test]
             [cljs.test :as test :include-macros true :refer [report]])
   (:import [goog.dom DomHelper]
            [goog dom]))
@@ -53,6 +54,7 @@
     'hitch.selectors.mutable-var-test
     'hitch.selectors.kv-store-test
     'hitch.selectors.http-test
+    'hitch.graphs.immutable-test
     ))
 
 (defn ^:export on-js-reload []
