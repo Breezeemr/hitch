@@ -30,7 +30,7 @@
 ;      (->KeySelector ks k))))
 
 (defselector key [graph sel k]
-  (get (graph/dget! graph sel {}) k)
+  (get (graph/dget-sel! graph sel {}) k)
   )
 
 (defrecord KVStoreServiceSelector [keyspace]

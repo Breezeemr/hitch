@@ -7,11 +7,21 @@
 (def pending-actions (volatile! []))
 (def scheduled-actions (volatile! false))
 
+(defprotocol IBatching
+  (-request-invalidations [graph invalidations])
+  (peek-invalidations [graph])
+  (take-invalidations! [graph]))
+
+(defn get-external-dependents [graph selector]
+  (when-let [n (get (.-nodemap graph ) selector)]
+    (.-external-dependencies n)
+    )
+  )
 (defn get-or-create-node [graph data-selector]
   (if-let [n (get (.-nodemap graph) data-selector)]
     n
     (do                                                     ;(prn "get-or-create-node" )
-      (oldproto/create-node! graph data-selector nil)
+      (oldproto/attempt-eager-selector-resolution! graph data-selector nil)
       (get (.-nodemap graph) data-selector))))
 
 
@@ -30,7 +40,7 @@
   (run! (fn [changed-selector]
           (run! (fn [external-dep]
                   (oldproto/-change-notify external-dep))
-                (oldproto/-get-external-dependents graph changed-selector)))
+                (get-external-dependents graph changed-selector)))
         ext-items))
 
 
@@ -105,7 +115,7 @@
                                                        (reduce conj! newitems (.-subscribers node)))
                                                      (filtered-set-add newdeps selector dependencies old-deps)
                                                      (filtered-set-add retiredeps selector old-deps dependencies)
-                                                     (if (oldproto/-get-external-dependents graph selector)
+                                                     (if (get-external-dependents graph selector)
                                                        (conj! external-invalids selector)
                                                        external-invalids)))))
 
@@ -126,7 +136,7 @@
     ;(prn "invalidate " selectors)
     (if (not-empty selectors)
       (recur (invalidate-level graph selectors external-invalids))
-      (if-let [newinvalids (not-empty (oldproto/take-invalidations! graph))]
+      (if-let [newinvalids (not-empty (take-invalidations! graph))]
         (recur (invalidate-level graph newinvalids external-invalids))
         (persistent! external-invalids)))))
 
@@ -165,7 +175,7 @@
 
 (defn normalize-tx! [graph]
   (binding [*read-mode* true]
-    (loop [invalidations (oldproto/take-invalidations! graph) external-invalids (transient [])]
+    (loop [invalidations (take-invalidations! graph) external-invalids (transient [])]
       ;(prn "invalidations " invalidations (.-tempstate graph))
       (if (not-empty invalidations)
         (recur [] (conj! external-invalids (invalidate-selectors graph invalidations)))
@@ -210,9 +220,8 @@
           (if (identical? val NODE-NOT-RESOLVED-SENTINEL)
             not-found
             val)))))
-  oldproto/IDependencyGraph
-  (create-node! [graph data-selector nf]
-    ;(prn "create " data-selector)
+  oldproto/IEagerSelectorResolve
+  (attempt-eager-selector-resolution! [graph data-selector nf]
     (let [n (get nodemap data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
       (if (identical? n oldproto/NOT-IN-GRAPH-SENTINEL)
         (let [new-node (node data-selector)]
@@ -220,7 +229,7 @@
             (set! tempstate (assoc tempstate data-selector (atom (.-state new-node)))))
           (set! nodemap (assoc nodemap data-selector new-node))
           ;next two forms need to be resolved
-          (oldproto/-request-invalidations graph data-selector)
+          (-request-invalidations graph data-selector)
           (when-not *read-mode*
             (normalize-tx! graph))
           (let [v (.-value new-node)]
@@ -230,7 +239,9 @@
         (let [v (.-value n)]
           (if (identical? v NODE-NOT-RESOLVED-SENTINEL)
             nf
-            v)))))
+            v))))
+    )
+  oldproto/IDependencyGraph
   (apply-commands [graph selector-command-pairs]
     (binding [*read-mode* true]
       (-apply-selector-effect-pairs graph selector-command-pairs)
@@ -244,21 +255,7 @@
             :let [n (get nodemap rm)]
             :when n]
       (set! (.-external-dependencies n) (not-empty (disj (.-external-dependencies n) child)))))
-  (-get-external-dependents [this parent]
-    (when-let [n (get nodemap parent)]
-      ;(prn "Exdep" (.-external-dependencies n))
-      (.-external-dependencies n)
-      ))
-  (clear-graph! [dgraph]
-    (doseq [node (vals nodemap)]
-      (simple/clear-node! node dgraph))
-    (set! nodemap {})
-    (set! tempstate  {}))
-  (gc [this data-selector]
-    #_(do (doseq [d (proto/selector-dependencies data-selector)]
-            (proto/undepend! this d))
-          true))
-  oldproto/IBatching
+  IBatching
   (-request-invalidations [graph invalidaiton]
     (if internal-invalidated
       (set! internal-invalidated (conj! internal-invalidated invalidaiton))

@@ -10,12 +10,14 @@
   (-lookup [o data-selector not-found]
     (-lookup graph data-selector not-found))
   oldproto/IDependTrack
-  (depend! [this data-selector]
-    (set! requests (conj requests data-selector)))
+  (dget-sel! [this data-selector nf]
+    (set! requests (conj requests data-selector))
+    (let [v (get this data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+        (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
+        v) ))
   (get-depends [this] requests)
   oldproto/IDependencyGraph
-  (create-node! [this data-selector nf]
-    (oldproto/create-node! graph data-selector nf))
   (apply-commands [_ selector-command-pairs]
     (oldproto/apply-commands graph selector-command-pairs)))
 

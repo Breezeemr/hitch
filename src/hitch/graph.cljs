@@ -19,20 +19,18 @@
   (->Hook graph selector cb))
 
 
-(defn make-hook [graph cb selector]
-  (let [val (oldproto/get-or-effect-graph graph selector oldproto/NOT-FOUND-SENTINEL)]
-    (if (identical? oldproto/NOT-FOUND-SENTINEL val)
-      (let [h  (mkhook graph selector cb)]
-        (oldproto/update-parents graph h #{selector} nil))
+(defn make-hook [graph cb data-selector]
+  (let [val (let [v (get graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+                 (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+                   (oldproto/attempt-eager-selector-resolution! graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)
+                   v))]
+    (if (identical? val oldproto/NOT-IN-GRAPH-SENTINEL)
+      (let [h  (mkhook graph data-selector cb)]
+        (oldproto/update-parents graph h #{data-selector} nil))
       (cb val)))
   nil)
 
-
-(defn dget!
-  ([graph selector nf]
-   (let [n (oldproto/get-or-effect-graph graph selector nf)]
-     (oldproto/depend! graph selector)
-     n)))
+(def dget-sel! oldproto/dget-sel!)
 
 (defn hook
   ([graph cb selector-constructor] (make-hook graph cb (selector-constructor)))
@@ -44,38 +42,38 @@
   ([graph cb selector-constructor a b c d f g] (make-hook graph cb (selector-constructor a b c d f g)))
   ([graph cb selector-constructor a b c d f g h] (make-hook graph cb (selector-constructor a b c d f g h))))
 
-(defn hitch!
+(defn dget!
   ([graph nf selector-constructor]
    (if *execution-mode*
-     (dget! graph (selector-constructor) nf)
+     (dget-sel! graph (selector-constructor) nf)
      (oldproto/inline selector-constructor graph)))
   ([graph nf selector-constructor a]
    (if *execution-mode*
-     (dget! graph (selector-constructor a) nf)
+     (dget-sel! graph (selector-constructor a) nf)
      (oldproto/inline selector-constructor graph a)))
   ([graph nf selector-constructor a b]
    (if *execution-mode*
-     (dget! graph (selector-constructor a b) nf)
+     (dget-sel! graph (selector-constructor a b) nf)
      (oldproto/inline selector-constructor graph a b)))
   ([graph nf selector-constructor a b c]
    (if *execution-mode*
-     (dget! graph (selector-constructor a b c) nf)
+     (dget-sel! graph (selector-constructor a b c) nf)
      (oldproto/inline selector-constructor graph a b c)))
   ([graph nf selector-constructor a b c d]
    (if *execution-mode*
-     (dget! graph (selector-constructor a b c d) nf)
+     (dget-sel! graph (selector-constructor a b c d) nf)
      (oldproto/inline selector-constructor graph a b c d)))
   ([graph nf selector-constructor a b c d e]
    (if *execution-mode*
-     (dget! graph (selector-constructor a b c d e) nf)
+     (dget-sel! graph (selector-constructor a b c d e) nf)
      (oldproto/inline selector-constructor graph a b c d e)))
   ([graph nf selector-constructor a b c d e f ]
    (if *execution-mode*
-     (dget! graph (selector-constructor a b c d e f ) nf)
+     (dget-sel! graph (selector-constructor a b c d e f) nf)
      (oldproto/inline selector-constructor graph a b c d e f )))
   ([graph nf selector-constructor a b c d e f g ]
    (if *execution-mode*
-     (dget! graph (selector-constructor a b c d e f g) nf)
+     (dget-sel! graph (selector-constructor a b c d e f g) nf)
      (oldproto/inline selector-constructor graph a b c d e f g))))
 
 (def berror (js/Error. "bomb"))
@@ -94,44 +92,51 @@
   (-realized? [x]
     true))
 
-(defn select
+(defn select-sel!
+  ([graph selector]
+   (let [v (dget-sel! graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+     (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+       bomb
+       (->box v)))))
+
+(defn select!
   ([graph selector-constructor]
-   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor)]
+   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
   ([graph selector-constructor a]
-   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a)]
+   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
   ([graph selector-constructor a b]
-   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b)]
+   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
   ([graph selector-constructor a b c]
-   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c)]
+   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
   ([graph selector-constructor a b c d]
-   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d)]
+   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
   ([graph selector-constructor a b c d e]
-   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e)]
+   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
   ([graph selector-constructor a b c d e f ]
-   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f)]
+   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
   ([graph selector-constructor a b c d e f g ]
-   (let [v (hitch! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f g)]
+   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f g)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v)))))
