@@ -12,31 +12,31 @@
 (deftest firstt
   (let [graph (mgraph/graph)]
     (is (= (get graph (mutable-var :test)) nil))
-    (graph/apply-effects graph [[(mutable-var :test) [:set-value 5]]])
+    (graph/apply-commands graph [[(mutable-var :test) [:set-value 5]]])
     (is (= (get graph (mutable-var :test)) 5))))
 
 (deftest firstasync
-  (let [graph (mgraph/graph)]
-    (async done
-      (let [testsel (mutable-var :test)
+         (let [graph (mgraph/graph)]
+           (async done
+             (let [testsel (mutable-var :test)
             firstfn (fn [val]
                       (is (= val 7))
-                      (graph/apply-effects graph [[testsel [:clear]]])
+                      (graph/apply-commands graph [[testsel [:clear]]])
                       (graph/hook graph
                                   (fn [val]
                                     (is (= val 8))
-                                    (graph/apply-effects graph [[testsel [:clear]]])
+                                    (graph/apply-commands graph [[testsel [:clear]]])
                                     (graph/hook graph
                                                 (fn [val]
                                                   (is (= val 9))
                                                   (done))
                                                 mutable-var :test)
-                                    (graph/apply-effects graph [[testsel [:set-value 9]]]))
+                                    (graph/apply-commands graph [[testsel [:set-value 9]]]))
                                   mutable-var :test)
-                      (graph/apply-effects graph [[testsel [:set-value 8]]]))]
-        (graph/hook graph firstfn
+                      (graph/apply-commands graph [[testsel [:set-value 8]]]))]
+               (graph/hook graph firstfn
                     mutable-var :test)
-        (graph/apply-effects graph [[testsel [:set-value 7]]])))))
+               (graph/apply-commands graph [[testsel [:set-value 7]]])))))
 
 (deftest single-hook
          (let [graph (mgraph/graph)]
@@ -54,7 +54,7 @@
                            (fn [val]
                              (is (= val 7)))
                            mutable-var :test)
-               (graph/apply-effects graph [[testsel [:set-value 7]]])
-               (graph/apply-effects graph [[testsel [:set-value 8]]])
-               (graph/apply-effects graph [[testsel [:set-value 9]]])
+               (graph/apply-commands graph [[testsel [:set-value 7]]])
+               (graph/apply-commands graph [[testsel [:set-value 8]]])
+               (graph/apply-commands graph [[testsel [:set-value 9]]])
                (done)))))

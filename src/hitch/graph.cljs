@@ -136,5 +136,5 @@
        bomb
        (->box v)))))
 
-(defn apply-effects [graph selector-effect-pairs]
-  (oldproto/apply-commands graph selector-effect-pairs))
+(defn apply-commands [graph selector-command-pairs]
+  (oldproto/apply-commands graph selector-command-pairs))

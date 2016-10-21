@@ -15,7 +15,7 @@
     (async done
       (let [ks-sel (keyspace :main)]
         (is (= (get graph (kv/key ks-sel :test) nil) nil))
-        (graph/apply-effects graph [[ks-sel [:set-value {:test :cat}]]])
+        (graph/apply-commands graph [[ks-sel [:set-value {:test :cat}]]])
         (graph/hook graph (fn [v]
                             (is (= v :cat))
                             (done))
@@ -28,11 +28,11 @@
     (is (= (get graph keysel :not-found) :not-found))
     (mgraph/get-or-create-node graph keysel)
     (is (= (get graph keysel :not-found) nil))
-    (graph/apply-effects graph [[testsel [:set-value {:test 7}]]])
+    (graph/apply-commands graph [[testsel [:set-value {:test 7}]]])
     (is (= (get graph keysel) 7))
-    (graph/apply-effects graph [[testsel [:set-value {:test 8}]]])
+    (graph/apply-commands graph [[testsel [:set-value {:test 8}]]])
     (is (= (get graph keysel) 8))
-    (graph/apply-effects graph [[testsel [:set-value {:test 9}]]])
+    (graph/apply-commands graph [[testsel [:set-value {:test 9}]]])
     (is (= (get graph keysel) 9))
     ))
 
