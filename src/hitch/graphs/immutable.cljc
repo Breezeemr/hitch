@@ -54,8 +54,8 @@
 
 ;; UNKNOWN value sentinel
 
-(def ^:private UNKNOWN #?(:clj  (Object.)
-                          :cljs #js{}))
+(defonce ^:private UNKNOWN #?(:clj  (Object.)
+                              :cljs #js{}))
 
 (defn- unknown? [x] (identical? UNKNOWN x))
 
