@@ -181,10 +181,16 @@
   when this selector changes. Instead, this selector must mark them stale in
   the return value of command-result.")
 
+(defn silent-selector? [s]
+  (satisfies? SilentSelector s))
+
 (defprotocol InformedSelector
   "A marker protocol. When present, :hitch.protocol/child-add and child-del
   commands are added to the selector's command queue which inform when child
   selectors begin or cease depending on the current selector.")
+
+(defn informed-selector? [s]
+  (satisfies? InformedSelector s))
 
 (defrecord State [state])
 
@@ -205,16 +211,16 @@
     [s state] "Return an opaque accumulator for command-step. `state` will be
     nil if it has never been initialized via StatefulSelector or a previous
     command-result call.")
-  (command-step [s accumulator event]
-    "Accept an event and return a new accumulator. This method is called once
-    per event.
+  (command-step [s accumulator command]
+    "Accept a command and return a new accumulator. This method is called once
+    per command.
 
-    At any time this function may return an CommandError which the caller may
+    At any time this function may return a CommandError which the caller may
     use to determine how to handle the error. It should be possible in principle
     (although not necessarily in practice) to resume the command reduction
-    process using the data in a CommandError. :pending-commands and :bad-command
-    will be added by the caller of this method, so this method only needs to
-    supply :accumulator and :error.")
+    process using the data in a CommandError. :accumulator, :pending-commands,
+    and :bad-command will be added by the caller of this method, implementers
+    only need to supply :error.")
   (command-result [s accumulator]
     "Return an StateEffectRefresh after all commands have been processed, which
     contains the new state and an effect.
