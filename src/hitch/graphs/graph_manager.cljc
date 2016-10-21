@@ -42,7 +42,7 @@
               (fn [acc cmd]
                 (let [new-acc (proto/command-step graph acc cmd)]
                   (if (proto/command-error? new-acc)
-                    (reduced (assoc new-acc :bad-command cmd))
+                    (reduced (assoc new-acc :bad-command cmd :accumulator acc))
                     new-acc)))
               (proto/command-accumulator graph state)
               cmds)]
