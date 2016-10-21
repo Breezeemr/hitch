@@ -10,13 +10,13 @@
   which is a list of internal ops executed during the transaction. Default false."
   true)
 
+(defonce ^:private op-history (volatile! []))
 
-(def ^:dynamic *op-history* (volatile! []))
-
-(defn- record! [sel op]
-  (when *trace*
-    (vswap! *op-history* conj [sel op]))
+(defn- record! [op]
+  (vswap! op-history conj op)
   nil)
+
+(defn get-trace [] @op-history)
 
 ;; Utility functions
 
@@ -159,17 +159,14 @@
   (volatile! (transient [])))
 
 (defn- enq-recalc! [recalcs sel]
-  (record! sel ::enq-recalc)
   (vswap! recalcs conj! sel))
 
 (defn- enq-recalcs! [recalcs sels]
-  (record! nil [::enq-recalcs sels])
   (vswap! recalcs into! sels))
 
 (defn- clear-recalcs! [recalcs]
   (let [sels (into [] (distinct) (persistent! @recalcs))]
     (vreset! recalcs (transient []))
-    (record! nil [::clear-recalcs sels])
     sels))
 
 (defn- needs-recalc? [sel selnode old-state]
@@ -183,9 +180,9 @@
 
 (defn- recalc-sel-if-needed! [selnode sel old-state recalcs]
   ;; INVARIANT: All sel deps are known
-  (record! sel [::recalc-sel? selnode sel old-state])
   (if (needs-recalc? sel selnode old-state)
     (do
+      (when *trace* (record! [:enq-recalc sel]))
       (enq-recalc! recalcs sel)
       (assoc selnode :new? false))
     (if #?(:default (:new? selnode)
@@ -200,6 +197,10 @@
   (if (nil? add+del)
     [#{} #{}]
     add+del))
+
+(defn- add+del->map [add+del]
+  {:add (nth add+del 0)
+   :del (nth add+del 1)})
 
 (defn- apply-adds+dels [children adds+dels]
   ;; INVARIANT: Same item cannot be in both add and del
@@ -277,11 +278,13 @@
       (assoc n :original-value (:value n)))))
 
 (defn- create-selnode! [sel effects]
-  (record! sel [::create])
+  (when *trace* (record! [:create sel]))
   (let [sn (new-SelectorNode)]
     (if (satisfies? proto/StatefulSelector sel)
       (let [{:keys [state effect]} (proto/create sel)]
+        (when *trace* (when effect (record! [:enq-effect :create sel])))
         (enq-effect! effects effect)
+        (when *trace* (record! [:state-oncreate sel state]))
         (assoc sn :state state))
       sn)))
 
@@ -331,6 +334,9 @@
                          "Selector command")
           err))
       (let [{:keys [state effect recalc-child-selectors]} r]
+        (when *trace*
+          (when effect
+            (record! [:enq-effect :command sel])))
         (enq-effect! effects effect)
         (when-not (empty? recalc-child-selectors)
           (when-not (satisfies? proto/SilentSelector sel)
@@ -343,43 +349,64 @@
                :children               (:int-children selnode)
                :commands               commands
                :recalc-child-selectors recalc-child-selectors}))
+          (when *trace*
+            (when-not (empty? recalc-child-selectors)
+              (record! [:enc-recalcs :silent-selector-command sel recalc-child-selectors])))
           (enq-recalcs! recalc recalc-child-selectors))
         (assoc selnode :state state)))))
+
+(defn- apply-external-ops*-update-ext-children [sn sel update-ext-children]
+  (when *trace* (record! [:update-ext-children sel update-ext-children]))
+  (update sn :ext-children apply-adds+dels
+    [(:add update-ext-children) (:del update-ext-children)]))
+
+(defn- apply-external-ops*-apply-commands [sn sel commands effects recalcs]
+  (when *trace* (record! [:commands sel commands]))
+  (apply-commands sn sel commands effects recalcs))
+
+(defn- apply-external-ops*
+  [ds selnodes sel {:keys [::update-ext-children ::commands]} effects recalcs]
+  (let [sn  (get|create-selnode! ds selnodes sel effects)
+        sn' (cond-> sn
+              (some? update-ext-children)
+              (apply-external-ops*-update-ext-children sel update-ext-children)
+
+              (some? commands)
+              (apply-external-ops*-apply-commands sel commands effects recalcs))]
+    (assoc! ds sel (recalc-sel-if-needed! sn' sel (:state sn) recalcs))))
 
 (defn- apply-external-ops [dirty-selnodes selnodes effects recalcs sel->ops]
   ;; INVARIANT: sel->ops only updates external children or issues commands
   (persistent!
     (reduce-kv
-      (fn [ds sel {:keys [::update-ext-children ::commands]}]
-        (let [sn  (get|create-selnode! ds selnodes sel effects)
-              sn' (cond-> sn
-                    (some? update-ext-children)
-                    (update :ext-children apply-adds+dels
-                      [(:add update-ext-children) (:del update-ext-children)])
-
-                    (some? commands)
-                    (apply-commands sel commands effects recalcs))]
-          (assoc! ds sel (recalc-sel-if-needed! sn' sel (:state sn) recalcs))))
+      (fn [ds sel ops]
+        (apply-external-ops* ds selnodes sel ops effects recalcs))
       (transient dirty-selnodes)
       sel->ops)))
 
 (defn- inform-selector [selnode sel adds+dels effects recalcs]
   (when-some [commands (not-empty (adds+dels->commands adds+dels))]
+    (when *trace* (record! [:inform-of-child-changes sel (add+del->map adds+dels)]))
     (apply-commands selnode sel commands effects recalcs)))
+
+(defn- update-selnode-children [ds selnodes sel adds+dels effects recalcs]
+  (when *trace* (record! [:update-int-children sel (add+del->map adds+dels)]))
+  (let [sn  (get|create-selnode! ds selnodes sel effects)
+        sn' (cond-> (update sn :int-children apply-adds+dels adds+dels)
+              (proto/informed-selector? sel)
+              (inform-selector sel adds+dels effects recalcs))]
+    (assoc! ds sel (recalc-sel-if-needed! sn' sel (:state sn) recalcs))))
 
 (defn- update-selnodes-children [changes selnodes dirty-selnodes effects recalcs]
   (persistent!
     (reduce-kv
       (fn [ds sel adds+dels]
-        (let [sn  (get|create-selnode! ds selnodes sel effects)
-              sn' (cond-> (update sn :int-children apply-adds+dels adds+dels)
-                    (proto/informed-selector? sel)
-                    (inform-selector sel adds+dels effects recalcs))]
-          (assoc! ds sel (recalc-sel-if-needed! sn' sel (:state sn) recalcs))))
+        (update-selnode-children ds selnodes sel adds+dels effects recalcs))
       (transient dirty-selnodes)
       changes)))
 
 (defn- recalculate-node [sel dirty-selnodes selnodes effects recalcs deps]
+  (when *trace* (record! [:recalc sel]))
   (let [sn               (get|create-selnode! dirty-selnodes selnodes sel effects)
         sn               (dissoc sn :new?)                  ;We recalc immediately, so does not matter if new
         {:keys [state parents] old-value :value} sn
@@ -392,9 +419,18 @@
         changed-value?   (and (not unknown-value?) (not= old-value new-value))
         recalc-children? (and changed-value? (not (proto/silent-selector? sel)))]
     (when recalc-children?
+      (when *trace*
+        (when-not (empty? (:int-children sn))
+          (record! [:enq-recalcs :value-change sel (:int-children sn)])))
       (enq-recalcs! recalcs (:int-children sn)))
     (when-some [parent-changes (calculate-adds+dels parents new-parents)]
+      (when *trace*
+        (record! [:enq-parent-changes sel {:adds (first parent-changes)
+                                           :dels (second parent-changes)}]))
       (enq-parent-deps! deps sel parent-changes))
+    (when *trace*
+      (when changed-value?
+        (record! [:value sel new-value])))
     (cond-> (assoc sn :parents new-parents)
       changed-value? (assoc :value new-value))))
 
@@ -411,11 +447,15 @@
   (if (zero? max-cycles)
     (throw-ex-info "Could not stabilize graph: aborting transaction." {})
     (if-some [child-changes (not-empty (clear-deps! deps))]
-      (let [ds (update-selnodes-children child-changes selnodes dirty-selnodes effects recalcs)]
-        (recur ds selnodes effects recalcs deps (dec max-cycles)))
+      (do
+        (when *trace* (record! [:stabilize-children max-cycles]))
+        (let [ds (update-selnodes-children child-changes selnodes dirty-selnodes effects recalcs)]
+          (recur ds selnodes effects recalcs deps (dec max-cycles))))
       (if-some [need-recalc (not-empty (clear-recalcs! recalcs))]
-        (let [ds (recalculate-nodes need-recalc dirty-selnodes selnodes effects recalcs deps)]
-          (recur ds selnodes effects recalcs deps (dec max-cycles)))
+        (do
+          (when *trace* (record! [:stabilize-values max-cycles]))
+          (let [ds (recalculate-nodes need-recalc dirty-selnodes selnodes effects recalcs deps)]
+            (recur ds selnodes effects recalcs deps (dec max-cycles))))
         dirty-selnodes))))
 
 (defn- destroy-orphaned-nodes
@@ -425,7 +465,11 @@
       (if (and (zero? (count int-children)) (zero? (count ext-children)))
         (do
           (when (satisfies? proto/StatefulSelector sel)
-            (enq-effect! effects (proto/destroy sel state)))
+            (let [effect (proto/destroy sel state)]
+              (when *trace*
+                (when effect
+                  (record! [:enq-effect :destroy sel])))
+              (enq-effect! effects effect)))
           (assoc dn sel nil))
         dn))
     dirty-selnodes
@@ -460,6 +504,7 @@
         (destroy-orphaned-nodes effects))))
 
 (defn- prepare-ops [selnodes sel->cmd->arg]
+  (when *trace* (record! [:prepare-ops sel->cmd->arg]))
   (reduce-kv
     (fn [sel->ops sel cmd->arg]
       (let [selnode (get selnodes sel)]
@@ -515,6 +560,8 @@
         (proto/map->CommandError {:accumulator acc
                                   :error       "Unrecognized command"}))))
   (command-result [s acc]
+    (when *trace*
+      (vreset! op-history []))
     (let [{:keys [selnodes sel->cmd->arg]} acc
           sel->ops       (prepare-ops selnodes sel->cmd->arg)
           effects        (effect-queue)
