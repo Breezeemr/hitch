@@ -2,9 +2,9 @@
   (:require [hitch.graphs.immutable :as im]
             [hitch.graphs.graph-manager :as gm]
             [hitch.protocol :as hp]
-            [#?(:clj clojure.test :cljs cljs.test)
-             :as t #?(:clj :refer :cljs :refer-macros) [deftest testing is]]
-            [hitch.protocol :as proto]))
+    #?@(:cljs    [[cljs.test :as t :refer-macros [testing is]]
+                  [devcards.core :refer-macros [deftest]]]
+        :default [[clojure.test :refer [deftest testing is]]])))
 
 (defrecord Constant [v]
   hp/Selector
@@ -35,8 +35,8 @@
                     (conj r x))))
               [] parents)]
       (if (= v ::not-found)
-        (proto/->SelectorUnresolved parents)
-        (proto/->SelectorValue v parents)))))
+        (hp/->SelectorUnresolved parents)
+        (hp/->SelectorValue v parents)))))
 
 
 (def const-1 (->Constant 1))
@@ -83,7 +83,7 @@
         vec-selector (->SelVec [(->Constant 1) (->Constant 2) (->Constant 3)])
         [status {:keys [value state] :as new-node} {:keys [effect recalc-external-children]}]
         (gm/apply-graph-node-commands gn
-          [[::proto/child-add vec-selector :ext1]])]
+          [[::hp/child-add vec-selector :ext1]])]
     (is (= status :ok))
     (is (= state
           {vec-selector   (#'im/map->SelectorNode {:value        [1 2 3]
