@@ -8,7 +8,7 @@
 ;(declare apply-effects invalidate-nodes normalize-tx! schedule-actions)
 (deftype Hook [graph selector cb]
   oldproto/ExternalDependent
-  (-change-notify [this _ selector-changed]
+  (-change-notify [this]
     (let [val (get graph selector oldproto/NOT-FOUND-SENTINEL)]
       ;(prn "notify" selector-changed val)
       (when-not (identical? oldproto/NOT-FOUND-SENTINEL val)

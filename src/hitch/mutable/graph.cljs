@@ -29,7 +29,7 @@
 (defn invalidate-external-items [graph ext-items]
   (run! (fn [changed-selector]
           (run! (fn [external-dep]
-                  (oldproto/-change-notify external-dep graph changed-selector))
+                  (oldproto/-change-notify external-dep))
                 (oldproto/-get-external-dependents graph changed-selector)))
         ext-items))
 

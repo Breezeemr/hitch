@@ -41,7 +41,7 @@
       "Schedule clean up of the resources for dataselector"))
 
 (defprotocol ExternalDependent
-  (-change-notify [this graph selector-changed]))
+  (-change-notify [this]))
 
 
 
