@@ -13,7 +13,9 @@
 (deftest firstt
   (let [graph (mgraph/graph)]
     (async done
-      (let [ks-sel (keyspace :main)]
+      (let [ks-sel (keyspace :main)
+            node (graph/hook graph (fn [v])
+                        kv/key ks-sel :test)]
         (is (= (get graph (kv/key ks-sel :test) nil) nil))
         (graph/apply-commands graph [[ks-sel [:set-value {:test :cat}]]])
         (graph/hook graph (fn [v]
@@ -24,9 +26,10 @@
 (deftest firstasync
   (let [graph (mgraph/graph)
         testsel (keyspace :main)
-        keysel (key testsel :test)]
+        keysel (key testsel :test)
+        ]
     (is (= (get graph keysel :not-found) :not-found))
-    (mgraph/get-or-create-node graph keysel)
+    (graph/hook graph (fn [val]) key testsel :test)
     (is (= (get graph keysel :not-found) nil))
     (graph/apply-commands graph [[testsel [:set-value {:test 7}]]])
     (is (= (get graph keysel) 7))
