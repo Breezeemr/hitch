@@ -22,7 +22,9 @@
 (defn make-hook [graph cb data-selector]
   (let [val (let [v (get graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
                  (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-                   (oldproto/attempt-eager-selector-resolution! graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)
+                   (if (satisfies? oldproto/IEagerSelectorResolve graph)
+                     (oldproto/attempt-eager-selector-resolution! graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)
+                     oldproto/NOT-IN-GRAPH-SENTINEL)
                    v))]
     (if (identical? val oldproto/NOT-IN-GRAPH-SENTINEL)
       (let [h  (mkhook graph data-selector cb)]

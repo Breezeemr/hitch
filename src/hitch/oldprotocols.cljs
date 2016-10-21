@@ -28,10 +28,6 @@
 (defprotocol IEagerSelectorResolve
   (attempt-eager-selector-resolution! [this parent nf]))
 
-(extend-protocol IEagerSelectorResolve
-  default
-  (attempt-eager-selector-resolution! [this parent nf] nf))
-
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
   (update-parents [this child add rm ])

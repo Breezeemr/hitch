@@ -14,7 +14,9 @@
     (set! requests (conj requests data-selector))
     (let [v (get this data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
       (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-        (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
+        (if (satisfies? oldproto/IEagerSelectorResolve graph)
+          (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
+          nf)
         v) ))
   (get-depends [this] requests)
   oldproto/IDependencyGraph
