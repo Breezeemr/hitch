@@ -11,8 +11,8 @@
               hitch.protocol/Selector
               (value [selector G__1 state]
                 (cljs.core/assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph G__1))
-                (cljs.core/let [dtx (hitch.dependent-transaction/tx G__1 selector)]
-                  (hitch.selector/handle-selector-value dtx (evaler-fn dtx G__2)))))))
+                (cljs.core/let [dtx (hitch.selector-tx-manager/tx G__1 selector)]
+                  (hitch.selector/attempt evaler-fn dtx G__2))))))
     (is (= (sel/sel-constructor 'evaler 'evaler-fn 'evaler-rec binding-pairs ())
            '(def evaler
               (cljs.core/reify
