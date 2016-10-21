@@ -9,11 +9,11 @@
 
 
 (deftest firstt3
-         (let [graph (mgraph/graph)]
+  (let [graph (mgraph/graph)]
 
-           (async done
-             (graph/hook graph (fn [v]
-                                 (is (= v "cat"))
-                                 (done))
-                         http "http://0.0.0.0:3449/test.json" :get nil  (.-parse js/JSON) nil nil))))
+    (async done
+      (graph/hook graph (fn [v]
+                          (is (= v "cat\n"))
+                          (done))
+        http "/test.txt" :get nil identity nil nil))))
 
