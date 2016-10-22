@@ -143,5 +143,133 @@
        bomb
        (->box v)))))
 
+
+(deftype ManualTX [graph cb body
+                       ^:mutable old-requests
+                       ^:mutable not-requested
+                       ^:mutable new-requests
+                       ^:mutable all-requests]
+  ILookup
+  (-lookup [o data-selector]
+    (-lookup o data-selector nil))
+  (-lookup [o data-selector not-found]
+    (-lookup graph data-selector not-found))
+  oldproto/IDependTrack
+  (dget-sel! [this data-selector nf]
+    (if (old-requests data-selector)
+      (set! not-requested (disj! not-requested data-selector))
+      (set! new-requests (conj! new-requests data-selector)))
+    (set! all-requests (conj! all-requests data-selector))
+    (let [v (get this data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+        (if (satisfies? oldproto/IEagerSelectorResolve graph)
+          (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
+          nf)
+        v) ))
+  (get-depends [this] all-requests)
+  oldproto/IDependencyGraph
+  (apply-commands [_ selector-command-pairs]
+    (oldproto/apply-commands graph selector-command-pairs))
+  oldproto/ITXManager
+  (enqueue-dependency-changes [this]
+    (let [removed-deps not-requested]
+      (oldproto/update-parents graph this new-requests not-requested)
+      (let [new-old (reduce disj!
+                            (transient (into old-requests new-requests))
+                            not-requested)]
+
+        (set! old-requests (persistent! new-old))
+        (set! not-requested new-old)
+        (set! new-requests (transient #{}))
+        (set! all-requests (transient #{})))
+      removed-deps
+      ))
+  oldproto/ExternalDependent
+  (-change-notify [this]
+    (let [val (body this)]
+      (if (identical? val oldproto/NOT-FOUND-SENTINEL)
+        (oldproto/enqueue-dependency-changes this)
+        (do
+          (oldproto/update-parents graph this nil old-requests)
+          (cb val))))))
+(defn manual-tx [graph cb body olddeps]
+  (->ManualTX graph cb body olddeps (transient olddeps) (transient #{}) (transient #{})))
+
+(defn try-fn
+  ([body]
+   (fn [graph]
+     (try
+       (body graph)
+       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+  ([body a]
+   (fn [graph]
+     (try
+       (body graph a)
+       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+  ([body a b]
+   (fn [graph]
+     (try
+       (body graph a b)
+       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+  ([body a b c]
+   (fn [graph]
+     (try
+       (body graph a b c)
+       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+  ([body a b c d]
+   (fn [graph]
+     (try
+       (body graph a b c d)
+       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+  ([body a b c d e]
+   (fn [graph]
+     (try
+       (body graph a b c d e)
+       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+  ([body a b c d e f]
+   (fn [graph]
+     (try
+       (body graph a b c d e f)
+       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+  ([body a b c d e f g]
+   (fn [graph]
+     (try
+       (body graph a b c d e f g)
+       (catch :default ex oldproto/NOT-FOUND-SENTINEL)))))
+
+(defn init-context [graph cb wrapped-body]
+  (let [mtx (manual-tx graph cb wrapped-body #{})
+        val (wrapped-body mtx)]
+    (if (identical? val oldproto/NOT-FOUND-SENTINEL)
+      (oldproto/enqueue-dependency-changes mtx)
+      (cb val)))
+  nil)
+
+(defn hitch-callback
+  ([graph cb body]
+   (let [wrapped-body (try-fn body)]
+     (init-context graph cb wrapped-body)))
+  ([graph cb body a]
+   (let [wrapped-body (try-fn body a)]
+     (init-context graph cb wrapped-body)))
+  ([graph cb body a b]
+   (let [wrapped-body (try-fn body a b)]
+     (init-context graph cb wrapped-body)))
+  ([graph cb body a b c]
+   (let [wrapped-body (try-fn body a b c)]
+     (init-context graph cb wrapped-body)))
+  ([graph cb body a b c d]
+   (let [wrapped-body (try-fn body a b c d)]
+     (init-context graph cb wrapped-body)))
+  ([graph cb body a b c d e]
+   (let [wrapped-body (try-fn body a b c d e)]
+     (init-context graph cb wrapped-body)))
+  ([graph cb body a b c d e f]
+   (let [wrapped-body (try-fn body a b c d e f)]
+     (init-context graph cb wrapped-body)))
+  ([graph cb body a b c d e f g]
+   (let [wrapped-body (try-fn body a b c d e f g)]
+     (init-context graph cb wrapped-body))))
+
 (defn apply-commands [graph selector-command-pairs]
   (oldproto/apply-commands graph selector-command-pairs))
