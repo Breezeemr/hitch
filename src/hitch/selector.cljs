@@ -29,32 +29,48 @@
   ([vfn tx-manager]
    (try
      (create-resolved-value vfn tx-manager)
-     (catch :default ex (create-unresolved-value tx-manager))))
+     (catch :default ex (if (identical? oldproto/berror ex )
+                          (create-unresolved-value tx-manager)
+                          (throw ex)))))
   ([vfn tx-manager a]
    (try
      (create-resolved-value vfn tx-manager a)
-     (catch :default ex (create-unresolved-value tx-manager))))
+     (catch :default ex (if (identical? oldproto/berror ex )
+                          (create-unresolved-value tx-manager)
+                          (throw ex)))))
   ([vfn tx-manager a b]
    (try
      (create-resolved-value vfn tx-manager a b)
-     (catch :default ex (create-unresolved-value tx-manager))))
+     (catch :default ex (if (identical? oldproto/berror ex )
+                          (create-unresolved-value tx-manager)
+                          (throw ex)))))
   ([vfn tx-manager a b c]
    (try
      (create-resolved-value vfn tx-manager a b c)
-     (catch :default ex (create-unresolved-value tx-manager))))
+     (catch :default ex (if (identical? oldproto/berror ex )
+                          (create-unresolved-value tx-manager)
+                          (throw ex)))))
   ([vfn tx-manager a b c d]
    (try
      (create-resolved-value vfn tx-manager a b c d)
-     (catch :default ex (create-unresolved-value tx-manager))))
+     (catch :default ex (if (identical? oldproto/berror ex )
+                          (create-unresolved-value tx-manager)
+                          (throw ex)))))
   ([vfn tx-manager a b c d e]
    (try
      (create-resolved-value vfn tx-manager a b c d e)
-     (catch :default ex (create-unresolved-value tx-manager))))
+     (catch :default ex (if (identical? oldproto/berror ex )
+                          (create-unresolved-value tx-manager)
+                          (throw ex)))))
   ([vfn tx-manager a b c d e f]
    (try
      (create-resolved-value vfn tx-manager a b c d e f)
-     (catch :default ex (create-unresolved-value tx-manager))))
+     (catch :default ex (if (identical? oldproto/berror ex )
+                          (create-unresolved-value tx-manager)
+                          (throw ex)))))
   ([vfn tx-manager a b c d e f g]
    (try
      (create-resolved-value vfn tx-manager a b c d e f g)
-     (catch :default ex (create-unresolved-value tx-manager)))))
+     (catch :default ex (if (identical? oldproto/berror ex )
+                          (create-unresolved-value tx-manager)
+                          (throw ex))))))

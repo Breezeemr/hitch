@@ -41,4 +41,9 @@
 (defprotocol ExternalDependent
   (-change-notify [this]))
 
+(def berror #?(:clj
+               nil
+                :cljs
+                (js/Error. "bomb")))
+
 

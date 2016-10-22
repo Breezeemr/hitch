@@ -78,11 +78,10 @@
      (dget-sel! graph (selector-constructor a b c d e f g) nf)
      (oldproto/inline selector-constructor graph a b c d e f g))))
 
-(def berror (js/Error. "bomb"))
 (def bomb (reify
             IDeref
             (-deref [_]
-              (throw berror))
+              (throw oldproto/berror))
             IPending
             (-realized? [x]
               false)))
@@ -200,42 +199,58 @@
    (fn [graph]
      (try
        (body graph)
-       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+       (catch :default ex (if (identical? oldproto/berror ex )
+                            oldproto/NOT-FOUND-SENTINEL
+                            (throw ex))))))
   ([body a]
    (fn [graph]
      (try
        (body graph a)
-       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+       (catch :default ex (if (identical? oldproto/berror ex )
+                            oldproto/NOT-FOUND-SENTINEL
+                            (throw ex))))))
   ([body a b]
    (fn [graph]
      (try
        (body graph a b)
-       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+       (catch :default ex (if (identical? oldproto/berror ex )
+                            oldproto/NOT-FOUND-SENTINEL
+                            (throw ex))))))
   ([body a b c]
    (fn [graph]
      (try
        (body graph a b c)
-       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+       (catch :default ex (if (identical? oldproto/berror ex )
+                            oldproto/NOT-FOUND-SENTINEL
+                            (throw ex))))))
   ([body a b c d]
    (fn [graph]
      (try
        (body graph a b c d)
-       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+       (catch :default ex (if (identical? oldproto/berror ex )
+                            oldproto/NOT-FOUND-SENTINEL
+                            (throw ex))))))
   ([body a b c d e]
    (fn [graph]
      (try
        (body graph a b c d e)
-       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+       (catch :default ex (if (identical? oldproto/berror ex )
+                            oldproto/NOT-FOUND-SENTINEL
+                            (throw ex))))))
   ([body a b c d e f]
    (fn [graph]
      (try
        (body graph a b c d e f)
-       (catch :default ex oldproto/NOT-FOUND-SENTINEL))))
+       (catch :default ex (if (identical? oldproto/berror ex )
+                            oldproto/NOT-FOUND-SENTINEL
+                            (throw ex))))))
   ([body a b c d e f g]
    (fn [graph]
      (try
        (body graph a b c d e f g)
-       (catch :default ex oldproto/NOT-FOUND-SENTINEL)))))
+       (catch :default ex (if (identical? oldproto/berror ex )
+                            oldproto/NOT-FOUND-SENTINEL
+                            (throw ex)))))))
 
 (defn init-context [graph cb wrapped-body]
   (let [mtx (manual-tx graph cb wrapped-body #{})
