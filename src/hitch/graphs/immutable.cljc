@@ -30,17 +30,22 @@
 (defn- into! [xs! xs]
   (reduce conj! xs! xs))
 
+;; Needed for transients: clj transients are callable but cljs are not.
+;; Could use get, but less efficient
+#?(:clj  (defn- lookup [^ILookup xs v] (.valAt xs v))
+   :cljs (defn- lookup [xs v] (-lookup xs v)))
+
 (defn- update!
   ([xs! k f]
-   (assoc! xs! k (f (xs! k))))
+   (assoc! xs! k (f (lookup xs! k))))
   ([xs! k f x]
-   (assoc! xs! k (f (xs! k) x)))
+   (assoc! xs! k (f (lookup xs! k) x)))
   ([xs! k f x y]
-   (assoc! xs! k (f (xs! k) x y)))
+   (assoc! xs! k (f (lookup xs! k) x y)))
   ([xs! k f x y z]
-   (assoc! xs! k (f (xs! k) x y z)))
+   (assoc! xs! k (f (lookup xs! k) x y z)))
   ([xs! k f x y z & args]
-   (assoc! xs! k (apply f (xs! k) x y z args))))
+   (assoc! xs! k (apply f (lookup xs! k) x y z args))))
 
 (defn- cempty? [xs]
   (zero? (count xs)))
@@ -278,7 +283,7 @@
 ;;; Dirty node retrieval or creation
 
 (defn- get-selnode [dirty-selnodes selnodes sel]
-  (if-some [dn (dirty-selnodes sel)]
+  (if-some [dn (lookup dirty-selnodes sel)]
     dn
     (when-some [n (selnodes sel)]
       (assoc n :original-value (:value n)))))
