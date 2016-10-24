@@ -35,10 +35,8 @@
 (defrecord KVStoreServiceSelector [keyspace]
   proto/StatefulSelector
   (create [selector]
-    {:val  oldproto/NOT-FOUND-SENTINEL
-     :deps #{}})
+    (proto/->State oldproto/NOT-FOUND-SENTINEL))
   (destroy [selector state])
-  proto/InformedSelector
   proto/CommandableSelector
   (command-accumulator
     [s state] state)
@@ -46,12 +44,8 @@
     ;(prn "effect " event)
     (let [[key] event]
       (case key
-        :clear (assoc acc :val oldproto/NOT-FOUND-SENTINEL)
-        :add-dep (update acc :deps conj (second event))
-        :remove-dep (update acc :deps disj (second event))
-        :set-value (let [new-value (second event)]
-                     (assoc acc :val new-value)
-                     ))))
+        :clear oldproto/NOT-FOUND-SENTINEL
+        :set-value (second event))))
   (command-result [s acc]
     ;(prn "acc" acc)
     (proto/->State acc))
