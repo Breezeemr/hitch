@@ -1,7 +1,9 @@
 (ns hitch.graphs.graph-manager
-  (:require [hitch.protocol :as proto])
-  #?(:clj
-     (:import (clojure.lang IDeref))))
+  (:require [hitch.protocol :as proto]
+            [hitch.oldprotocols :as oldp])
+  (:import
+    #?(:clj (clojure.lang IDeref ILookup))
+    #?(:cljs (goog.async nextTick))))
 
 
 (defn- new-value [selector old-value state]
@@ -73,7 +75,7 @@
     GraphManagers."
     [graph-node-atom cmds]
     (let [r (volatile! nil)]
-      (swap! swap-transact* graph-node-atom cmds r)
+      (swap! graph-node-atom swap-transact* cmds r)
       @r)))
 
 (defn update-graph-node!
@@ -109,7 +111,8 @@
         gns (atom graph-node)
         gm  (reify
               IDeref
-              (#?(:clj deref :cljs -deref) [_] (:value @gns))
+              #?(:clj  (deref [_] (:value @gns))
+                 :cljs (-deref [_] (:value @gns)))
 
               proto/GraphManager
               (transact! [this cmds]
@@ -118,13 +121,39 @@
      :effect          effect
      :graph-node-atom gns}))
 
+(defn dependency-graph-facade [gm]
+  (reify
+    ILookup
+    #?@(:clj  [(valAt [_ sel] (.valAt ^ILookup @gm sel nil))
+              (valAt [_ sel nf] (.valAt ^ILookup @gm sel nf))]
+       :cljs [(-lookup [_ sel] (-lookup @gm sel nil))
+              (-lookup [_ sel nf] (-lookup @gm sel nf))])
+
+    oldp/IDependencyGraph
+    (update-parents [_ child add rm]
+      (proto/transact! gm
+        [[:hitch.graphs.immutable/child-adds-dels child add rm]])
+      nil)
+
+    (apply-commands [_ sel+cmd-pairs]
+      (proto/transact! gm
+        (into []
+          (map (fn [[s cmd]] [::proto/command s cmd]))
+          sel+cmd-pairs))
+      nil)))
+
 ;; Sample watchers
 
 (defn synchronous-watcher
   [{:keys [graph-manager recalc-external-children effects]}]
-  (run! #(% @graph-manager) recalc-external-children)
   (when (some? effects)
-    (effects graph-manager)))
+    (effects graph-manager))
+  (run! oldp/-change-notify recalc-external-children))
+
+#?(:cljs
+   (defn nexttick-watcher
+     [tx-result]
+     (nextTick #(synchronous-watcher tx-result))))
 
 (comment
   ;; Sketch of how a react manager would work
