@@ -3,7 +3,6 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
-            [hitch.mutable.node :as node :refer [NODE-NOT-RESOLVED-SENTINEL]]
             [hitch.graph :as graph]
             [hitch.selector :refer-macros [defselector]])
   )
@@ -47,7 +46,7 @@
     ;(prn "effect " event)
     (let [[key] event]
       (case key
-        :clear (assoc acc :val NODE-NOT-RESOLVED-SENTINEL)
+        :clear (assoc acc :val oldproto/NOT-FOUND-SENTINEL)
         :add-dep (update acc :deps conj (second event))
         :remove-dep (update acc :deps disj (second event))
         :set-value (let [new-value (second event)]

@@ -2,7 +2,6 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
-            [hitch.mutable.node :refer [NODE-NOT-RESOLVED-SENTINEL]]
             [hitch.selector :refer-macros [defselector]]))
 
 (defrecord MutableVar [n]
@@ -16,14 +15,14 @@
     (let [[key] event]
       (case key
         :set-value (second event)
-        :clear NODE-NOT-RESOLVED-SENTINEL)))
+        :clear oldproto/NOT-FOUND-SENTINEL)))
   (command-result [s acc]
     (proto/->State acc))
   proto/Selector
   (value [selector graph state]
-    (if state
-      (proto/->SelectorValue state nil)
-      (proto/->SelectorUnresolved nil))))
+    (if (identical? oldproto/NOT-FOUND-SENTINEL state)
+      (proto/->SelectorUnresolved nil)
+      (proto/->SelectorValue state nil))))
 
 (def mutable-var
   (reify IFn
