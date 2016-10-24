@@ -4,6 +4,7 @@
 
 
 (def ^:dynamic *execution-mode* true)
+(def ^:dynamic *tx-manager* nil)
 
 ;(declare apply-effects invalidate-nodes normalize-tx! schedule-actions)
 (deftype Hook [graph selector cb]
@@ -185,7 +186,7 @@
       ))
   oldproto/ExternalDependent
   (-change-notify [this]
-    (let [val (body this)]
+    (let [val (binding [*tx-manager* this] (body this))]
       (if (identical? val oldproto/NOT-FOUND-SENTINEL)
         (oldproto/enqueue-dependency-changes this)
         (do
@@ -254,7 +255,8 @@
 
 (defn init-context [graph cb wrapped-body]
   (let [mtx (manual-tx graph cb wrapped-body #{})
-        val (wrapped-body mtx)]
+        val (binding [*tx-manager* mtx]
+              (wrapped-body mtx))]
     (if (identical? val oldproto/NOT-FOUND-SENTINEL)
       (oldproto/enqueue-dependency-changes mtx)
       (cb val)))
