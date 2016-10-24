@@ -1,60 +1,63 @@
 (ns hitch.selectors.mutable-var-test
   (:require [cljs.test :refer [] :refer-macros [is run-tests async]]
-            [hitch.oldprotocols :as oldproto]
-            [hitch.protocol :as proto]
             [devcards.core :as dc :refer-macros [deftest]]
             [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as graph]
-            [cljs.core.async :as async]
-            [hitch.mutable.graph :as mgraph]))
+            [hitch.mutable.graph :as mgraph]
+            [hitch.graphs.graph-manager :as gm]
+            [hitch.graphs.immutable :as im]))
 
+(def gctor
+  mgraph/graph
+  #_#(-> (gm/atom-GraphManager (im/->ImmutableGraph 1) gm/nexttick-watcher
+         identity)
+       :graph-manager gm/dependency-graph-facade))
 
 (deftest firstt
-  (let [graph (mgraph/graph)]
+  (let [graph (gctor)]
     (is (= (get graph (mutable-var :test)) nil))
     (graph/apply-commands graph [[(mutable-var :test) [:set-value 5]]])
     (is (= (get graph (mutable-var :test)) 5))))
 
 (deftest firstasync
-         (let [graph (mgraph/graph)]
-           (async done
-             (let [testsel (mutable-var :test)
+  (let [graph (gctor)]
+    (async done
+      (let [testsel (mutable-var :test)
             firstfn (fn [val]
                       (is (= val 7))
                       (graph/apply-commands graph [[testsel [:clear]]])
                       (graph/hook graph
-                                  (fn [val]
-                                    (is (= val 8))
-                                    (graph/apply-commands graph [[testsel [:clear]]])
-                                    (graph/hook graph
-                                                (fn [val]
-                                                  (is (= val 9))
-                                                  (done))
-                                                mutable-var :test)
-                                    (graph/apply-commands graph [[testsel [:set-value 9]]]))
-                                  mutable-var :test)
+                        (fn [val]
+                          (is (= val 8))
+                          (graph/apply-commands graph [[testsel [:clear]]])
+                          (graph/hook graph
+                            (fn [val]
+                              (is (= val 9))
+                              (done))
+                            mutable-var :test)
+                          (graph/apply-commands graph [[testsel [:set-value 9]]]))
+                        mutable-var :test)
                       (graph/apply-commands graph [[testsel [:set-value 8]]]))]
-               (graph/hook graph firstfn
-                    mutable-var :test)
-               (graph/apply-commands graph [[testsel [:set-value 7]]])))))
+        (graph/hook graph firstfn mutable-var :test)
+        (graph/apply-commands graph [[testsel [:set-value 7]]])))))
 
 (deftest single-hook
-         (let [graph (mgraph/graph)]
-           (async done
-             (let [testsel (mutable-var :test)]
-               (graph/hook graph
-                           (fn [val]
-                             (is (= val 7)))
-                           mutable-var :test)
-               (graph/hook graph
-                           (fn [val]
-                             (is (= val 7)))
-                           mutable-var :test)
-               (graph/hook graph
-                           (fn [val]
-                             (is (= val 7)))
-                           mutable-var :test)
-               (graph/apply-commands graph [[testsel [:set-value 7]]])
-               (graph/apply-commands graph [[testsel [:set-value 8]]])
-               (graph/apply-commands graph [[testsel [:set-value 9]]])
-               (done)))))
+  (let [graph (gctor)]
+    (async done
+      (let [testsel (mutable-var :test)]
+        (graph/hook graph
+          (fn [val]
+            (is (= val 7)))
+          mutable-var :test)
+        (graph/hook graph
+          (fn [val]
+            (is (= val 7)))
+          mutable-var :test)
+        (graph/hook graph
+          (fn [val]
+            (is (= val 7)))
+          mutable-var :test)
+        (graph/apply-commands graph [[testsel [:set-value 7]]])
+        (graph/apply-commands graph [[testsel [:set-value 8]]])
+        (graph/apply-commands graph [[testsel [:set-value 9]]])
+        (done)))))
