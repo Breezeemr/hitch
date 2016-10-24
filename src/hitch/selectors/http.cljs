@@ -1,14 +1,9 @@
 (ns hitch.selectors.http
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.graph :as graph]
-            [hitch.mutable.node :as node]
-            [hitch.graph :as graph]
-            [hitch.selector :refer-macros [defselector]]
             [goog.events :as events]
             [goog.net.EventType :as EventType])
-  (:import (goog.net XhrIo)
-           goog.async.nextTick))
+  (:import (goog.net XhrIo)))
 
 (def ^:private meths
   {:get    "GET"
@@ -20,48 +15,50 @@
   (let [xhr (XhrIo.)]
     ;(.setWithCredentials xhr true)
     (events/listen xhr EventType/SUCCESS
-      (fn [e] (cb (deserializer (some-> e .-target .getResponseText)))))
+      (if deserializer
+        (fn [e] (cb [:ok (deserializer (.. e -target (getResponseText)))]))
+        (fn [e] (cb [:ok (.. e -target (getResponseText))]))))
     (events/listen xhr EventType/ERROR
-      (fn [e] e))
+      (fn [e] (cb [:error (.. e -target (getLastError))])))
+    (events/listen xhr EventType/COMPLETE
+      (fn [e] (.. e -target (dispose))))
     (.send xhr (str url) (meths method) (if serializer
                                           (serializer content)
                                           content) headers)
-    ))
+    #(.dispose xhr)))
 
 (defrecord HTTPSelector [url method serializer deserializer content headers]
   proto/StatefulSelector
-  (create [selector]
-    {:val    oldproto/NOT-FOUND-SENTINEL
-     :action true})
-  (destroy [selector state])
-  proto/InformedSelector
+  (create [s]
+    (let [effect (fn [gm]
+                   (let [aborter (mk-xhr url method serializer deserializer content headers
+                                   (fn [result]
+                                     (oldproto/apply-commands gm [s result])))]
+                     (oldproto/apply-commands gm [s [::aborter aborter]])))]
+      (proto/->StateEffect {} effect nil)))
+  (destroy [s state]
+    (when-some [abort (::aborter state)]
+      (abort)))
+
   proto/CommandableSelector
   (command-accumulator
     [s state] state)
-  (command-step [s acc event]
-    (let [[key] event]
-      (case key
-        :add-dep (update acc :deps conj (second event))
-        :remove-dep acc
-        :set-value (let [new-value (second event)]
-                     (assoc acc :val new-value)))))
+  (command-step [s acc command]
+    (let [[kind x] command]
+      (case kind
+        ::aborter (assoc acc ::aborter x)
+        ::error (-> (assoc acc ::error x)
+                    (dissoc ::aborter ::value))
+        ::value (-> (assoc acc ::value x)
+                    (dissoc ::aborter ::error)))))
   (command-result [s acc]
-    (if (:action acc)
-      (proto/->StateEffect (dissoc acc :action)
-        (fn [simple-graph effect-sink]
-          (mk-xhr url method serializer deserializer content headers
-            (fn [result]
-              (effect-sink [[s [:set-value result]]]))))
-        nil)
-      (proto/->StateEffect acc nil nil)))
+    (proto/->StateEffect acc nil nil))
+
   proto/Selector
   (value [this graph state]
-    ;(prn "state" state)
-    (if state
-      (if (identical? (:val state) oldproto/NOT-FOUND-SENTINEL)
-        (proto/->SelectorUnresolved nil)
-        (proto/->SelectorValue (:val state) nil))
-      (proto/->SelectorUnresolved nil))))
+    (if-some [result (::result state)]
+      (proto/->SelectorValue result nil)
+      (proto/map->SelectorUnresolved nil))))
 
 (def http
   (reify
