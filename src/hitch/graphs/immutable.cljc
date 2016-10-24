@@ -546,30 +546,39 @@
     {:selnodes selnodes :sel->cmd->arg {}})
   (command-step [s acc [type sel x :as command]]
     ;; TODO: Validate commands
-    (let [seas (-> acc :sel->cmd->arg (get sel {}))]
-      (case type
-        ::proto/child-add
-        (->> (update-in seas [::update-ext-children :add] (fnil conj #{}) x)
-             (assoc-in acc [:sel->cmd->arg sel]))
+    (case type
+      ::proto/child-add
+      (->> (update-in (-> acc :sel->cmd->arg (get sel {}))
+             [::update-ext-children :add] (fnil conj #{}) x)
+           (assoc-in acc [:sel->cmd->arg sel]))
 
-        ::proto/child-del
-        (->> (update-in seas [::update-ext-children :del] (fnil conj #{}) x)
-             (assoc-in acc [:sel->cmd->arg sel]))
+      ::proto/child-del
+      (->> (update-in (-> acc :sel->cmd->arg (get sel {}))
+             [::update-ext-children :del] (fnil conj #{}) x)
+           (assoc-in acc [:sel->cmd->arg sel]))
 
-        ::child-adds-dels
-        (->> (-> seas
-                 (update-in [::update-ext-children :del] (fnil into #{})
-                   (nth command 3))
-                 (update-in [::update-ext-children :add] (fnil into #{}) x))
-             (assoc-in acc [:sel->cmd->arg sel]))
+      ::child-adds-dels
 
-        ::proto/command
-        (do (assert (vector? x) "Commands must be vectors like `[:command-keyword & args]`.")
-            (->> (update seas ::commands (fnil conj []) x)
-                 (assoc-in acc [:sel->cmd->arg sel])))
+      (as-> acc acc
+        (reduce (fn [acc del-sel]
+                  (update-in acc [del-sel ::update-ext-children :del]
+                    (fnil conj #{}) sel))
+          acc
+          (nth command 3))
+        (reduce (fn [acc add-sel]
+                  (update-in acc [add-sel ::update-ext-children :add]
+                    (fnil conj #{}) sel))
+          acc
+          x))
 
-        (proto/map->CommandError {:accumulator acc
-                                  :error       "Unrecognized command"}))))
+      ::proto/command
+      (do (assert (vector? x) "Commands must be vectors like `[:command-keyword & args]`.")
+          (->> (update (-> acc :sel->cmd->arg (get sel {}))
+                 ::commands (fnil conj []) x)
+               (assoc-in acc [:sel->cmd->arg sel])))
+
+      (proto/map->CommandError {:accumulator acc
+                                :error       "Unrecognized command"})))
   (command-result [s acc]
     (when *trace*
       (vreset! op-history []))
