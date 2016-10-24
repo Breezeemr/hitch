@@ -530,7 +530,7 @@
 
 (defrecord ImmutableGraph [graph-id]
   proto/StatefulSelector
-  (create [s] (proto/->State {}))
+  (create [s] (proto/->StateEffect {} nil nil))
   (destroy [s state]
     ; TODO: tx to destroy all destroyable selectors
     nil
@@ -578,7 +578,7 @@
           effects        (effect-queue)
           dirty-selnodes (apply-ops selnodes sel->ops effects)
           [new-selnodes recalcs] (merge-dirty-selnodes dirty-selnodes selnodes)]
-      (proto/->StateEffectRefresh
+      (proto/->StateEffect
         new-selnodes
         (when-some [effects (not-empty (clear-effects! effects))]
           (comp-effects effects))

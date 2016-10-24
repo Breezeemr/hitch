@@ -20,9 +20,9 @@
   (let [xhr (XhrIo.)]
     ;(.setWithCredentials xhr true)
     (events/listen xhr EventType/SUCCESS
-                   (fn [e] (cb (deserializer (some-> e  .-target .getResponseText)))))
+      (fn [e] (cb (deserializer (some-> e .-target .getResponseText)))))
     (events/listen xhr EventType/ERROR
-                   (fn [e] e))
+      (fn [e] e))
     (.send xhr (str url) (meths method) (if serializer
                                           (serializer content)
                                           content) headers)
@@ -48,11 +48,12 @@
   (command-result [s acc]
     (if (:action acc)
       (proto/->StateEffect (dissoc acc :action)
-                                     (fn [simple-graph effect-sink]
-                                    (mk-xhr url method serializer deserializer content headers
-                                            (fn [result]
-                                              (effect-sink [[s [:set-value result]]])))))
-      (proto/->State acc)))
+        (fn [simple-graph effect-sink]
+          (mk-xhr url method serializer deserializer content headers
+            (fn [result]
+              (effect-sink [[s [:set-value result]]]))))
+        nil)
+      (proto/->StateEffect acc nil nil)))
   proto/Selector
   (value [this graph state]
     ;(prn "state" state)

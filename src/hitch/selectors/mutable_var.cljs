@@ -17,7 +17,7 @@
         :set-value (second event)
         :clear oldproto/NOT-FOUND-SENTINEL)))
   (command-result [s acc]
-    (proto/->State acc))
+    (proto/->StateEffect acc nil nil))
   proto/Selector
   (value [selector graph state]
     (if (identical? oldproto/NOT-FOUND-SENTINEL state)

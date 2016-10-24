@@ -61,7 +61,7 @@
         (create [s]
           ;; This is a container for state and effect (a 1-arg side-effecting
           ;; function or nil). We will talk about effects later.
-          (->StateEffect (rand-int max) nil))
+          (->StateEffect (rand-int max) nil nil))
         (destroy [s state]
           ;; You may return an effect here, but this Selector doesn't need it.
           nil)
@@ -105,7 +105,7 @@
             :set! (second command)))
         (command-result [s accumulator]
           ;; StateEffect is another container which holds state and effect.
-          (->StateEffect accumulator nil)))
+          (->StateEffect accumulator nil nil)))
 
       (let [var       (->Variable)
             old-state nil
@@ -192,11 +192,7 @@
 (defn informed-selector? [s]
   (satisfies? InformedSelector s))
 
-(defrecord State [state])
-
-(defrecord StateEffect [state effect])
-
-(defrecord StateEffectRefresh [state effect recalc-child-selectors])
+(defrecord StateEffect [state effect recalc-child-selectors])
 
 (defrecord CommandError [accumulator pending-commands bad-command error])
 
@@ -222,12 +218,12 @@
     and :bad-command will be added by the caller of this method, implementers
     only need to supply :error.")
   (command-result [s accumulator]
-    "Return an StateEffectRefresh after all commands have been processed, which
+    "Return an StateEffect after all commands have been processed, which
     contains the new state and an effect.
 
     Only if this selector also implements SilentSelector may it include a
     vector of children to recalculate using the :recalc-child-selectors key
-    of StateEffectRefresh."))
+    of StateEffect."))
 
 (defprotocol GraphManager
   (transact! [graph-manager cmds]

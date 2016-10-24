@@ -35,7 +35,7 @@
 (defrecord KVStoreServiceSelector [keyspace]
   proto/StatefulSelector
   (create [selector]
-    (proto/->State oldproto/NOT-FOUND-SENTINEL))
+    (proto/->StateEffect oldproto/NOT-FOUND-SENTINEL nil nil))
   (destroy [selector state])
   proto/CommandableSelector
   (command-accumulator
@@ -48,7 +48,7 @@
         :set-value (second event))))
   (command-result [s acc]
     ;(prn "acc" acc)
-    (proto/->State acc))
+    (proto/->StateEffect acc nil nil))
   proto/Selector
   (value [this graph state]
     ;(prn "state" state)

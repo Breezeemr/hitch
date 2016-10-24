@@ -22,7 +22,7 @@
       (hp/map->CommandError {:accumulator accumulator
                              :error       "Unrecognized Command"})))
   (command-result [s accumulator]
-    (hp/->StateEffectRefresh accumulator nil nil)))
+    (hp/->StateEffect accumulator nil nil)))
 
 (defrecord SelVec [parents]
   hp/Selector
@@ -76,7 +76,14 @@
          const-1 {::im/update-ext-children {:add #{:a}}}})
     "Mixed ops"))
 
-
+(defn create-imgraph-with-sel [selector]
+  (let [gn (:graph-node (gm/create-graph-node (im/->ImmutableGraph 1)))
+        [status {:keys [value state]} _]
+        (gm/apply-graph-node-commands gn
+          [[::hp/child-add selector :ext1]])]
+    {:status status
+     :value  value
+     :state  state}))
 
 (deftest basic-graph
   (let [gn           (:graph-node (gm/create-graph-node (im/->ImmutableGraph 1)))
