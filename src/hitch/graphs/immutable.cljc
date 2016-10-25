@@ -8,7 +8,7 @@
         :cljs    ^:dynamic ^boolean *trace*)
   "Whether the ImmutableGraph will include a key ::trace in the command-result,
   which is a list of internal ops executed during the transaction. Default false."
-  true)
+  false)
 
 (defonce ^:private op-history (volatile! []))
 
