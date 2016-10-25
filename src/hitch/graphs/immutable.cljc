@@ -557,25 +557,24 @@
            (assoc-in acc [:sel->cmd->arg sel]))
 
       ::child-adds-dels
-
-      (as-> acc acc
-        (reduce (fn [acc del-sel]
-                  (update-in acc [del-sel ::update-ext-children :del]
+      (as-> (:sel->cmd->arg acc) sca
+        (reduce (fn [sca del-sel]
+                  (update-in sca [del-sel ::update-ext-children :del]
                     (fnil conj #{}) sel))
-          acc
+          sca
           (nth command 3))
-        (reduce (fn [acc add-sel]
-                  (update-in acc [add-sel ::update-ext-children :add]
+        (reduce (fn [sca add-sel]
+                  (update-in sca [add-sel ::update-ext-children :add]
                     (fnil conj #{}) sel))
-          acc
-          x))
+          sca
+          x)
+        (assoc acc :sel->cmd->arg sca))
 
       ::proto/command
       (do (assert (vector? x) "Commands must be vectors like `[:command-keyword & args]`.")
           (->> (update (-> acc :sel->cmd->arg (get sel {}))
                  ::commands (fnil conj []) x)
                (assoc-in acc [:sel->cmd->arg sel])))
-
       (proto/map->CommandError {:accumulator acc
                                 :error       "Unrecognized command"})))
   (command-result [s acc]
