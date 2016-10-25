@@ -7,19 +7,14 @@
   `(cljs.core/defn ~eval-fn-name ~(into [] (map second) constructor-binding-forms)
      ~@body))
 
-(defn selector-record [selector-name eval-fn-name constructor-binding-forms body]
+(defn selector-record [selector-name eval-fn-name constructor-binding-forms]
   (let [graphsymbol (->> constructor-binding-forms ffirst)]
     `(cljs.core/defrecord ~selector-name ~(into [] (map first) (rest constructor-binding-forms))
        hitch.protocol/Selector
        (~'value [~'selector ~graphsymbol ~'state]
-         (cljs.core/assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(ffirst constructor-binding-forms)))
          (cljs.core/let [~'dtx (hitch.selector-tx-manager/tx ~graphsymbol ~'selector)]
-           ~(->> constructor-binding-forms
-                              rest
-                              (map first)
-                              (cons 'dtx)
-                              (cons eval-fn-name)
-                              (cons (symbol (str "hitch.selector/attempt")))))))))
+           (hitch.selector/attempt ~eval-fn-name ~'dtx
+             ~@(map first (rest constructor-binding-forms))))))))
 
 (defn sel-constructor [name eval-fn-name selector-name constructor-binding-forms body]
   `(def ~name
@@ -46,6 +41,6 @@
         selector-name (gensym (str name "-selector"))]
     `(do
        ~(eval-selector eval-fn-name symbol-binding-pairs body)
-       ~(selector-record selector-name eval-fn-name symbol-binding-pairs body)
+       ~(selector-record selector-name eval-fn-name symbol-binding-pairs)
        ~(sel-constructor name eval-fn-name selector-name symbol-binding-pairs body)
        )))
