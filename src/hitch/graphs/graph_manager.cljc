@@ -145,9 +145,9 @@
 ;; Sample watchers
 
 (defn synchronous-watcher
-  [{:keys [graph-manager recalc-external-children effects]}]
-  (when (some? effects)
-    (effects graph-manager))
+  [{:keys [graph-manager recalc-external-children effect]}]
+  (when (some? effect)
+    (effect graph-manager))
   (run! oldp/-change-notify recalc-external-children))
 
 #?(:cljs
