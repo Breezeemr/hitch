@@ -13,7 +13,7 @@
    ["Immutable graph: "
     #(-> (gm/atom-GraphManager (im/->ImmutableGraph 1) gm/synchronous-watcher
            identity)
-         :graph-manager gm/dependency-graph-facade)]])
+         :graph-manager gm/ilookup+depgraph-facade)]])
 
 (doseq [[graph-name gctor] gctors]
 
