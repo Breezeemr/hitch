@@ -6,7 +6,7 @@
   (let [binding-pairs '[[G__1 graph] [G__2 a]]]
     (is (= (sel/eval-selector 'evaler binding-pairs ())
            '(cljs.core/defn evaler [graph a])))
-    (is (= (sel/selector-record 'evaler-rec 'evaler-fn binding-pairs ())
+    (is (= (sel/selector-record 'evaler-rec 'evaler-fn binding-pairs)
            '(cljs.core/defrecord evaler-rec [G__2]
               hitch.protocol/Selector
               (value [selector G__1 state]
