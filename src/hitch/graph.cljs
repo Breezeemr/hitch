@@ -186,14 +186,15 @@
     (oldproto/apply-commands graph selector-command-pairs))
   oldproto/ITXManager
   (enqueue-dependency-changes [this]
-    (let [removed-deps not-requested]
-      (oldproto/update-parents graph this new-requests not-requested)
+    (let [new-deps (persistent! new-requests)
+          removed-deps  (persistent! not-requested)]
+      (oldproto/update-parents graph this new-deps removed-deps)
       (let [new-old (reduce disj!
-                            (transient (into old-requests new-requests))
-                            not-requested)]
+                            (transient (into old-requests new-deps))
+                            removed-deps)]
 
         (set! old-requests (persistent! new-old))
-        (set! not-requested new-old)
+        (set! not-requested (transient old-requests))
         (set! new-requests (transient #{}))
         (set! all-requests (transient #{})))
       removed-deps
