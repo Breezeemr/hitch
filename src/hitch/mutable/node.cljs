@@ -55,6 +55,7 @@
 
 (defn node
   ([sel state]
+   (assert sel)
    (->Node sel NODE-NOT-RESOLVED-SENTINEL state true #{} nil #{})))
 
 
