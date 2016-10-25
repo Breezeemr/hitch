@@ -323,7 +323,7 @@
 ;; Very similar to h.g.graph-manager/apply-graph-node-commands
 (defn- apply-commands* [selector state commands]
   (let [acc (reduce (fn [acc cmd] (apply-command* selector acc cmd))
-              (proto/command-accumulator commands state)
+              (proto/command-accumulator selector state)
               commands)]
     (if (proto/command-error? acc)
       (-> (fill-pending-commands acc commands)
