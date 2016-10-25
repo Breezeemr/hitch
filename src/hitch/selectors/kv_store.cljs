@@ -52,9 +52,9 @@
   proto/Selector
   (value [this graph state]
     ;(prn "state" state)
-    (if (identical? (:val state) oldproto/NOT-FOUND-SENTINEL)
+    (if (identical? state oldproto/NOT-FOUND-SENTINEL)
       (proto/->SelectorUnresolved nil)
-      (proto/->SelectorValue (:val state) nil))))
+      (proto/->SelectorValue state nil))))
 
 (def keyspace
   (reify
