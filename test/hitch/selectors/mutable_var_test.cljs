@@ -40,6 +40,23 @@
         (graph/hook graph firstfn mutable-var :test)
         (graph/apply-commands graph [[testsel [:set-value 7]]])))))
 
+(deftest secondasync
+         (let [graph (gctor)]
+           (async done
+             (let [testsel (mutable-var :test)
+                   testsel2 (mutable-var :test2)
+                   callback (fn [result]
+                              (is (= (:a result) 7))
+                              (is (= (:b result) 8))
+                              (done))
+                   firstfn (fn [tx]
+                             {:a @(graph/select-sel! tx testsel)
+                              :b @(graph/select-sel! tx testsel2)}
+                             )]
+               (graph/hitch-callback graph callback firstfn)
+               (graph/apply-commands graph [[testsel [:set-value 7]]])
+               (graph/apply-commands graph [[testsel2 [:set-value 8]]])))))
+
 (deftest single-hook
   (let [graph (gctor)]
     (async done
