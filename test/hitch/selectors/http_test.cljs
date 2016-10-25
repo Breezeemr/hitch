@@ -3,13 +3,31 @@
             [devcards.core :refer-macros [deftest]]
             [hitch.selectors.http :as http]
             [hitch.graph :as graph]
-            [hitch.mutable.graph :as mgraph]))
+            [hitch.mutable.graph :as mgraph]
+            [hitch.graphs.graph-manager :as gm]
+            [hitch.graphs.immutable :as im]))
 
+(def gctors
+  [["Mutable graph" mgraph/graph]
+   ["Immutable graph"
+    #(-> (gm/atom-GraphManager (im/->ImmutableGraph 1) gm/synchronous-watcher
+           identity)
+         :graph-manager gm/ilookup+depgraph-facade)]])
 
-(deftest simple-get
-  (let [graph (mgraph/graph)]
-    (async done
-      (graph/hook graph (fn [v]
-                          (is (= v "cat\n"))
-                          (done))
-        http/http "/test.txt" :get nil nil nil nil))))
+(doseq [[graph-name gctor] gctors]
+  (deftest simple-get-ok
+    (let [graph (gctor)]
+      (async done
+        (graph/hook graph (fn [[status value :as result]]
+                            (is (= result [:ok "cat\n"]) graph-name)
+                            (done))
+          http/http "/test.txt" :get nil nil nil nil)
+        (prn (im/get-trace)))))
+
+  (deftest simple-get-error
+    (let [graph (gctor)]
+      (async done
+        (graph/hook graph (fn [[status error :as result]]
+                            (is (= status :error) graph-name)
+                            (done))
+          http/http "/DOES-NOT-EXIST" :get nil nil nil nil)))))
