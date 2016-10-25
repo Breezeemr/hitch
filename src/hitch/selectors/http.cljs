@@ -2,7 +2,8 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [goog.events :as events]
-            [goog.net.EventType :as EventType])
+            [goog.net.EventType :as EventType]
+            [clojure.string :as str])
   (:import (goog.net XhrIo)))
 
 (def ^:private meths
@@ -14,35 +15,30 @@
 (defn mk-xhr [url method serializer deserializer content headers cb]
   (let [xhr (XhrIo.)]
     ;(.setWithCredentials xhr true)
-    ;(events/listen xhr EventType/SUCCESS
-    ;  (if deserializer
-    ;    (fn [e] (cb [:ok (deserializer (.. e -target (getResponseText)))]))
-    ;    (fn [e] (cb [:ok (.. e -target (getResponseText))]))))
+    (events/listen xhr EventType/SUCCESS
+      (if deserializer
+        (fn [e] (cb [:ok (deserializer (.. e -target (getResponseText)))]))
+        (fn [e] (cb [:ok (.. e -target (getResponseText))]))))
     (events/listen xhr EventType/ERROR
-      (fn [e] (cb [::error (.. e -target (getLastError))])))
-    (events/listen xhr EventType/COMPLETE
-                   (if deserializer
-                     (fn [e]  (cb [::value (deserializer (.. e -target (getResponseText)))]))
-                     (fn [e]  (cb [::value (.. e -target (getResponseText))]))))
-    (.send xhr (str url) (meths method) (if serializer
-                                          (serializer content)
-                                          content) headers)
+      (fn [e] (cb [:error (.. e -target (getLastError))])))
+    (.send xhr (str url) method (if serializer
+                                  (serializer content)
+                                  content) headers)
     #(.dispose xhr)))
 
 (defrecord HTTPSelector [url method serializer deserializer content headers]
   proto/StatefulSelector
   (create [s]
     (let [effect (fn [gm]
-                   (prn gm)
-                   (let [aborter (mk-xhr url method serializer deserializer content headers
+                   (let [aborter (mk-xhr url (str/upper-case (name method))
+                                   serializer deserializer content headers
                                    (fn [result]
-                                     (prn "res" result)
-                                     (oldproto/apply-commands gm [[s result]])))]
+                                     (oldproto/apply-commands gm [[s [::value result]]])))]
                      (oldproto/apply-commands gm [[s [::aborter aborter]]])))]
       (proto/->StateEffect {} effect nil)))
   (destroy [s state]
     (when-some [abort (::aborter state)]
-      (abort)))
+      (fn [_] (abort))))
 
   proto/CommandableSelector
   (command-accumulator
@@ -51,8 +47,6 @@
     (let [[kind x] command]
       (case kind
         ::aborter (assoc acc ::aborter x)
-        ::error (-> (assoc acc ::error x)
-                    (dissoc ::aborter ::value))
         ::value (-> (assoc acc ::value x)
                     (dissoc ::aborter ::error)))))
   (command-result [s acc]
@@ -64,8 +58,4 @@
       (proto/->SelectorValue result nil)
       (proto/map->SelectorUnresolved nil))))
 
-(def http
-  (reify
-    IFn
-    (-invoke [this url method serializer deserializer content headers]
-      (->HTTPSelector url method serializer deserializer content headers))))
+(def http ->HTTPSelector)
