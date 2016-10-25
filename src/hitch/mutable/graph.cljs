@@ -55,7 +55,7 @@
               ;(prn "add subscrption" child "to " parent)
               (set! (.-subscribers parentnode) (conj subscribers child)))
             (when (satisfies? proto/InformedSelector parent)
-              (-apply-selector-command graph parent [:add-dep child]))
+              (-apply-selector-command graph parent [:hitch.protocol/child-add child]))
             ))
         (eduction (remove filter) source)))
 
@@ -68,7 +68,7 @@
               ;(prn "add subscrption" child "to " parent)
               (set! (.-subscribers parentnode) (conj subscribers child)))
             (when (satisfies? proto/InformedSelector parent)
-              (-apply-selector-command graph parent [:remove-dep child]))
+              (-apply-selector-command graph parent [:hitch.protocol/child-del child]))
             ))
         (eduction (remove filter) source)))
 
