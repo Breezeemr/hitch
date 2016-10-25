@@ -1,14 +1,13 @@
 (ns hitch.graphs.graph-manager
-  (:require [hitch.protocol :as proto]
-            [hitch.oldprotocols :as oldp])
-  (:import
-    #?(:clj (clojure.lang IDeref ILookup))
-    #?(:cljs (goog.async nextTick))))
+  (:require [hitch.protocol :as hp]
+            [hitch.oldprotocols :as op])
+  #?(:clj
+     (:import (clojure.lang IDeref ILookup))))
 
 
 (defn- new-value [selector old-value state]
-  (let [sv (proto/value selector old-value state)]
-    (if (proto/selector-unresolved? sv)
+  (let [sv (hp/value selector old-value state)]
+    (if (hp/selector-unresolved? sv)
       old-value
       (:value sv))))
 
@@ -25,7 +24,7 @@
   It is your responsiblity to wrap graph-node in something that implements
   TransactableGraphManager and invoke the effect with it as its argument."
   [immutable-graph-selector]
-  (let [{:keys [state effect]} (proto/create immutable-graph-selector)
+  (let [{:keys [state effect]} (hp/create immutable-graph-selector)
         graph-node {:graph immutable-graph-selector
                     :state state
                     :value (new-value immutable-graph-selector nil state)}]
@@ -42,13 +41,13 @@
   ;; and a dynamic var
   (let [acc (reduce
               (fn [acc cmd]
-                (let [new-acc (proto/command-step graph acc cmd)]
-                  (if (proto/command-error? new-acc)
+                (let [new-acc (hp/command-step graph acc cmd)]
+                  (if (hp/command-error? new-acc)
                     (reduced (assoc new-acc :bad-command cmd :accumulator acc))
                     new-acc)))
-              (proto/command-accumulator graph state)
+              (hp/command-accumulator graph state)
               cmds)]
-    (if (proto/command-error? acc)
+    (if (hp/command-error? acc)
       (let [{:keys [bad-command]} acc
             pending-commands (->> cmds
                                   (drop-while #(not (identical? bad-command %)))
@@ -56,7 +55,7 @@
                                   (into []))]
         [:error graph-node (assoc acc :pending-commands pending-commands)])
       (let [{:keys [effect recalc-child-selectors] new-state :state}
-            (proto/command-result graph acc)]
+            (hp/command-result graph acc)]
         [:ok (assoc graph-node :state new-state
                                :value (new-value graph old-value new-state))
          {:effect effect :recalc-external-children recalc-child-selectors}]))))
@@ -80,131 +79,60 @@
 
 (defn update-graph-node!
   "Generic implementation of GraphManager/transact! for atom-based managers."
-  [graph-manager graph-node-state-atom cmds tx-watcher]
+  [graph-node-state-atom cmds]
   (let [[result new-node m old-node] (transact-swapable*! graph-node-state-atom cmds)]
     (case result
-      :ok (let [{:keys [effect recalc-external-children]} m
-                values {:value-before (:value old-node)
+      :ok (let [values {:value-before (:value old-node)
                         :value-after  (:value new-node)}]
-            (tx-watcher
-              (assoc values
-                :graph-manager graph-manager
-                :recalc-external-children recalc-external-children
-                :effect effect))
-            [:hitch.protocol/tx-ok values])
+            [:hitch.protocol/tx-ok values m])
       :error [:hitch.protocol/tx-error m])))
 
+(defn synchronous-effect-runner [gm effect]
+  (effect gm))
+
 (defn atom-GraphManager
-  ;; Tx-watcher gets {:value-before :value-after :graph-manager :effects :recalc-external-children}
-  ;; :effects may be nil
-  ;; :recalc-external-children may be empty
-  ;; The value of things in :recalc-external-children is opaque to the GraphManager,
-  ;; but not to the watcher.
-  ;; The watcher and all sources of ::proto/child-add ::proto/child-del commands need to
-  ;; coordinate on the types expected for external-child.
-  ;; rewrite-commands hook is to make this coordination easier (don't always need to delegate transact! from a wrapper)
-  ;; Tx-watcher must call effects in same order as it gets them, but not necessarily immediately
-  ;; Tx-watcher must signal external children (recalc-external-children) to re-evaluate against the new graph.
-  ;; Tx-watcher is not called for initial construction. Don't forget to call the effect from the graph create method!
-  [immutable-graph-selector tx-watcher rewrite-commands]
-  (let [{:keys [graph-node effect]} (create-graph-node immutable-graph-selector)
-        gns (atom graph-node)
-        gm  (reify
-              IDeref
-              #?(:clj  (deref [_] (:value @gns))
-                 :cljs (-deref [_] (:value @gns)))
+  ;; Every object in recalc-external-children must implement -change-notify,
+  ;; which will be called immediately after successful tx
+  ;; run-effect! will be called with an effect function and a graph manager.
+  ;; It must ensure effect gets called.
+  ([immutable-graph-selector]
+   (atom-GraphManager immutable-graph-selector synchronous-effect-runner))
+  ([immutable-graph-selector run-effect!]
+   (let [{:keys [graph-node effect]} (create-graph-node immutable-graph-selector)
+         gns (atom graph-node)
+         gm  (reify
+               IDeref
+               #?(:clj  (deref [_] (:value @gns))
+                  :cljs (-deref [_] (:value @gns)))
 
-              proto/GraphManager
-              (transact! [this cmds]
-                (update-graph-node! this gns (rewrite-commands cmds) tx-watcher))
+               ;; Here only for compatiblity, should probably be removed
+               ILookup
+               #?@(:clj  [(valAt [this sel] (.valAt ^ILookup @this sel nil))
+                          (valAt [this sel nf] (.valAt ^ILookup @this sel nf))]
+                   :cljs [(-lookup [this sel] (-lookup @this sel nil))
+                          (-lookup [this sel nf] (-lookup @this sel nf))])
 
-              oldp/IDependencyGraph
-              (update-parents [this child add rm]
-                (proto/transact! this
-                  [[:hitch.graphs.immutable/child-adds-dels child add rm]])
-                nil)
+               hp/GraphManager
+               (transact! [this cmds]
+                 (let [tx-result (update-graph-node! gns cmds)]
+                   (if (= (first tx-result) ::hp/tx-ok)
+                     (let [{:keys [effect recalc-external-children]} (peek tx-result)]
+                       (when (some? effect) (run-effect! this effect))
+                       (run! op/-change-notify recalc-external-children)
+                       (pop tx-result))
+                     tx-result)))
 
-              (apply-commands [this sel+cmd-pairs]
-                (proto/transact! this
-                  (into []
-                    (map (fn [[s cmd]] [::proto/command s cmd]))
-                    sel+cmd-pairs))
-                nil))]
-    {:graph-manager   gm
-     :effect          effect
-     :graph-node-atom gns}))
+               op/IDependencyGraph
+               (update-parents [this child add rm]
+                 (hp/transact! this
+                   [[:hitch.graphs.immutable/child-adds-dels child add rm]])
+                 nil)
 
-(defn ilookup+depgraph-facade [gm]
-  (reify
-    ILookup
-    #?@(:clj  [(valAt [_ sel] (.valAt ^ILookup @gm sel nil))
-               (valAt [_ sel nf] (.valAt ^ILookup @gm sel nf))]
-        :cljs [(-lookup [_ sel] (-lookup @gm sel nil))
-               (-lookup [_ sel nf] (-lookup @gm sel nf))])
-
-    oldp/IDependencyGraph
-    (update-parents [_ child add rm]
-      (oldp/update-parents gm child add rm))
-
-    (apply-commands [this sel+cmd-pairs]
-      (oldp/apply-commands gm sel+cmd-pairs))))
-
-;; Sample watchers
-
-(defn synchronous-watcher
-  [{:keys [graph-manager recalc-external-children effect]}]
-  (when (some? effect)
-    (effect graph-manager))
-  (run! oldp/-change-notify recalc-external-children))
-
-#?(:cljs
-   (defn nexttick-watcher
-     [tx-result]
-     (nextTick #(synchronous-watcher tx-result))))
-
-(comment
-  ;; Sketch of how a react manager would work
-  ;; May want to batch across multiple transactions.
-  (letfn [forceUpdate #(when ^boolean (.isMounted %) (.forceUpdate %))]
-    (defn simple-batching-react-watcher
-      [{:keys [graph-manager recalc-external-children effects]}]
-      (let [{components false fns true} (group-by fn? recalc-external-children)]
-        (when (some? fns)
-          (run! #(%1 @graph-manager) fns))
-        (when (some? components)
-          (js/ReactDOM.unstable_batchedUpdates run! forceUpdate components)))
-      (when (some? effects)
-        (nextTick #(effects graph-manager)))))
-
-
-  ;; Example setup of a graph manager
-
-  (let [{:keys [graph-manager effect graph-node-atom]}
-        (atom-GraphManager
-          (hitch.graph.immutable/->ImmutableGraph 1)
-          simple-batching-react-watcher identity)]
-    ;; Graph setup needs more thought, may need to return a promise of a graph
-    ;; manager.
-    ;; Problem is graph may have a create effect, and we can't return a useable
-    ;; graph manager until that effect runs.
-    ;; Alternatively, the graph could handle it itself, buffering commands
-    ;; or speculatively transacting them or whatever.
-    ;; This will be a problem with a nested graph that needs an IO resource.
-    ;; Another approach in nested graph context, add-child to graph and
-    ;; wait for it to trigger. When it recalcs, we know graph is ready.
-
-    (when effect
-      (effect graph-manager))
-
-    ;; Only commands allowed are
-    ;;     [::proto/child-add sel external-child]
-    ;;     [::proto/child-del sel external-child]
-    ;;     [::proto/command sel command]
-
-    (proto/transact! graph-manager
-      [[::proto/child-add
-        (->SomeSelector)
-        (fn the-hook [v]
-          (proto/transact! graph-manager
-            [[::proto/child-del (->SomeSelector) the-hook]])
-          (. js/console (log (get v (->SomeSelector)))))]])))
+               (apply-commands [this sel+cmd-pairs]
+                 (hp/transact! this
+                   (into []
+                     (map (fn [[s cmd]] [::hp/command s cmd]))
+                     sel+cmd-pairs))
+                 nil))]
+     (when (some? effect) (run-effect! effect gm))
+     gm)))

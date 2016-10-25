@@ -1,5 +1,4 @@
 (ns hitch.selectors.kv-store-test
-  (:require-macros )
   (:require [cljs.test :refer-macros [is async]]
             [hitch.selector :refer-macros [defselector]]
             [devcards.core :refer-macros [deftest]]
@@ -12,10 +11,7 @@
 
 (def gctors
   [["Mutable graph: " mgraph/graph]
-   ["Immutable graph: "
-    #(-> (gm/atom-GraphManager (im/->ImmutableGraph 1) gm/synchronous-watcher
-           identity)
-         :graph-manager gm/ilookup+depgraph-facade)]])
+   ["Immutable graph: " #(gm/atom-GraphManager (im/->ImmutableGraph 1))]])
 
 (doseq [[graph-name gctor] gctors]
   (deftest async-hook-value-change
