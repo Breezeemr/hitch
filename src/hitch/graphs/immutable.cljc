@@ -490,16 +490,17 @@
     [(->> dirty-selnodes
           (reduce-kv
             (fn [sns sel {:keys [value original-value] :as dirtynode}]
-              (if (nil? sel)
+              (if (nil? dirtynode)
                 (dissoc! sns sel)
                 (assoc! sns sel
-                  (if (= original-value value)
-                    (-> (dissoc dirtynode :original-value)
-                        (assoc :value original-value))
-                    (do
-                      (when-not (unknown? value)
-                        (vswap! ext-recalcs into! (:ext-children dirtynode)))
-                      (dissoc dirtynode :original-value))))))
+                  (let [unknown-value? (unknown? value)]
+                    (when-not unknown-value?
+                      (let [ext-ch (:ext-children dirtynode)]
+                        (when-not (zero? (count ext-ch))
+                          (vswap! ext-recalcs into! ext-ch))))
+                    (cond-> (dissoc dirtynode :original-value)
+                      (or unknown-value? (= value original-value))
+                      (assoc :value original-value))))))
             (transient selnodes))
           persistent!)
      (persistent! @ext-recalcs)]))
