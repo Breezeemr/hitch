@@ -161,7 +161,9 @@
     es))
 
 (defn- comp-effects [effect-fns]
-  (fn [g] (run! (fn [f] (f g)) effect-fns)))
+  (if (= (count effect-fns) 1)
+    (first effect-fns)
+    (fn [g] (run! (fn [f] (f g)) effect-fns))))
 
 ;;; Recalcs
 
