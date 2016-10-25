@@ -3,22 +3,21 @@
 
 
 (defonce NOT-FOUND-SENTINEL
-  (reify Object
-    #?@(:clj
-        [(toString [this] "#<NOT-FOUND-SENTINEL>")]
+  (reify
+    #?@(:clj [Object
+              (toString [_] "#<NOT-FOUND-SENTINEL>")]
         :cljs
-        [IPrintWithWriter
-         (-pr-writer [_ writer opts]
-           (-write writer "#<NOT-FOUND-SENTINEL>"))])))
+             [IPrintWithWriter
+              (-pr-writer [_ writer opts]
+                (-write writer "#<NOT-FOUND-SENTINEL>"))])))
 
 (defonce NOT-IN-GRAPH-SENTINEL
-  (reify Object
-    #?@(:clj
-        [(toString [this] "#<NOT-IN-GRAPH-SENTINEL>")]
-        :cljs
-        [IPrintWithWriter
-         (-pr-writer [_ writer opts]
-           (-write writer "#<NOT-IN-GRAPH-SENTINEL>"))])))
+  (reify
+    #?@(:clj  [Object
+               (toString [_] "#<NOT-IN-GRAPH-SENTINEL>")]
+        :cljs [IPrintWithWriter
+               (-pr-writer [_ writer opts]
+                 (-write writer "#<NOT-IN-GRAPH-SENTINEL>"))])))
 
 (defprotocol ISelectorFactory
   (inline [selector-factory] [selector-factory a] [selector-factory a b] [selector-factory a b c] [selector-factory a b c d] [selector-factory a b c d e] [selector-factory a b c d e f] [selector-factory a b c d e f g] [selector-factory a b c d e f g h]))
@@ -43,7 +42,7 @@
 
 (def berror #?(:clj
                nil
-                :cljs
-                (js/Error. "bomb")))
+               :cljs
+               (js/Error. "bomb")))
 
 

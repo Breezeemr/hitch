@@ -60,13 +60,12 @@
 ;; UNKNOWN value sentinel
 
 (defonce ^:private UNKNOWN
-  (reify Object
-    #?@(:clj
-        [(toString [_] "#<UNKNOWN>")]
-        :cljs
-        [IPrintWithWriter
-         (-pr-writer [_ writer opts]
-           (-write writer "#<UNKNOWN>"))])))
+  (reify
+    #?@(:clj  [Object
+               (toString [_] "#<UNKNOWN>")]
+        :cljs [IPrintWithWriter
+               (-pr-writer [_ writer opts]
+                 (-write writer "#<UNKNOWN>"))])))
 
 (defn- unknown? [x] (identical? UNKNOWN x))
 

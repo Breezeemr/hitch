@@ -5,8 +5,9 @@
 
 
 (defonce NODE-NOT-RESOLVED-SENTINEL
-         (reify Object
-           (toString [this] "NODE-NOT-RESOLVED-SENTINEL")
+         (reify
+           Object
+           (toString [_] "NODE-NOT-RESOLVED-SENTINEL")
            IPrintWithWriter
            (-pr-writer [_ writer opts]
              (-write writer "#NODE-NOT-RESOLVED-SENTINEL"))))
