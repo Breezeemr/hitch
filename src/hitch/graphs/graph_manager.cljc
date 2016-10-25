@@ -125,9 +125,9 @@
   (reify
     ILookup
     #?@(:clj  [(valAt [_ sel] (.valAt ^ILookup @gm sel nil))
-              (valAt [_ sel nf] (.valAt ^ILookup @gm sel nf))]
-       :cljs [(-lookup [_ sel] (-lookup @gm sel nil))
-              (-lookup [_ sel nf] (-lookup @gm sel nf))])
+               (valAt [_ sel nf] (.valAt ^ILookup @gm sel nf))]
+        :cljs [(-lookup [_ sel] (-lookup @gm sel nil))
+               (-lookup [_ sel nf] (-lookup @gm sel nf))])
 
     oldp/IDependencyGraph
     (update-parents [_ child add rm]
