@@ -22,15 +22,19 @@
 
 (defn hook-sel [graph cb data-selector]
   (let [val (let [v (get graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
-                 (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-                   (if (satisfies? oldproto/IEagerSelectorResolve graph)
-                     (oldproto/attempt-eager-selector-resolution! graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)
-                     oldproto/NOT-IN-GRAPH-SENTINEL)
-                   v))]
+              (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+                (if (satisfies? oldproto/IEagerSelectorResolve graph)
+                  (oldproto/attempt-eager-selector-resolution! graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)
+                  oldproto/NOT-IN-GRAPH-SENTINEL)
+                v))]
     (if (identical? val oldproto/NOT-IN-GRAPH-SENTINEL)
       (let [h  (mkhook graph data-selector cb)]
         (oldproto/update-parents graph h #{data-selector} nil))
       (cb val)))
+  nil)
+(defn hook-change-sel [graph cb data-selector]
+  (let [h (mkhook graph data-selector cb)]
+    (oldproto/update-parents graph h #{data-selector} nil))
   nil)
 
 (def dget-sel! oldproto/dget-sel!)
@@ -44,6 +48,16 @@
   ([graph cb selector-constructor a b c d f] (hook-sel graph cb (selector-constructor a b c d f)))
   ([graph cb selector-constructor a b c d f g] (hook-sel graph cb (selector-constructor a b c d f g)))
   ([graph cb selector-constructor a b c d f g h] (hook-sel graph cb (selector-constructor a b c d f g h))))
+
+(defn hook-change
+  ([graph cb selector-constructor] (hook-change-sel graph cb (selector-constructor)))
+  ([graph cb selector-constructor a] (hook-change-sel graph cb (selector-constructor a)))
+  ([graph cb selector-constructor a b] (hook-change-sel graph cb (selector-constructor a b)))
+  ([graph cb selector-constructor a b c] (hook-change-sel graph cb (selector-constructor a b c)))
+  ([graph cb selector-constructor a b c d] (hook-change-sel graph cb (selector-constructor a b c d)))
+  ([graph cb selector-constructor a b c d f] (hook-change-sel graph cb (selector-constructor a b c d f)))
+  ([graph cb selector-constructor a b c d f g] (hook-change-sel graph cb (selector-constructor a b c d f g)))
+  ([graph cb selector-constructor a b c d f g h] (hook-change-sel graph cb (selector-constructor a b c d f g h))))
 
 (defn dget!
   ([graph nf selector-constructor]

@@ -25,12 +25,11 @@
       (let [testsel (mutable-var :test)
             firstfn (fn [val]
                       (is (= val 7))
-                      (graph/apply-commands graph [[testsel [:clear]]])
-                      (graph/hook graph
+                      (graph/hook-change graph
                         (fn [val]
+
                           (is (= val 8))
-                          (graph/apply-commands graph [[testsel [:clear]]])
-                          (graph/hook graph
+                          (graph/hook-change graph
                             (fn [val]
                               (is (= val 9))
                               (done))

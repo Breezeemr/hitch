@@ -37,114 +37,114 @@
 
 (declare   schedule-actions)                                  ;invalidate-nodes normalize-tx!
 (defn invalidate-external-items [graph ext-items]
+  ;(prn "ext-items" ext-items)
   (run! (fn [changed-selector]
           (run! (fn [external-dep]
                   (oldproto/-change-notify external-dep))
                 (get-external-dependents graph changed-selector)))
         ext-items))
 
+(declare -apply-selector-command)
 
-(defn filtered-set-add [target selector source filter ]
+(defn added-deps [graph child source filter ]
   ;(prn "filtered-set-add" selector source filter)
-  (conj! target [selector (eduction (remove filter) source)]))
+  (run! (fn [parent]
+          (let [parentnode (get-or-create-node graph parent)
+                subscribers (.-subscribers parentnode)]
+            (when-not (contains? subscribers child)
+              ;(prn "add subscrption" child "to " parent)
+              (set! (.-subscribers parentnode) (conj subscribers child)))
+            (when (satisfies? proto/InformedSelector parent)
+              (-apply-selector-command graph parent [:add-dep child]))
+            ))
+        (eduction (remove filter) source)))
 
-(declare -apply-selector-effect)
-(defn update-dependencies! [graph newdeps retiredeps]
-  ;(prn "newdeps retiredeps" newdeps retiredeps)
-  (run!
-    (fn [[child parents]]
-      (run! (fn [parent]
-              (let [parentnode (get-or-create-node graph parent)
-                    subscribers (.-subscribers parentnode)]
-                (when-not (contains? subscribers child)
-                  ;(prn "add subscrption" child "to " parent)
-                  (set! (.-subscribers parentnode) (conj subscribers child)))
-                (when (satisfies? proto/InformedSelector parent)
-                  (-apply-selector-effect graph parent [:add-dep child]))
-                ))
-            parents))
-    newdeps)
-  (run!
-    (fn [[child parents]]
-      (run! (fn [parent]
-              (let [parentnode (get-or-create-node graph parent)
-                    subscribers (.-subscribers parentnode)]
-                (when (contains? subscribers child)
-                  (set! (.-subscribers parentnode) (disj subscribers child)))
-                (when (satisfies? proto/InformedSelector parent)
-                  (-apply-selector-effect graph parent [:remove-dep child]))))
-            parents))
-    retiredeps))
+(defn removed-deps [graph child source filter]
+  ;(prn "filtered-set-add" selector source filter)
+  (run! (fn [parent]
+          (let [parentnode (get-or-create-node graph parent)
+                subscribers (.-subscribers parentnode)]
+            (when (contains? subscribers child)
+              ;(prn "add subscrption" child "to " parent)
+              (set! (.-subscribers parentnode) (conj subscribers child)))
+            (when (satisfies? proto/InformedSelector parent)
+              (-apply-selector-command graph parent [:remove-dep child]))
+            ))
+        (eduction (remove filter) source)))
 
+(defn init-calc-node! [graph node]
+  (let [selector (.-selector node)
+        {new-value :value dependencies :parents :as vcontainer} (proto/value selector graph (.-state node))
+        old-deps (.-refs node)]
+    (set! (.-refs node) dependencies)
+    ;(prn "dependencies " dependencies)
+    ;inlineing invalidate produces error
+
+    (cond
+      (= (.-value node) new-value) nil
+      (and (.-value node) (instance? proto/SelectorUnresolved vcontainer)) nil
+      (not= (.-value node) new-value) (do
+                                        ;(prn " value changed" vcontainer (type selector) (.-value node) new-value )
+                                        (set! (.-value node) new-value)
+                                        ;(run! #(-request-invalidations graph %) (.-subscribers node))
+                                        ))
+    (added-deps graph selector dependencies old-deps)
+    (removed-deps graph selector old-deps dependencies)))
 ;;;; new api
-(defn invalidate-level [graph selectors external-invalids]
+(defn invalidate-level [graph selectors]
   (loop [selectors selectors #_(if (satisfies? IIterable selectors)
                                  selectors
                                  (-iterator selectors))
-         newitems (transient #{})
-         newdeps (transient [])
-         retiredeps (transient [])
-         external-invalids external-invalids]
+         changed-items (transient #{})]
     (if-let [selector (first selectors)]
       (if-let [node (get (.-nodemap graph) selector)]
         (let [{new-value :value dependencies :parents :as vcontainer} (proto/value selector graph (.-state node))
               old-deps (.-refs node)]
           (set! (.-refs node) dependencies)
-          ;(prn "dependencies " dependencies)
+          ;(prn "vcontainer " vcontainer)
           ;inlineing invalidate produces error
-
+          (added-deps graph selector dependencies old-deps)
+          (removed-deps graph selector old-deps dependencies)
           (cond
             (= (.-value node) new-value) (do                ;(prn " value-unchanged" (type selector) new-value) ;:value-unchanged
-                                           (recur (rest selectors) newitems
-                                                  (filtered-set-add newdeps selector dependencies old-deps)
-                                                  (filtered-set-add retiredeps selector old-deps dependencies)
-                                                  external-invalids))
+                                           (recur (rest selectors) changed-items))
             (and (.-value node) (instance? proto/SelectorUnresolved vcontainer)) (do ; (prn " value-stale" (type selector) (.-value node)) ;:stale
-                                                                                   (recur (rest selectors) newitems
-                                                                                          (filtered-set-add newdeps selector dependencies old-deps)
-                                                                                          (filtered-set-add retiredeps selector old-deps dependencies)
-                                                                                          external-invalids))
+                                                                                   (recur (rest selectors) changed-items))
             (not= (.-value node) new-value) (do
                                               ;(prn " value changed" vcontainer(type selector) (.-value node) new-value )
                                               (set! (.-value node) new-value)
 
+                                              (when (satisfies? proto/SilentSelector selector)
+
+                                                )
                                               ;:value-changed
                                               (recur (rest selectors)
-                                                     (if (satisfies? proto/SilentSelector selector)
-                                                       newitems
-                                                       (reduce conj! newitems (.-subscribers node)))
-                                                     (filtered-set-add newdeps selector dependencies old-deps)
-                                                     (filtered-set-add retiredeps selector old-deps dependencies)
-                                                     (if (get-external-dependents graph selector)
-                                                       (conj! external-invalids selector)
-                                                       external-invalids)))))
+                                                     (conj! changed-items selector)))))
 
         (do                                                 ;(prn "Invalidated selector must always be in the graph" selector)
             (recur (rest selectors)
-                   newitems
-                   newdeps
-                   retiredeps
-                   external-invalids)))
-      (let [ninv (update-dependencies! graph (persistent! newdeps) (persistent! retiredeps))]
-
-        [(persistent! newitems)
-         external-invalids]))))
+                   changed-items)))
+      (persistent! changed-items))))
+(defn get-children-selectors [graph parents]
+  (eduction (mapcat (fn [parent]
+                      (.-subscribers (get (.-nodemap graph) parent))))
+            parents))
 
 (defn invalidate-selectors [graph selectors]
   ;(prn "invalidate-nodes")
-  (loop [[selectors external-invalids] (invalidate-level graph selectors  (transient []))]
-    ;(prn "invalidate " selectors)
-    (if (not-empty selectors)
-      (recur (invalidate-level graph selectors external-invalids))
+  (loop [changed-items (invalidate-level graph selectors) allchanged #{}]
+    ;(prn "changed-items " changed-items)
+    (if-let [children (not-empty (get-children-selectors graph changed-items))]
+      (recur (invalidate-level graph children) (into allchanged changed-items))
       (if-let [newinvalids (not-empty (take-invalidations! graph))]
-        (recur (invalidate-level graph newinvalids external-invalids))
-        (persistent! external-invalids)))))
+        (recur (invalidate-level graph newinvalids) (into allchanged changed-items))
+        (into allchanged changed-items)))))
 
-(defn -apply-selector-effect [graph selector effect]
+(defn -apply-selector-command [graph selector effect]
   (let [state-atom (get-temp-state graph selector)]
     (swap! state-atom #(proto/command-step selector % effect))))
 
-(defn finalize-effects [graph]
+(defn finalize-commands [graph]
   (let [newstate-map (.-tempstate graph)]
     (set! (.-tempstate graph) {})
     (into [] (comp (map
@@ -166,22 +166,21 @@
                    cat)
           newstate-map)))
 
-(defn -apply-selector-effect-pairs [graph selector-effect-pairs]
-  (run! (fn [[selector effects]]
-          (-apply-selector-effect graph selector effects))
-        selector-effect-pairs))
+(defn -apply-selector-command-pairs [graph selector-command-pairs]
+  (run! (fn [[selector command]]
+          (-apply-selector-command graph selector command))
+        selector-command-pairs))
 
 
 
 (defn normalize-tx! [graph]
-  (binding [*read-mode* true]
-    (loop [invalidations (take-invalidations! graph) external-invalids (transient [])]
-      ;(prn "invalidations " invalidations (.-tempstate graph))
-      (if (not-empty invalidations)
-        (recur [] (conj! external-invalids (invalidate-selectors graph invalidations)))
-        (if-let [new-invalids (not-empty (finalize-effects graph))]
-          (recur new-invalids external-invalids)
-          (invalidate-external-items graph (eduction cat (persistent! external-invalids))))))))
+  (loop [invalidations (take-invalidations! graph) changed-selectors #{}]
+    ;(prn "invalidations " invalidations (.-tempstate graph))
+    (if (not-empty invalidations)
+      (recur [] (into changed-selectors (invalidate-selectors graph invalidations)))
+      (if-let [new-invalids (not-empty (finalize-commands graph))]
+        (recur new-invalids (into changed-selectors (invalidate-selectors graph invalidations)))
+        (invalidate-external-items graph changed-selectors)))))
 
 
 
@@ -198,23 +197,28 @@
       (vreset! scheduled-actions false)
       (vreset! pending-actions [])
       (run! (fn [scheduled-action]
-              (scheduled-action simple-graph (fn [selector-effect-pairs] (oldproto/apply-commands graph selector-effect-pairs))))
+              (scheduled-action graph (fn [selector-effect-pairs] (oldproto/apply-commands graph selector-effect-pairs))))
             current-pending-actions))))
 
 (defn schedule-actions [graph]
   (goog.async.nextTick (process-actions graph)))
 
-
+(defn handle-resolution [node nf]
+  (let [v (.-value node)]
+    (if (identical? v NODE-NOT-RESOLVED-SENTINEL)
+      nf
+      v))
+  )
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
-(deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate ^:mutable internal-invalidated
+(deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate
+                          ^:mutable internal-invalidated
                           ^:mutable external-invalidate!]
   ILookup
   (-lookup [o data-selector]
     (-lookup o data-selector nil))
   (-lookup [o data-selector not-found]
-    (let [n (get nodemap data-selector not-found)]
-      ;(prn n)
-      (if (identical? n not-found)
+    (let [n (get nodemap data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+      (if (identical? n oldproto/NOT-IN-GRAPH-SENTINEL)
         not-found
         (let [val (.-value n)]
           (if (identical? val NODE-NOT-RESOLVED-SENTINEL)
@@ -224,29 +228,28 @@
   (attempt-eager-selector-resolution! [graph data-selector nf]
     (let [n (get nodemap data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
       (if (identical? n oldproto/NOT-IN-GRAPH-SENTINEL)
-        (let [new-node (node data-selector)]
-          (when (satisfies? proto/StatefulSelector data-selector)
-            (set! tempstate (assoc tempstate data-selector (atom (.-state new-node)))))
+        (let [new-node (if  (satisfies? proto/StatefulSelector data-selector)
+                         (let [state  (proto/create data-selector)]
+                           (when-let [effect (:effect state)]
+                             (when-not @scheduled-actions
+                               (vreset! scheduled-actions true)
+                               (schedule-actions graph))
+                             (vswap! pending-actions conj effect))
+                           ;(run! #(-request-invalidations graph %) (:recalc-child-selectors state))
+                           (node data-selector (:state state)))
+                         (node data-selector nil))]
+
           (set! nodemap (assoc nodemap data-selector new-node))
           ;next two forms need to be resolved
-          (-request-invalidations graph data-selector)
-          (when-not *read-mode*
-            (normalize-tx! graph))
-          (let [v (.-value new-node)]
-            (if (identical? v NODE-NOT-RESOLVED-SENTINEL)
-              nf
-              v)))
-        (let [v (.-value n)]
-          (if (identical? v NODE-NOT-RESOLVED-SENTINEL)
-            nf
-            v))))
-    )
+          (init-calc-node! graph new-node)
+          (handle-resolution new-node nf))
+        (handle-resolution n nf))))
   oldproto/IDependencyGraph
   (apply-commands [graph selector-command-pairs]
-    (binding [*read-mode* true]
-      (-apply-selector-effect-pairs graph selector-command-pairs)
-      (normalize-tx! graph)))
+    (-apply-selector-command-pairs graph selector-command-pairs)
+    (normalize-tx! graph))
   (update-parents [this child adds rms ]
+    ;(prn "update-parents " child adds rms )
     (doseq [add adds
             :let [n (get nodemap add)]
             :when n]
@@ -254,7 +257,8 @@
     (doseq [rm rms
             :let [n (get nodemap rm)]
             :when n]
-      (set! (.-external-dependencies n) (not-empty (disj (.-external-dependencies n) child)))))
+      (set! (.-external-dependencies n) (not-empty (disj (.-external-dependencies n) child))))
+    )
   IBatching
   (-request-invalidations [graph invalidaiton]
     (if internal-invalidated

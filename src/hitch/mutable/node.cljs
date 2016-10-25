@@ -53,8 +53,7 @@
     (-write writer "}")))
 
 (defn node
-  ([sel] (node sel NODE-NOT-RESOLVED-SENTINEL))
-  ([sel val]
-   (->Node sel val (when (satisfies? proto/StatefulSelector sel) (proto/create sel)) true #{} nil #{})))
+  ([sel state]
+   (->Node sel NODE-NOT-RESOLVED-SENTINEL state true #{} nil #{})))
 
 
