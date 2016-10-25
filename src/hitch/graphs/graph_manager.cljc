@@ -116,12 +116,25 @@
 
               proto/GraphManager
               (transact! [this cmds]
-                (update-graph-node! this gns (rewrite-commands cmds) tx-watcher)))]
+                (update-graph-node! this gns (rewrite-commands cmds) tx-watcher))
+
+              oldp/IDependencyGraph
+              (update-parents [this child add rm]
+                (proto/transact! this
+                  [[:hitch.graphs.immutable/child-adds-dels child add rm]])
+                nil)
+
+              (apply-commands [this sel+cmd-pairs]
+                (proto/transact! this
+                  (into []
+                    (map (fn [[s cmd]] [::proto/command s cmd]))
+                    sel+cmd-pairs))
+                nil))]
     {:graph-manager   gm
      :effect          effect
      :graph-node-atom gns}))
 
-(defn dependency-graph-facade [gm]
+(defn ilookup+depgraph-facade [gm]
   (reify
     ILookup
     #?@(:clj  [(valAt [_ sel] (.valAt ^ILookup @gm sel nil))
@@ -131,16 +144,10 @@
 
     oldp/IDependencyGraph
     (update-parents [_ child add rm]
-      (proto/transact! gm
-        [[:hitch.graphs.immutable/child-adds-dels child add rm]])
-      nil)
+      (oldp/update-parents gm child add rm))
 
-    (apply-commands [_ sel+cmd-pairs]
-      (proto/transact! gm
-        (into []
-          (map (fn [[s cmd]] [::proto/command s cmd]))
-          sel+cmd-pairs))
-      nil)))
+    (apply-commands [this sel+cmd-pairs]
+      (oldp/apply-commands gm sel+cmd-pairs))))
 
 ;; Sample watchers
 
