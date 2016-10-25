@@ -14,14 +14,16 @@
 (defn mk-xhr [url method serializer deserializer content headers cb]
   (let [xhr (XhrIo.)]
     ;(.setWithCredentials xhr true)
-    (events/listen xhr EventType/SUCCESS
-      (if deserializer
-        (fn [e] (cb [:ok (deserializer (.. e -target (getResponseText)))]))
-        (fn [e] (cb [:ok (.. e -target (getResponseText))]))))
+    ;(events/listen xhr EventType/SUCCESS
+    ;  (if deserializer
+    ;    (fn [e] (cb [:ok (deserializer (.. e -target (getResponseText)))]))
+    ;    (fn [e] (cb [:ok (.. e -target (getResponseText))]))))
     (events/listen xhr EventType/ERROR
-      (fn [e] (cb [:error (.. e -target (getLastError))])))
+      (fn [e] (cb [::error (.. e -target (getLastError))])))
     (events/listen xhr EventType/COMPLETE
-      (fn [e] (.. e -target (dispose))))
+                   (if deserializer
+                     (fn [e]  (cb [::value (deserializer (.. e -target (getResponseText)))]))
+                     (fn [e]  (cb [::value (.. e -target (getResponseText))]))))
     (.send xhr (str url) (meths method) (if serializer
                                           (serializer content)
                                           content) headers)
@@ -31,10 +33,12 @@
   proto/StatefulSelector
   (create [s]
     (let [effect (fn [gm]
+                   (prn gm)
                    (let [aborter (mk-xhr url method serializer deserializer content headers
                                    (fn [result]
-                                     (oldproto/apply-commands gm [s result])))]
-                     (oldproto/apply-commands gm [s [::aborter aborter]])))]
+                                     (prn "res" result)
+                                     (oldproto/apply-commands gm [[s result]])))]
+                     (oldproto/apply-commands gm [[s [::aborter aborter]]])))]
       (proto/->StateEffect {} effect nil)))
   (destroy [s state]
     (when-some [abort (::aborter state)]
@@ -56,7 +60,7 @@
 
   proto/Selector
   (value [this graph state]
-    (if-some [result (::result state)]
+    (if-some [result (::value state)]
       (proto/->SelectorValue result nil)
       (proto/map->SelectorUnresolved nil))))
 
