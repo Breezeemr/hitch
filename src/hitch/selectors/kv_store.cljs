@@ -5,7 +5,7 @@
             [hitch.selector :refer-macros [defselector]]))
 
 (defselector keystore-get [graph sel k]
-  (get (graph/dget-sel! graph sel {}) k))
+  (get (graph/select-sel! graph sel) k))
 
 (defrecord KVStoreServiceSelector [keyspace]
   proto/StatefulSelector
