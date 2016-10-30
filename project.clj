@@ -1,5 +1,6 @@
-(defproject com.breezeehr/hitch "0.1.6-SNAPSHOT"
-  :description "A Clojurescript library designed to manage and cache derived data."
+(defproject com.breezeehr/hitch "2.0.0-SNAPSHOT"
+  :description "A Clojure(Script) library for producing and watching graphs of
+   live-updated, dynamically-derived, addressable values."
   :url "https://github.com/Breezeemr/hitch"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
