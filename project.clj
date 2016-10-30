@@ -11,12 +11,12 @@
   :profiles
   {:provided
    {:dependencies [[org.clojure/clojure "1.8.0"]
-                   [org.clojure/clojurescript "1.9.93"]]}
+                   [org.clojure/clojurescript "1.8.51"]]}
 
    :dev
    {:dependencies   [[com.cemerick/piggieback "0.2.1"]      ; needed by figwheel nrepl
-                     [devcards "0.2.1"]]
-    :plugins        [[lein-figwheel "0.5.4-7"]]
+                     [devcards "0.2.2"]]
+    :plugins        [[lein-figwheel "0.5.8"]]
     :figwheel       {:http-server-root "public"
                      :nrepl-port       7889
                      :server-logfile   "target/figwheel-logfile.log"}
