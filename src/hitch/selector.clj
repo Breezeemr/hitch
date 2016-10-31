@@ -38,7 +38,7 @@
 (defmacro defselector [name constructor-binding-forms & body]
   (let [symbol-binding-pairs (create-binding-syms constructor-binding-forms)
         eval-fn-name (gensym (str name "-eval-fn"))
-        selector-name (gensym (str name "-selector"))]
+        selector-name (symbol (str name "-selector"))]
     `(do
        ~(eval-selector eval-fn-name symbol-binding-pairs body)
        ~(selector-record selector-name eval-fn-name symbol-binding-pairs)
