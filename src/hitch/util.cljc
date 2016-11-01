@@ -26,4 +26,4 @@
                (-pr-writer [_ writer opts]
                  (-write writer "#<UNKNOWN>"))])))
 
-(defn- unknown? [x] (identical? UNKNOWN x))
+(defn unknown? [x] (identical? UNKNOWN x))

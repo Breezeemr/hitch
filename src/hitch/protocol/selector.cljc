@@ -51,12 +51,6 @@
     "Return StateEffect or CommandError. May include :recalculate, but members
     must be direct children of the selector."))
 
-(defn stateless-selector-class? [selector-class]
-  (and (implements? Selector selector-class)
-    (not (or (implements? InformedSelector selector-class)
-           (implements? StatefulSelector selector-class)
-           (implements? CommandableSelector selector-class)))))
-
 (defn stateless-selector? [selector]
   (and (satisfies? Selector selector)
     (not (or (satisfies? InformedSelector selector)
