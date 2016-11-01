@@ -17,7 +17,7 @@
           (get lookupable selector unknown))
         (-get-depends [_] @parents)
         pgraph/BraidOptimizerProvider
-        (-braid-optimizer []))
+        (-braid-optimizer [_] nil))
       (reify
         ptrack/ILookupTracking
         (-add-depends! [_ selectors]
