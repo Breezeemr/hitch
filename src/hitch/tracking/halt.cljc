@@ -5,9 +5,16 @@
             [hitch.tracking.common :as track]
             [hitch.util :refer [UNKNOWN unknown?]])
   #?(:clj
-     (:import (hitch.tracking HaltException)
-              (clojure.lang IPending IDeref))))
+     (:import (clojure.lang IPending IDeref))))
 
+
+#?(:clj
+   (gen-class
+     :name hitch.tracking.halt.HaltException
+     :extends java.lang.RuntimeException))
+
+#?(:clj
+   (import '(hitch.tracking.halt HaltException)))
 
 (defonce ^:private HALT
   #?(:cljs
@@ -51,12 +58,12 @@
 (defonce halt-box
   #?(:cljs (reify
              IDeref
-             (-deref [_] (tc/halt!))
+             (-deref [_] (halt!))
              IPending
              (-realized? [_] false))
      :clj  (reify
              IDeref
-             (deref [_] (tc/halt!))
+             (deref [_] (halt!))
              IPending
              (isRealized [_] false))))
 
