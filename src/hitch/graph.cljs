@@ -19,6 +19,18 @@
 (defn mkhook [graph selector cb]
   (->Hook graph selector cb))
 
+;(declare apply-effects invalidate-nodes normalize-tx! schedule-actions)
+(deftype HookChange [graph selector cb]
+  oldproto/ExternalDependent
+  (-change-notify [this]
+    (let [val (get graph selector oldproto/NOT-FOUND-SENTINEL)]
+      ;(prn "notify" selector-changed val)
+      (when-not (identical? oldproto/NOT-FOUND-SENTINEL val)
+        (cb val)))))
+
+(defn mkhookchange [graph selector cb]
+  (->Hook graph selector cb))
+
 
 (defn hook-sel [graph cb data-selector]
   (let [val (let [v (get graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
@@ -32,10 +44,20 @@
         (oldproto/update-parents graph h #{data-selector} nil))
       (cb val)))
   nil)
+
 (defn hook-change-sel [graph cb data-selector]
-  (let [h (mkhook graph data-selector cb)]
-    (oldproto/update-parents graph h #{data-selector} nil))
-  nil)
+  (let [val (let [v (get graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+              (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+                (if (satisfies? oldproto/IEagerSelectorResolve graph)
+                  (oldproto/attempt-eager-selector-resolution! graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)
+                  oldproto/NOT-IN-GRAPH-SENTINEL)
+                v))]
+    (when-not (identical? val oldproto/NOT-IN-GRAPH-SENTINEL)
+      (cb val))
+    (let [h (mkhookchange graph data-selector cb)]
+      (oldproto/update-parents graph h #{data-selector} nil)
+
+      (fn [] (oldproto/update-parents graph h nil #{data-selector})))))
 
 (def dget-sel! oldproto/dget-sel!)
 
