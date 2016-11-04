@@ -126,9 +126,9 @@
                    changed-items)))
       (persistent! changed-items))))
 (defn get-children-selectors [graph parents]
-  (eduction (mapcat (fn [parent]
+  (into #{} (mapcat (fn [parent]
                       (.-subscribers (get (.-nodemap graph) parent))))
-            parents))
+    parents))
 
 (defn invalidate-selectors [graph selectors]
   ;(prn "invalidate-nodes")
