@@ -174,12 +174,12 @@
 
 
 (defn normalize-tx! [graph]
-  (loop [invalidations (take-invalidations! graph) changed-selectors #{}]
+  (loop [changed-selectors #{}]
     ;(prn "invalidations " invalidations (.-tempstate graph))
-    (if (not-empty invalidations)
-      (recur [] (into changed-selectors (invalidate-selectors graph invalidations)))
-      (if-let [new-invalids (not-empty (finalize-commands graph))]
-        (recur new-invalids (into changed-selectors (invalidate-selectors graph invalidations)))
+    (if-some [new-invalids (not-empty (finalize-commands graph))]
+      (recur (into changed-selectors (invalidate-selectors graph new-invalids)))
+      (if-some [invalids (not-empty (take-invalidations! graph))]
+        (recur (into changed-selectors (invalidate-selectors graph invalids)))
         (invalidate-external-items graph changed-selectors)))))
 
 
