@@ -136,9 +136,7 @@
     ;(prn "changed-items " changed-items)
     (if-let [children (not-empty (get-children-selectors graph changed-items))]
       (recur (invalidate-level graph children) (into allchanged changed-items))
-      (if-let [newinvalids (not-empty (take-invalidations! graph))]
-        (recur (invalidate-level graph newinvalids) (into allchanged changed-items))
-        (into allchanged changed-items)))))
+      (into allchanged changed-items))))
 
 (defn -apply-selector-command [graph selector effect]
   (let [state-atom (get-temp-state graph selector)]
