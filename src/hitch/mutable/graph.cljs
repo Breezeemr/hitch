@@ -13,7 +13,7 @@
   (take-invalidations! [graph]))
 
 (defn get-external-dependents [graph selector]
-  (when-let [n (get (.-nodemap graph ) selector)]
+  (when-let [n (get (.-nodemap graph) selector)]
     (.-external-dependencies n)
     )
   )
@@ -27,29 +27,29 @@
 
 
 (defn get-temp-state [graph selector]
-  (assert (satisfies? proto/CommandableSelector selector) )
+  (assert (satisfies? proto/CommandableSelector selector))
   (if-let [ts (get (.-tempstate graph) selector)]
     ts
     (let [node (get-or-create-node graph selector)
-          ts (atom (proto/command-accumulator selector (.-state node)))]
+          ts   (atom (proto/command-accumulator selector (.-state node)))]
       (set! (.-tempstate graph) (assoc (.-tempstate graph) selector ts))
       ts)))
 
-(declare   schedule-actions)                                  ;invalidate-nodes normalize-tx!
+(declare schedule-actions)                                  ;invalidate-nodes normalize-tx!
 (defn invalidate-external-items [graph ext-items]
   ;(prn "ext-items" ext-items)
   (run! (fn [changed-selector]
           (run! (fn [external-dep]
                   (oldproto/-change-notify external-dep))
-                (get-external-dependents graph changed-selector)))
-        ext-items))
+            (get-external-dependents graph changed-selector)))
+    ext-items))
 
 (declare -apply-selector-command)
 
-(defn added-deps [graph child source filter ]
+(defn added-deps [graph child source filter]
   ;(prn "filtered-set-add" selector source filter)
   (run! (fn [parent]
-          (let [parentnode (get-or-create-node graph parent)
+          (let [parentnode  (get-or-create-node graph parent)
                 subscribers (.-subscribers parentnode)]
             (when-not (contains? subscribers child)
               ;(prn "add subscrption" child "to " parent)
@@ -57,12 +57,12 @@
             (when (satisfies? proto/InformedSelector parent)
               (-apply-selector-command graph parent [:hitch.protocol/child-add child]))
             ))
-        (eduction (remove filter) source)))
+    (eduction (remove filter) source)))
 
 (defn removed-deps [graph child source filter]
   ;(prn "filtered-set-add" selector source filter)
   (run! (fn [parent]
-          (let [parentnode (get-or-create-node graph parent)
+          (let [parentnode  (get-or-create-node graph parent)
                 subscribers (.-subscribers parentnode)]
             (when (contains? subscribers child)
               ;(prn "add subscrption" child "to " parent)
@@ -70,7 +70,7 @@
             (when (satisfies? proto/InformedSelector parent)
               (-apply-selector-command graph parent [:hitch.protocol/child-del child]))
             ))
-        (eduction (remove filter) source)))
+    (eduction (remove filter) source)))
 
 (defn init-calc-node! [graph node]
   (let [selector (.-selector node)
@@ -92,9 +92,9 @@
     (removed-deps graph selector old-deps dependencies)))
 ;;;; new api
 (defn invalidate-level [graph selectors]
-  (loop [selectors selectors #_(if (satisfies? IIterable selectors)
-                                 selectors
-                                 (-iterator selectors))
+  (loop [selectors     selectors #_(if (satisfies? IIterable selectors)
+                                     selectors
+                                     (-iterator selectors))
          changed-items (transient #{})]
     (if-let [selector (first selectors)]
       (if-let [node (get (.-nodemap graph) selector)]
@@ -114,16 +114,11 @@
                                               ;(prn " value changed" vcontainer(type selector) (.-value node) new-value )
                                               (set! (.-value node) new-value)
 
-                                              (when (satisfies? proto/SilentSelector selector)
-
-                                                )
                                               ;:value-changed
                                               (recur (rest selectors)
-                                                     (conj! changed-items selector)))))
+                                                (conj! changed-items selector)))))
 
-        (do                                                 ;(prn "Invalidated selector must always be in the graph" selector)
-            (recur (rest selectors)
-                   changed-items)))
+        (recur (rest selectors) changed-items))
       (persistent! changed-items))))
 (defn get-children-selectors [graph parents]
   (into #{} (mapcat (fn [parent]
@@ -145,29 +140,28 @@
 (defn finalize-commands [graph]
   (let [newstate-map (.-tempstate graph)]
     (set! (.-tempstate graph) {})
-    (into [] (comp (map
-                     (fn [[selector v]]
-                       ;(prn "selector v " selector v)
-                       (if-let [node (get (.-nodemap graph) selector)]
-                         (let [{new-state :state :as result} (proto/command-result selector @v)]
-                           ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
-                           (set! (.-state node) new-state)
-                           (when-let [effect (:effect result)]
-                             (when-not @scheduled-actions
-                               (vreset! scheduled-actions true)
-                               (schedule-actions graph))
-                             (vswap! pending-actions conj effect))
-                           (if (satisfies? proto/SilentSelector selector)
-                             (eduction cat [[selector] (:recalc-child-selectors result) ])
-                             [selector]))
-                         (prn "node not found"))))
-                   cat)
-          newstate-map)))
+    (into [] (mapcat
+               (fn [[selector v]]
+                 ;(prn "selector v " selector v)
+                 (if-let [node (get (.-nodemap graph) selector)]
+                   (let [{new-state :state :as result} (proto/command-result selector @v)]
+                     ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
+                     (set! (.-state node) new-state)
+                     (when-let [effect (:effect result)]
+                       (when-not @scheduled-actions
+                         (vreset! scheduled-actions true)
+                         (schedule-actions graph))
+                       (vswap! pending-actions conj effect))
+                     (if (satisfies? proto/SilentSelector selector)
+                       (conj (:recalc-child-selectors result) selector )
+                       [selector]))
+                   (prn "node not found"))))
+      newstate-map)))
 
 (defn -apply-selector-command-pairs [graph selector-command-pairs]
   (run! (fn [[selector command]]
           (-apply-selector-command graph selector command))
-        selector-command-pairs))
+    selector-command-pairs))
 
 
 
@@ -185,18 +179,18 @@
 (defn process-actions [graph]
   (fn []
     (let [current-pending-actions @pending-actions
-          simple-graph (reify ILookup
-                         (-lookup [this k]
-                           (-lookup this k nil))
-                         (-lookup [this k not-found]
-                           (if-let [node (get (.-nodemap graph) k)]
-                             (.-value node)
-                             not-found)))]
+          simple-graph            (reify ILookup
+                                    (-lookup [this k]
+                                      (-lookup this k nil))
+                                    (-lookup [this k not-found]
+                                      (if-let [node (get (.-nodemap graph) k)]
+                                        (.-value node)
+                                        not-found)))]
       (vreset! scheduled-actions false)
       (vreset! pending-actions [])
       (run! (fn [scheduled-action]
               (scheduled-action graph (fn [selector-effect-pairs] (oldproto/apply-commands graph selector-effect-pairs))))
-            current-pending-actions))))
+        current-pending-actions))))
 
 (defn schedule-actions [graph]
   (goog.async.nextTick (process-actions graph)))
@@ -211,6 +205,8 @@
 (deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate
                           ^:mutable internal-invalidated
                           ^:mutable external-invalidate!]
+  Object
+  (get-unresolved-selectors [_] (filter #(identical? (val (.-value %)) NODE-NOT-RESOLVED-SENTINEL) nodemap))
   ILookup
   (-lookup [o data-selector]
     (-lookup o data-selector nil))
@@ -226,8 +222,8 @@
   (attempt-eager-selector-resolution! [graph data-selector nf]
     (let [n (get nodemap data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
       (if (identical? n oldproto/NOT-IN-GRAPH-SENTINEL)
-        (let [new-node (if  (satisfies? proto/StatefulSelector data-selector)
-                         (let [state  (proto/create data-selector)]
+        (let [new-node (if (satisfies? proto/StatefulSelector data-selector)
+                         (let [state (proto/create data-selector)]
                            (when-let [effect (:effect state)]
                              (when-not @scheduled-actions
                                (vreset! scheduled-actions true)
@@ -246,7 +242,7 @@
   (apply-commands [graph selector-command-pairs]
     (-apply-selector-command-pairs graph selector-command-pairs)
     (normalize-tx! graph))
-  (update-parents [this child adds rms ]
+  (update-parents [this child adds rms]
     ;(prn "update-parents " child adds rms )
     (doseq [add adds
             :let [n (get nodemap add)]
@@ -270,7 +266,7 @@
       (persistent! ret))))
 
 (defn graph []
-  (DependencyGraph. {}  {} nil identity))
+  (DependencyGraph. {} {} nil identity))
 
 (defn get-node-map [graph]
   (.-nodemap graph))
