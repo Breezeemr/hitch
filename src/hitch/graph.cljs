@@ -29,7 +29,7 @@
         (cb val)))))
 
 (defn mkhookchange [graph selector cb]
-  (->Hook graph selector cb))
+  (->HookChange graph selector cb))
 
 
 (defn hook-sel [graph cb data-selector]
