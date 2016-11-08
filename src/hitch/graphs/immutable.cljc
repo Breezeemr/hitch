@@ -337,8 +337,8 @@
             :accumulator acc)
           state-effect-refresh)))))
 
-(defn- apply-commands [{:keys [state] :as selnode} sel commands effects recalc]
-  (let [r (apply-commands* sel state commands)]
+(defn- apply-commands [{old-state :state :as selnode} sel commands effects recalc]
+  (let [r (apply-commands* sel old-state commands)]
     (if (proto/command-error? r)
       (let [err (assoc r :selector sel :selector-state old-state)]
         (throw-ex-info (if (nil? (:bad-command err))
@@ -361,12 +361,18 @@
                :children               (:int-children selnode)
                :bad-recalcs            (clojure.set/difference recalc-child-selectors (:int-children selnode))
                :commands               commands
-               :recalc-child-selectors recalc-child-selectors}))
+               :recalc-child-selectors recalc-child-selectors})))
+        (let [selnode' (-> (assoc selnode :state state)
+                           ;; HACK: Ensure a parent is recalced before children.
+                           ;; This means recalc-sel-if-needed! is called
+                           ;; redundantly for some code paths, but this is safe
+                           ;; and hard to avoid.
+                           (recalc-sel-if-needed! sel old-state recalc))]
           (when *trace*
             (when-not (empty? recalc-child-selectors)
               (record! [:enc-recalcs :silent-selector-command sel recalc-child-selectors])))
-          (enq-recalcs! recalc recalc-child-selectors))
-        (assoc selnode :state state)))))
+          (enq-recalcs! recalc recalc-child-selectors)
+          selnode')))))
 
 (defn- apply-external-ops*-update-ext-children [sn sel update-ext-children]
   (when *trace* (record! [:update-ext-children sel update-ext-children]))
