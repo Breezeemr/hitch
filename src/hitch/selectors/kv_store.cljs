@@ -5,12 +5,12 @@
             [hitch.selector :refer-macros [defselector]]))
 
 (defselector keystore-get [graph sel k]
-  (get (graph/select-sel! graph sel) k))
+  (get @(graph/select-sel! graph sel) k))
 
 (defrecord KVStoreServiceSelector [keyspace]
   proto/StatefulSelector
   (create [selector]
-    (proto/->StateEffect oldproto/NOT-FOUND-SENTINEL nil nil))
+    (proto/->StateEffect nil nil nil))
   (destroy [selector state]
     nil)
   proto/CommandableSelector
