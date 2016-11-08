@@ -339,7 +339,7 @@
 (defn- apply-commands [{:keys [state] :as selnode} sel commands effects recalc]
   (let [r (apply-commands* sel state commands)]
     (if (proto/command-error? r)
-      (let [err (assoc sel :selector sel :selector-state state)]
+      (let [err (assoc r :selector sel :selector-state old-state)]
         (throw-ex-info (if (nil? (:bad-command err))
                          "Selector command-result failed"
                          "Selector command")
