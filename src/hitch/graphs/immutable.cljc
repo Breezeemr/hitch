@@ -1,5 +1,6 @@
 (ns hitch.graphs.immutable
-  (:require [hitch.protocol :as proto])
+  (:require [hitch.protocol :as proto]
+            [clojure.set])
   #?(:clj
      (:import (clojure.lang ILookup))))
 
@@ -353,11 +354,12 @@
           (when-not (satisfies? proto/SilentSelector sel)
             (throw-ex-info "Selector is not a SilentSelector but returned recalc-child-selectors from a command-result"
               {:selector sel}))
-          (when-not (subset? (:int-children sel) recalc-child-selectors)
+          (when-not (subset? (:int-children selnode) recalc-child-selectors)
             (throw-ex-info "Selector attempted to recalculate a selector which is not its child."
               {:selector               sel
                :state                  (:state selnode)
                :children               (:int-children selnode)
+               :bad-recalcs            (clojure.set/difference recalc-child-selectors (:int-children selnode))
                :commands               commands
                :recalc-child-selectors recalc-child-selectors}))
           (when *trace*
