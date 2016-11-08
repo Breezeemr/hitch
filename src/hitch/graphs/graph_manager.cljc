@@ -114,18 +114,20 @@
 
                hp/GraphManager
                (transact! [this cmds]
-                 (let [tx-result (update-graph-node! gns cmds)]
-                   (if (= (first tx-result) ::hp/tx-ok)
-                     (let [{:keys [effect recalc-external-children]} (peek tx-result)]
-                       (when (some? effect) (run-effect! this effect))
-                       (run! op/-change-notify recalc-external-children)
-                       (pop tx-result))
-                     tx-result)))
+                 (when-not (empty? cmds)
+                   (let [tx-result (update-graph-node! gns cmds)]
+                     (if (= (first tx-result) ::hp/tx-ok)
+                       (let [{:keys [effect recalc-external-children]} (peek tx-result)]
+                         (when (some? effect) (run-effect! this effect))
+                         (run! op/-change-notify recalc-external-children)
+                         (pop tx-result))
+                       tx-result))))
 
                op/IDependencyGraph
                (update-parents [this child add rm]
-                 (hp/transact! this
-                   [[:hitch.graphs.immutable/child-adds-dels child add rm]])
+                 (when-not (and (empty? add) (empty? rm))
+                   (hp/transact! this
+                     [[:hitch.graphs.immutable/child-adds-dels child add rm]]))
                  nil)
 
                (apply-commands [this sel+cmd-pairs]
