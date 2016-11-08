@@ -181,18 +181,17 @@
     (vreset! recalcs (transient []))
     sels))
 
-(defn- needs-recalc? [sel selnode old-state]
+(defn- needs-recalc? [selnode old-state]
   (and
+    (or (not (cempty? (:int-children selnode)))
+      (not (cempty? (:ext-children selnode))))
     (or #?(:default (:new? selnode)
            :cljs    ^boolean (:new? selnode))
-      (not= old-state (:state selnode)))
-    (or (not (cempty? (:ext-children selnode)))
-      (and (not (cempty? (:int-children selnode)))
-        (not (satisfies? proto/SilentSelector sel))))))
+      (not= old-state (:state selnode)))))
 
 (defn- recalc-sel-if-needed! [selnode sel old-state recalcs]
   ;; INVARIANT: All sel deps are known
-  (if (needs-recalc? sel selnode old-state)
+  (if (needs-recalc? selnode old-state)
     (do
       (when *trace* (record! [:enq-recalc sel]))
       (enq-recalc! recalcs sel)
