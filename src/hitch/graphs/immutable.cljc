@@ -221,6 +221,9 @@
     (reduce conj! c (nth adds+dels 0))
     (persistent! c)))
 
+(defn- get-adds [adds+dels]
+  (nth adds+dels 0))
+
 (letfn [(add-cmd [sel] [::proto/child-add sel])
         (del-cmd [sel] [::proto/child-del sel])]
   (defn- adds+dels->commands [adds+dels]
@@ -363,10 +366,7 @@
                :commands               commands
                :recalc-child-selectors recalc-child-selectors})))
         (let [selnode' (-> (assoc selnode :state state)
-                           ;; HACK: Ensure a parent is recalced before children.
-                           ;; This means recalc-sel-if-needed! is called
-                           ;; redundantly for some code paths, but this is safe
-                           ;; and hard to avoid.
+                           ;; NOTE: Ensure a parent is recalced before children.
                            (recalc-sel-if-needed! sel old-state recalc))]
           (when *trace*
             (when-not (empty? recalc-child-selectors)
@@ -388,11 +388,14 @@
   (let [sn  (get|create-selnode! ds selnodes sel effects)
         sn' (cond-> sn
               (some? update-ext-children)
-              (apply-external-ops*-update-ext-children sel update-ext-children)
-
-              (some? commands)
-              (apply-external-ops*-apply-commands sel commands effects recalcs))]
-    (assoc! ds sel (recalc-sel-if-needed! sn' sel (:state sn) recalcs))))
+              (apply-external-ops*-update-ext-children sel update-ext-children))
+        sn' (if (some? commands)
+              ;; NOTE: Calls apply-commands which calls recalc-sel-if-needed
+              ;; Need to delegate because parent should recalc before child,
+              ;; but we only see state after StateEffect recalcs are added.
+              (apply-external-ops*-apply-commands sn' sel commands effects recalcs)
+              (recalc-sel-if-needed! sn' sel (:state sn) recalcs))]
+    (assoc! ds sel sn')))
 
 (defn- apply-external-ops [dirty-selnodes selnodes effects recalcs sel->ops]
   ;; INVARIANT: sel->ops only updates external children or issues commands
@@ -411,10 +414,33 @@
 (defn- update-selnode-children [ds selnodes sel adds+dels effects recalcs]
   (when *trace* (record! [:update-int-children sel (add+del->map adds+dels)]))
   (let [sn  (get|create-selnode! ds selnodes sel effects)
-        sn' (cond-> (update sn :int-children apply-adds+dels adds+dels)
-              (proto/informed-selector? sel)
-              (inform-selector sel adds+dels effects recalcs))]
-    (assoc! ds sel (recalc-sel-if-needed! sn' sel (:state sn) recalcs))))
+        sn' (update sn :int-children apply-adds+dels adds+dels)
+        sn' (if (proto/informed-selector? sel)
+              ;; NOTE: Calls apply-commands which calls recalc-sel-if-needed
+              ;; Need to delegate because parent should recalc before child,
+              ;; but we only see state after StateEffect recalcs are added.
+              (inform-selector sn' sel adds+dels effects recalcs)
+              (recalc-sel-if-needed! sn' sel (:state sn) recalcs))]
+    (when *trace*
+      (when-some [adds (not-empty (get-adds adds+dels))]
+        (record! [:enq-recalcs :new-children sel adds])))
+    ;; Newly-added children need an opportunity to recalculate
+    (when-not (and (proto/silent-selector? sel) (not (unknown? (:value sn'))))
+      (enq-recalcs! recalcs
+        ;; This is only reached if
+        ;; 1) a child recalced earlier (hence child sel guaranteed to be in
+        ;;    dirty-selnodes)
+        ;; 2) during the recalc it added current sel as a parent
+        ;; When the child recalced and added us, it either resolved to a value
+        ;; (thus needs no recalc), or it did not resolve and may need access to
+        ;; our value.
+        ;; This is basically a special case of "recalc my children after value
+        ;; change" where some children were not known at the moment we recalced.
+        (filterv #(unknown? (:value #?(:default (get ds %)
+                                       :clj     (.valAt ^ILookup ds %)
+                                       :cljs    (-lookup ds %))))
+          (get-adds adds+dels))))
+    (assoc! ds sel sn')))
 
 (defn- update-selnodes-children [changes selnodes dirty-selnodes effects recalcs]
   (persistent!
@@ -439,7 +465,7 @@
         recalc-children? (and changed-value? (not (proto/silent-selector? sel)))]
     (when recalc-children?
       (when *trace*
-        (when-not (empty? (:int-children sn))
+        (when-not (cempty? (:int-children sn))
           (record! [:enq-recalcs :value-change sel (:int-children sn)])))
       (enq-recalcs! recalcs (:int-children sn)))
     (when-some [parent-changes (calculate-adds+dels parents new-parents)]
