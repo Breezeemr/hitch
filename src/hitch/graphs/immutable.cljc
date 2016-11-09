@@ -421,25 +421,27 @@
               ;; but we only see state after StateEffect recalcs are added.
               (inform-selector sn' sel adds+dels effects recalcs)
               (recalc-sel-if-needed! sn' sel (:state sn) recalcs))]
-    (when *trace*
-      (when-some [adds (not-empty (get-adds adds+dels))]
-        (record! [:enq-recalcs :new-children sel adds])))
     ;; Newly-added children need an opportunity to recalculate
-    (when-not (and (proto/silent-selector? sel) (not (unknown? (:value sn'))))
-      (enq-recalcs! recalcs
-        ;; This is only reached if
-        ;; 1) a child recalced earlier (hence child sel guaranteed to be in
-        ;;    dirty-selnodes)
-        ;; 2) during the recalc it added current sel as a parent
-        ;; When the child recalced and added us, it either resolved to a value
-        ;; (thus needs no recalc), or it did not resolve and may need access to
-        ;; our value.
-        ;; This is basically a special case of "recalc my children after value
-        ;; change" where some children were not known at the moment we recalced.
-        (filterv #(unknown? (:value #?(:default (get ds %)
-                                       :clj     (.valAt ^ILookup ds %)
-                                       :cljs    (-lookup ds %))))
-          (get-adds adds+dels))))
+    (when-not (or (unknown? (:value sn')) (proto/silent-selector? sel))
+      ;; This is only reached if both
+      ;; 1) a child recalced earlier (hence child sel guaranteed to be in
+      ;;    dirty-selnodes)
+      ;; 2) during the recalc it added current sel as a parent
+      ;; When the child recalced and added us, it either resolved to a value
+      ;; (thus needs no recalc), or it did not resolve and may need access to
+      ;; our value.
+      ;; This is basically a special case of "recalc my children after value
+      ;; change" where some children were not known at the moment we recalced.
+      (let [recalc-children (filterv #(unknown?
+                                        (:value
+                                          #?(:default (get ds %)
+                                             :clj     (.valAt ^ILookup ds %)
+                                             :cljs    (-lookup ds %))))
+                              (get-adds adds+dels))]
+        (when *trace*
+          (when (not-empty recalc-children)
+            (record! [:enq-recalcs :new-children sel recalc-children])))
+        (enq-recalcs! recalcs recalc-children)))
     (assoc! ds sel sn')))
 
 (defn- update-selnodes-children [changes selnodes dirty-selnodes effects recalcs]
