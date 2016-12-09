@@ -26,16 +26,18 @@
                                   content) headers)
     #(.dispose xhr)))
 
+(defn resolve-http-effect [{:keys [url method serializer deserializer content headers] :as http-selector}]
+  (fn [gm]
+    (let [aborter (mk-xhr url (str/upper-case (name method))
+                          serializer deserializer content headers
+                          (fn [result]
+                            (oldproto/apply-commands gm [[http-selector [::value result]]])))]
+      (oldproto/apply-commands gm [[http-selector [::aborter aborter]]]))))
+
 (defrecord HTTPSelector [url method serializer deserializer content headers]
   proto/StatefulSelector
   (create [s]
-    (let [effect (fn [gm]
-                   (let [aborter (mk-xhr url (str/upper-case (name method))
-                                   serializer deserializer content headers
-                                   (fn [result]
-                                     (oldproto/apply-commands gm [[s [::value result]]])))]
-                     (oldproto/apply-commands gm [[s [::aborter aborter]]])))]
-      (proto/->StateEffect {} effect nil)))
+    (proto/->StateEffect {} (resolve-http-effect s) nil))
   (destroy [s state]
     (when-some [abort (::aborter state)]
       (fn [_] (abort))))
