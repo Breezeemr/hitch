@@ -18,7 +18,7 @@
         (graph/hook graph (fn [[status value :as result]]
                             (is (= result [:ok "cat\n"]) graph-name)
                             (done))
-          http/http "/test.txt" :get nil nil nil nil))))
+          http/http "/test.txt" :get nil nil nil nil nil))))
 
   (deftest simple-get-error
     (let [graph (gctor)]
@@ -26,4 +26,4 @@
         (graph/hook graph (fn [[status error :as result]]
                             (is (= status :error) graph-name)
                             (done))
-          http/http "/DOES-NOT-EXIST" :get nil nil nil nil)))))
+          http/http "/DOES-NOT-EXIST" :get nil nil nil nil nil)))))

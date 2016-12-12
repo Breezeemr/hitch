@@ -12,9 +12,10 @@
    :post   "POST"
    :delete "DELETE"})
 
-(defn mk-xhr [url method serializer deserializer content headers cb]
+(defn mk-xhr [url method serializer deserializer content headers withcreds cb]
   (let [xhr (XhrIo.)]
-    ;(.setWithCredentials xhr true)
+    (when withcreds
+      (.setWithCredentials xhr true))
     (events/listen xhr EventType/SUCCESS
       (if deserializer
         (fn [e] (cb [:ok (deserializer (.. e -target (getResponseText)))]))
@@ -26,10 +27,11 @@
                                   content) headers)
     #(.dispose xhr)))
 
-(defn resolve-http-effect [{:keys [url method serializer deserializer content headers] :as http-selector}]
+(defn resolve-http-effect [{:keys [url method serializer deserializer content headers withcreds] :as http-selector}]
   (fn [gm]
     (let [aborter (mk-xhr url (str/upper-case (name method))
                           serializer deserializer content headers
+                          withcreds
                           (fn [result]
                             (oldproto/apply-commands gm [[http-selector [::value result]]])))]
       (oldproto/apply-commands gm [[http-selector [::aborter aborter]]]))))
