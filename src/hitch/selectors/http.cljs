@@ -36,7 +36,7 @@
                             (oldproto/apply-commands gm [[http-selector [::value result]]])))]
       (oldproto/apply-commands gm [[http-selector [::aborter aborter]]]))))
 
-(defrecord HTTPSelector [url method serializer deserializer content headers]
+(defrecord HTTPSelector [url method serializer deserializer content headers withcreds]
   proto/StatefulSelector
   (create [s]
     (proto/->StateEffect {} (resolve-http-effect s) nil))
