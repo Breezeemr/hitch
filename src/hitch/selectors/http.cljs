@@ -24,7 +24,7 @@
       (fn [e] (cb [:error (.. e -target (getLastError))])))
     (.send xhr (str url) method (if serializer
                                   (serializer content)
-                                  content) headers)
+                                  content) (clj->js headers))
     #(.dispose xhr)))
 
 (defn resolve-http-effect [{:keys [url method serializer deserializer content headers withcreds] :as http-selector}]
