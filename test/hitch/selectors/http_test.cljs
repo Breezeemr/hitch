@@ -1,5 +1,5 @@
 (ns hitch.selectors.http-test
-  (:require [cljs.test :refer [] :refer-macros [is async]]
+  (:require [cljs.test :refer [] :refer-macros [testing is async]]
             [devcards.core :refer-macros [deftest]]
             [hitch.selectors.http :as http]
             [hitch.graph :as graph]
@@ -26,4 +26,24 @@
         (graph/hook graph (fn [[status error :as result]]
                             (is (= status :error) graph-name)
                             (done))
-          http/http "/DOES-NOT-EXIST" :get nil nil nil nil nil)))))
+          http/http "/DOES-NOT-EXIST" :get nil nil nil nil nil))))
+
+  (deftest simple-refresh
+    (testing "Additional http request is issued after a ::http/refresh command. (Must verify manually in dev console.)"
+      (let [graph (gctor)
+            sel   (http/http "/test.txt" :get nil nil nil nil nil)]
+        (async done
+          (graph/hook-sel graph
+            (fn [result]
+              (is (= result [:ok "cat\n"]) (str graph-name " value before refresh"))
+
+              ;; Second hook is to ensure the selector has not been destroyed
+              ;; so the second http request is not elided somehow.
+              (graph/hook-sel graph
+                (fn [result]
+                  (is (= result [:ok "cat\n"]) (str graph-name " value after refresh, next frame"))
+                  (done))
+                sel)
+              (graph/apply-commands graph [[sel [::http/refresh]]])
+              (is (= result [:ok "cat\n"]) (str graph-name " value after refresh")))
+            sel))))))

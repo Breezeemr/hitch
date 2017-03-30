@@ -39,22 +39,32 @@
 (defrecord HTTPSelector [url method serializer deserializer content headers withcreds]
   proto/StatefulSelector
   (create [s]
-    (proto/->StateEffect {} (resolve-http-effect s) nil))
+    (proto/->StateEffect {::state ::inflight} (resolve-http-effect s) nil))
   (destroy [s state]
-    (when-some [abort (::aborter state)]
+    #_(when-some [abort (::aborter state)]
       (fn [_] (abort))))
 
   proto/CommandableSelector
   (command-accumulator
-    [s state] state)
-  (command-step [s acc command]
+    [s state] [state nil])
+  (command-step [s [state effect :as acc] command]
     (let [[kind x] command]
       (case kind
-        ::aborter (assoc acc ::aborter x)
-        ::value (-> (assoc acc ::value x)
-                    (dissoc ::aborter ::error)))))
-  (command-result [s acc]
-    (proto/->StateEffect acc nil nil))
+        ::refresh (if (= (::state state) ::inflight)
+                    acc
+                    [{::state ::inflight} (resolve-http-effect s)])
+        ::aborter (if (= (::state state) ::inflight)
+                    [(assoc state ::aborter x) effect]
+                    ;; invalid!
+                    acc)
+        ::value (if (= (::state state) ::inflight)
+                  [{::state ::finished
+                    ::value x}
+                   effect]
+                  ;; invalid!
+                  acc))))
+  (command-result [s [state effect :as acc]]
+    (proto/->StateEffect state effect nil))
 
   proto/Selector
   (value [this graph state]
