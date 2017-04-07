@@ -1,6 +1,5 @@
 (ns hitch.graph
-  (:require [hitch.oldprotocols :as oldproto]
-            [hitch.protocol :as proto]))
+  (:require [hitch.oldprotocols :as oldproto]))
 
 
 (def ^:dynamic *execution-mode* true)
@@ -32,36 +31,58 @@
   (->HookChange graph selector cb))
 
 
-(defn hook-sel [graph cb data-selector]
-  (let [val (let [v (get graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+(defn hook-sel
+  "Call fn `cb` once with the value of `selector` in `graph` as soon as it is
+  available. `cb` may be called synchronously if the selector's value is already
+  known."
+  [graph cb selector]
+  (let [val (let [v (get graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
               (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
                 (if (satisfies? oldproto/IEagerSelectorResolve graph)
-                  (oldproto/attempt-eager-selector-resolution! graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)
+                  (oldproto/attempt-eager-selector-resolution! graph selector oldproto/NOT-IN-GRAPH-SENTINEL)
                   oldproto/NOT-IN-GRAPH-SENTINEL)
                 v))]
     (if (identical? val oldproto/NOT-IN-GRAPH-SENTINEL)
-      (let [h  (mkhook graph data-selector cb)]
-        (oldproto/update-parents graph h #{data-selector} nil))
+      (let [h  (mkhook graph selector cb)]
+        (oldproto/update-parents graph h #{selector} nil))
       (cb val)))
   nil)
 
-(defn hook-change-sel [graph cb data-selector]
-  (let [val (let [v (get graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+(defn hook-change-sel
+  "Call fn `cb` with the value of `selector` in `graph` as soon as it is
+  available, and every time the value changes. `cb` may be called synchronously
+  if the selector's value is already known.
+
+  Returns a zero-arg unsubscribe function. After it is called, cb will not
+  be called again.
+
+  There is no guaranteee that each `cb` call will receive a value not= to the
+  previous call's value."
+  [graph cb selector]
+  (let [val (let [v (get graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
               (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
                 (if (satisfies? oldproto/IEagerSelectorResolve graph)
-                  (oldproto/attempt-eager-selector-resolution! graph data-selector oldproto/NOT-IN-GRAPH-SENTINEL)
+                  (oldproto/attempt-eager-selector-resolution! graph selector oldproto/NOT-IN-GRAPH-SENTINEL)
                   oldproto/NOT-IN-GRAPH-SENTINEL)
                 v))]
     (when-not (identical? val oldproto/NOT-IN-GRAPH-SENTINEL)
       (cb val))
-    (let [h (mkhookchange graph data-selector cb)]
-      (oldproto/update-parents graph h #{data-selector} nil)
+    (let [h (mkhookchange graph selector cb)]
+      (oldproto/update-parents graph h #{selector} nil)
 
-      (fn [] (oldproto/update-parents graph h nil #{data-selector})))))
+      (fn [] (oldproto/update-parents graph h nil #{selector})))))
 
-(def dget-sel! oldproto/dget-sel!)
+(defn dget-sel!
+  "Return the value (or `nf` if not yet known) for a selector from graph
+  transaction context `tx`."
+  [tx selector nf]
+  (oldproto/dget-sel! tx selector nf))
 
 (defn hook
+  "Call fn `cb` once with the value of selector returned from
+  selector-constructor and remaining arguments in `graph` as soon as it is
+  available. `cb` may be called synchronously if the selector's value is already
+  known."
   ([graph cb selector-constructor] (hook-sel graph cb (selector-constructor)))
   ([graph cb selector-constructor a] (hook-sel graph cb (selector-constructor a)))
   ([graph cb selector-constructor a b] (hook-sel graph cb (selector-constructor a b)))
@@ -72,6 +93,8 @@
   ([graph cb selector-constructor a b c d f g h] (hook-sel graph cb (selector-constructor a b c d f g h))))
 
 (defn hook-change
+  "Like hook-change-sel, but receives a selector-constructor plus arguments
+  instead of a selector."
   ([graph cb selector-constructor] (hook-change-sel graph cb (selector-constructor)))
   ([graph cb selector-constructor a] (hook-change-sel graph cb (selector-constructor a)))
   ([graph cb selector-constructor a b] (hook-change-sel graph cb (selector-constructor a b)))
@@ -82,38 +105,40 @@
   ([graph cb selector-constructor a b c d f g h] (hook-change-sel graph cb (selector-constructor a b c d f g h))))
 
 (defn dget!
-  ([graph nf selector-constructor]
+  "Return the value (or `nf` if not yet known) for a selector-constructor and
+  its arguments from graph transaction context `tx`."
+  ([tx nf selector-constructor]
    (if *execution-mode*
-     (dget-sel! graph (selector-constructor) nf)
-     (oldproto/inline selector-constructor graph)))
-  ([graph nf selector-constructor a]
+     (dget-sel! tx (selector-constructor) nf)
+     (oldproto/inline selector-constructor tx)))
+  ([tx nf selector-constructor a]
    (if *execution-mode*
-     (dget-sel! graph (selector-constructor a) nf)
-     (oldproto/inline selector-constructor graph a)))
-  ([graph nf selector-constructor a b]
+     (dget-sel! tx (selector-constructor a) nf)
+     (oldproto/inline selector-constructor tx a)))
+  ([tx nf selector-constructor a b]
    (if *execution-mode*
-     (dget-sel! graph (selector-constructor a b) nf)
-     (oldproto/inline selector-constructor graph a b)))
-  ([graph nf selector-constructor a b c]
+     (dget-sel! tx (selector-constructor a b) nf)
+     (oldproto/inline selector-constructor tx a b)))
+  ([tx nf selector-constructor a b c]
    (if *execution-mode*
-     (dget-sel! graph (selector-constructor a b c) nf)
-     (oldproto/inline selector-constructor graph a b c)))
-  ([graph nf selector-constructor a b c d]
+     (dget-sel! tx (selector-constructor a b c) nf)
+     (oldproto/inline selector-constructor tx a b c)))
+  ([tx nf selector-constructor a b c d]
    (if *execution-mode*
-     (dget-sel! graph (selector-constructor a b c d) nf)
-     (oldproto/inline selector-constructor graph a b c d)))
-  ([graph nf selector-constructor a b c d e]
+     (dget-sel! tx (selector-constructor a b c d) nf)
+     (oldproto/inline selector-constructor tx a b c d)))
+  ([tx nf selector-constructor a b c d e]
    (if *execution-mode*
-     (dget-sel! graph (selector-constructor a b c d e) nf)
-     (oldproto/inline selector-constructor graph a b c d e)))
-  ([graph nf selector-constructor a b c d e f ]
+     (dget-sel! tx (selector-constructor a b c d e) nf)
+     (oldproto/inline selector-constructor tx a b c d e)))
+  ([tx nf selector-constructor a b c d e f]
    (if *execution-mode*
-     (dget-sel! graph (selector-constructor a b c d e f) nf)
-     (oldproto/inline selector-constructor graph a b c d e f )))
-  ([graph nf selector-constructor a b c d e f g ]
+     (dget-sel! tx (selector-constructor a b c d e f) nf)
+     (oldproto/inline selector-constructor tx a b c d e f)))
+  ([tx nf selector-constructor a b c d e f g]
    (if *execution-mode*
-     (dget-sel! graph (selector-constructor a b c d e f g) nf)
-     (oldproto/inline selector-constructor graph a b c d e f g))))
+     (dget-sel! tx (selector-constructor a b c d e f g) nf)
+     (oldproto/inline selector-constructor tx a b c d e f g))))
 
 (def bomb (reify
             IDeref
@@ -131,50 +156,57 @@
     true))
 
 (defn select-sel!
-  ([graph selector]
-   (let [v (dget-sel! graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+  "Return a box containing the value for a selector from graph transaction
+  context `tx`. The returned box is the same as that returned by `select!`."
+  ([tx selector]
+   (let [v (dget-sel! tx selector oldproto/NOT-IN-GRAPH-SENTINEL)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v)))))
 
 (defn select!
-  ([graph selector-constructor]
-   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor)]
+  "Return a box containing the value for a selector-constructor and its
+  arguments from graph transaction context `tx`. Retrieve the value with deref
+  (@). If the value is not yet known, deref will throw an exception which the
+  transaction context will catch. You can test if a value is available
+  using `(realized? box)`."
+  ([tx selector-constructor]
+   (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
-  ([graph selector-constructor a]
-   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a)]
+  ([tx selector-constructor a]
+   (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
-  ([graph selector-constructor a b]
-   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b)]
+  ([tx selector-constructor a b]
+   (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
-  ([graph selector-constructor a b c]
-   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c)]
+  ([tx selector-constructor a b c]
+   (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
-  ([graph selector-constructor a b c d]
-   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d)]
+  ([tx selector-constructor a b c d]
+   (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
-  ([graph selector-constructor a b c d e]
-   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e)]
+  ([tx selector-constructor a b c d e]
+   (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
-  ([graph selector-constructor a b c d e f ]
-   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f)]
+  ([tx selector-constructor a b c d e f]
+   (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v))))
-  ([graph selector-constructor a b c d e f g ]
-   (let [v (dget! graph oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f g)]
+  ([tx selector-constructor a b c d e f g]
+   (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f g)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
        bomb
        (->box v)))))
@@ -298,6 +330,14 @@
   nil)
 
 (defn hitch-callback
+  "Given a graph, execute fn `body` in a graph transaction context, calling
+  fn `cb` with the result of body when available. `body` will be called like
+  `(apply body tx extra-args-to-hitch-callback)`. Body may use select! and
+  may be called multiple times.
+
+  If body uses `select!` and derefs unavailable values, the exception will
+  be caught and body will be called again when the value is available.
+  This continues until body returns without throwing an exception."
   ([graph cb body]
    (let [wrapped-body (try-fn body)]
      (init-context graph cb wrapped-body)))
@@ -323,5 +363,9 @@
    (let [wrapped-body (try-fn body a b c d e f g)]
      (init-context graph cb wrapped-body))))
 
-(defn apply-commands [graph selector-command-pairs]
+(defn apply-commands
+  "Issue a list of selector-command pairs to a graph. Selector-command-pairs
+   is like `[[Selector [command & command-args]] ,,,]`. Do not rely on returned
+   value."
+  [graph selector-command-pairs]
   (oldproto/apply-commands graph selector-command-pairs))
