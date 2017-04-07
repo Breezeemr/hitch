@@ -6,8 +6,7 @@
             [hitch.mutable.graph :as mgraph]
             [hitch.pin :refer [pin unpin]]
             [hitch.graphs.graph-manager :as gm]
-            [hitch.graphs.immutable :as im])
-  (:import [goog.async run]))
+            [hitch.graphs.immutable :as im]))
 
 (def gctors
   [["Mutable graph: " mgraph/graph]
