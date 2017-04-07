@@ -1,6 +1,5 @@
 (ns hitch.pin
-  (:require [hitch.oldprotocols :as op]
-            [hitch.oldprotocols :as oldproto]))
+  (:require [hitch.oldprotocols :as op]))
 
 (defonce
   ^{:doc "An inert external dependency. Useful to ensure a selector is not expunged
@@ -18,8 +17,8 @@
 (defn pin
   "Force a selector to remain in the graph even if nothing else depends on it."
   [depgraph selector]
-  (when (satisfies? oldproto/IEagerSelectorResolve depgraph)
-    (oldproto/attempt-eager-selector-resolution! depgraph selector nil))
+  (when (satisfies? op/IEagerSelectorResolve depgraph)
+    (op/attempt-eager-selector-resolution! depgraph selector nil))
   (op/update-parents depgraph PIN #{selector} #{}))
 
 (defn unpin
