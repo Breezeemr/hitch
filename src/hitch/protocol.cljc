@@ -240,3 +240,10 @@
                                  :value-after              new-sel->value-map}]
 
          [:hitch.protocol/tx-error hitch.protocol/CommandError-instance]"))
+
+(defprotocol SelectorName
+  (sel-name [s]
+    "Get the fully qualified name of the selector"))
+
+
+;;@todo a protocol to resolve hich.graph/*execution-mode* from name

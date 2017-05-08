@@ -19,6 +19,9 @@
 (defn sel-constructor [name eval-fn-name selector-name constructor-binding-forms body]
   `(def ~name
      (cljs.core/reify
+       hitch.protocol/SelectorName
+       (~'sel-name  [~'s]
+         ~(str *ns* "/" selector-name))
        hitch.oldprotocols/ISelectorFactory
        (~'inline ~(into ['this] (map first) constructor-binding-forms)
          (cljs.core/assert (cljs.core/satisfies? hitch.oldprotocols/IDependencyGraph ~(ffirst constructor-binding-forms)))
