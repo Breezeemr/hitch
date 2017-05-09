@@ -1,6 +1,5 @@
 (ns hitch.selector
     (:require
-      [cljs.core]
       [clojure.walk :refer [postwalk]]
       [clojure.string :as str]))
 
