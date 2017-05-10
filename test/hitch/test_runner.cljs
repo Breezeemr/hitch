@@ -1,6 +1,5 @@
 (ns ^:figwheel-always hitch.test-runner
-  (:require [hitch.core-test]
-            [hitch.selectors.mutable-var-test]
+  (:require [hitch.selectors.mutable-var-test]
             [hitch.selectors.kv-store-test]
             [hitch.selectors.http-test]
             [hitch.graphs.immutable-test]
@@ -50,7 +49,6 @@
 (defn runner []
   (clear-results)
   (test/run-tests
-    'hitch.core-test
     'hitch.selectors.mutable-var-test
     'hitch.selectors.kv-store-test
     'hitch.selectors.http-test

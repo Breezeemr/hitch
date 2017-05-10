@@ -1,7 +1,6 @@
 (ns hitch.mutable.node
   (:require [hitch.oldprotocols :as oldproto]
-            [hitch.protocol :as proto]
-            [hitch.selector-tx-manager :as dtx]))
+            [hitch.protocol :as proto]))
 
 
 (defonce NODE-NOT-RESOLVED-SENTINEL
