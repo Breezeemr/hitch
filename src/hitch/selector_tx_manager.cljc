@@ -1,14 +1,26 @@
 (ns hitch.selector-tx-manager
+  #?(:clj
+     (:import (clojure.lang ILookup)))
   (:require [hitch.oldprotocols :as oldproto]
-            [hitch.protocol :as proto]
-            [clojure.set]))
+            [hitch.protocol :as proto]))
 
-(deftype EagerTX [graph selector ^:mutable requests]
-  ILookup
-  (-lookup [o data-selector]
-    (-lookup o data-selector nil))
-  (-lookup [o data-selector not-found]
-    (-lookup graph data-selector not-found))
+(deftype EagerTX
+  [graph selector #?(:cljs    ^:mutable requests
+                     :default ^:unsynchronized-mutable requests)]
+  #?@(:cljs
+      [ILookup
+       (-lookup [o data-selector]
+         (-lookup o data-selector nil))
+       (-lookup [o data-selector not-found]
+         (-lookup graph data-selector not-found))]
+
+      :default
+      [ILookup
+       (valAt [o data-selector]
+         (.valAt o data-selector nil))
+       (valAt [o data-selector not-found]
+         (.valAt ^ILookup graph data-selector not-found))])
+
   oldproto/IDependTrack
   (dget-sel! [this data-selector nf]
     (set! requests (conj requests data-selector))
@@ -17,8 +29,9 @@
         (if (satisfies? oldproto/IEagerSelectorResolve graph)
           (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
           nf)
-        v) ))
+        v)))
   (get-depends [this] requests)
+
   oldproto/IDependencyGraph
   (apply-commands [_ selector-command-pairs]
     (oldproto/apply-commands graph selector-command-pairs)))
@@ -26,15 +39,5 @@
 
 (defn tx [graph target]
   (if (instance? EagerTX graph)
-    (EagerTX. (.-graph graph) target #{})
+    (EagerTX. (.-graph ^EagerTX graph) target #{})
     (EagerTX. graph target #{})))
-
-(defn new-selectors [oldtx newtx]
-  (if oldtx
-    (clojure.set/difference (.-requests newtx) (.-requests oldtx))
-    newtx))
-
-(defn retired-selectors [oldtx newtx]
-  (if oldtx
-    (clojure.set/difference (.-requests oldtx) (.-requests newtx))
-    #{}))

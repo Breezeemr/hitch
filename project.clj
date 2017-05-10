@@ -6,20 +6,21 @@
   :scm "https://github.com/Breezeemr/hitch"
 
   :source-paths ["src"]
+  :java-source-paths ["src-java"]
 
   :profiles
   {:provided
    {:dependencies [[org.clojure/clojure "1.8.0"]
-                   [org.clojure/clojurescript "1.8.51"]]}
+                   [org.clojure/clojurescript "1.9.521"]]}
 
    :dev
    {:dependencies   [[com.cemerick/piggieback "0.2.1"]      ; needed by figwheel nrepl
-                     [devcards "0.2.2"]]
-    :plugins        [[lein-figwheel "0.5.8"]]
+                     [devcards "0.2.3"]]
+    :plugins        [[lein-figwheel "0.5.10"]]
     :figwheel       {:http-server-root "public"
                      :nrepl-port       7889
                      :server-logfile   "target/figwheel-logfile.log"}
-    :resource-paths ["dev-resources" "target/devcards"]
+    :resource-paths ["dev-resources" "target/devcards" "target/classes"]
     :cljsbuild      {:builds
                      [{:id           "devcards"
                        :source-paths ["src" "test"]
@@ -31,4 +32,4 @@
                                       :optimizations        :none
                                       :source-map           true
                                       :source-map-timestamp false
-                                      :cache-analysis       true}}]}}})
+                                      :cache-analysis       false}}]}}})

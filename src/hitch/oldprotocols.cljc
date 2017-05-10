@@ -1,7 +1,6 @@
 (ns hitch.oldprotocols
   (:require [hitch.protocol :as proto]))
 
-
 (defonce NOT-FOUND-SENTINEL
   (reify
     #?@(:clj [Object
@@ -20,7 +19,16 @@
                  (-write writer "#<NOT-IN-GRAPH-SENTINEL>"))])))
 
 (defprotocol ISelectorFactory
-  (inline [selector-factory] [selector-factory a] [selector-factory a b] [selector-factory a b c] [selector-factory a b c d] [selector-factory a b c d e] [selector-factory a b c d e f] [selector-factory a b c d e f g] [selector-factory a b c d e f g h]))
+  (inline
+    [selector-factory]
+    [selector-factory a]
+    [selector-factory a b]
+    [selector-factory a b c]
+    [selector-factory a b c d]
+    [selector-factory a b c d e]
+    [selector-factory a b c d e f]
+    [selector-factory a b c d e f g]
+    [selector-factory a b c d e f g h]))
 
 (defprotocol IDependTrack
   (dget-sel! [this data-selector nf])
@@ -39,10 +47,3 @@
 
 (defprotocol ExternalDependent
   (-change-notify [this]))
-
-(def berror #?(:clj
-               nil
-               :cljs
-               (js/Error. "bomb")))
-
-
