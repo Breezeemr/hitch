@@ -8,6 +8,9 @@
   :source-paths ["src"]
   :java-source-paths ["src-java"]
 
+  ;; lein figwheel doesn't do automatic javac; use this alias instead
+  :aliases {"test-cljs" ["do" "javac," "figwheel"]}
+
   :profiles
   {:provided
    {:dependencies [[org.clojure/clojure "1.8.0"]
@@ -20,6 +23,9 @@
     :figwheel       {:http-server-root "public"
                      :nrepl-port       7889
                      :server-logfile   "target/figwheel-logfile.log"}
+
+    ;; Target/classes is to ensure HaltException.class is in the classpath
+    ;; This is needed by halt.cljc at macro-time even though it is not used!
     :resource-paths ["dev-resources" "target/devcards" "target/classes"]
     :cljsbuild      {:builds
                      [{:id           "devcards"
