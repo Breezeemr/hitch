@@ -1,4 +1,6 @@
 (ns hitch.graph
+  #?(:clj
+     (:import (clojure.lang ILookup)))
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.tracking.halt :as halt :refer [maybe-halt]]))
 
@@ -218,16 +220,35 @@
        (halt/select-box v)))))
 
 
-(deftype ManualTX [graph cb body
-                       ^:mutable old-requests
-                       ^:mutable not-requested
-                       ^:mutable new-requests
-                       ^:mutable all-requests]
-  ILookup
-  (-lookup [o data-selector]
-    (-lookup o data-selector nil))
-  (-lookup [o data-selector not-found]
-    (-lookup graph data-selector not-found))
+(deftype ManualTX
+  #?(:cljs
+     [graph cb body
+      ^:mutable old-requests
+      ^:mutable not-requested
+      ^:mutable new-requests
+      ^:mutable all-requests]
+     :clj
+     ;; TODO: Not sure how safe these volatiles are in CLJ!
+     ;; Or even whether something weaker is ok.
+     [graph cb body
+      ^:volatile-mutable old-requests
+      ^:volatile-mutable not-requested
+      ^:volatile-mutable new-requests
+      ^:volatile-mutable all-requests])
+
+  #?@(:cljs
+      [ILookup
+       (-lookup [o data-selector]
+         (-lookup o data-selector nil))
+       (-lookup [o data-selector not-found]
+         (-lookup graph data-selector not-found))]
+      :clj
+      [ILookup
+       (valAt [o data-selector]
+         (.valAt o data-selector nil))
+       (valAt [o data-selector not-found]
+         (.valAt ^ILookup graph data-selector not-found))])
+
   oldproto/IDependTrack
   (dget-sel! [this data-selector nf]
     (if (old-requests data-selector)
@@ -239,7 +260,7 @@
         (if (satisfies? oldproto/IEagerSelectorResolve graph)
           (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
           nf)
-        v) ))
+        v)))
   (get-depends [this] all-requests)
   oldproto/IDependencyGraph
   (apply-commands [_ selector-command-pairs]
