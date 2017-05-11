@@ -2,7 +2,7 @@
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.graph :as graph]
-            [hitch.selector :refer-macros [defselector]]))
+            [hitch.selector :refer [defselector]]))
 
 (defselector keystore-get [graph sel k]
   (get @(graph/select-sel! graph sel) k))
