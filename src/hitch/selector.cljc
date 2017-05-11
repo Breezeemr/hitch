@@ -1,4 +1,5 @@
 (ns hitch.selector
+  #?(:cljs (:require-macros hitch.selector))
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
             [hitch.tracking.halt :as halt]
