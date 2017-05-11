@@ -1,5 +1,5 @@
 (ns hitch.oldprotocols
-  (:require [hitch.protocol :as proto]))
+  (:require [hitch.tracking.halt :as halt]))
 
 (defonce NOT-FOUND-SENTINEL
   (reify
@@ -47,3 +47,6 @@
 
 (defprotocol ExternalDependent
   (-change-notify [this]))
+
+;; DEPRECATED!
+(defonce berror @#'halt/HALT)
