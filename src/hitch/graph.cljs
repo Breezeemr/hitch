@@ -1,6 +1,6 @@
 (ns hitch.graph
   (:require [hitch.oldprotocols :as oldproto]
-            [hitch.tracking.halt :as halt :refer-macros [maybe-halt]]))
+            [hitch.tracking.halt :as halt :refer [maybe-halt]]))
 
 (def ^:dynamic *execution-mode* true)
 (def ^:dynamic *tx-manager* nil)

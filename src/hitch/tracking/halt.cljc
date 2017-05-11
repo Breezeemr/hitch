@@ -1,23 +1,17 @@
 (ns hitch.tracking.halt
   #?(:clj
-     (:import
-       (hitch.tracking.halt HaltException)
-       (clojure.lang IPending IDeref))
+     (:import (hitch.tracking.halt HaltException)
+              (clojure.lang IPending IDeref))
      :cljs
-     (:require-macros [hitch.tracking.halt :refer [if-clj-target maybe-halt]])))
+     (:require-macros [hitch.tracking.halt :refer [if-clj-target]])))
 
 #?(:clj
    (defmacro if-clj-target [clj-body cljs-body]
-     (if-not (:ns &env) clj-body cljs-body))
+     (if (contains? &env '&env)
+       `(if (:ns ~'&env) ~cljs-body ~clj-body)
+       (if (:ns &env) cljs-body clj-body)))
    :cljs
-   (when (re-matches #".*\$macros" (name (ns-name *ns*)))
-     (defmacro if-clj-target [clj-body cljs-body] cljs-body)))
-
-#_(if-clj-target
-  (import
-    '(hitch.tracking.halt HaltException)
-    '(clojure.lang IPending IDeref))
-  nil)
+   (defmacro if-clj-target [clj-body cljs-body] cljs-body))
 
 (defonce ^:private HALT
   (if-clj-target
@@ -32,7 +26,7 @@
     (HaltException/doThrow)
     (throw HALT)))
 
-(defn halt? [x]
+(defn #?(:cljs ^boolean halt? :default halt?) [x]
   (if-clj-target
     (HaltException/isHalt x)
     (identical? HALT x)))
@@ -63,25 +57,12 @@
       IPending
       (-realized? [_] true))))
 
-#?(:clj
-   (defmacro maybe-halt
-     "Evaluate `expr`; if `expr` halts, evaluate `if-halted-expr` instead."
-     [expr if-halted-expr]
-     `(try
-        ~expr
-        (catch #?(:clj  (if-clj-target HaltException :default)
-                  :cljs :default) e#
-          (if (halt? e#)
-            ~if-halted-expr
-            (throw e#)))))
-   :cljs
-   (when (re-matches #".*\$macros" (name (ns-name *ns*)))
-     (defmacro maybe-halt
-       "Evaluate `expr`; if `expr` halts, evaluate `if-halted-expr` instead."
-       [expr if-halted-expr]
-       `(try
-          ~expr
-          (catch :default e#
-            (if (halt? e#)
-              ~if-halted-expr
-              (throw e#)))))))
+(defmacro maybe-halt
+  "Evaluate `expr`; if `expr` halts, evaluate `if-halted-expr` instead."
+  [expr if-halted-expr]
+  `(try
+     ~expr
+     (catch ~(if-clj-target HaltException :default) e#
+       (if (halt? e#)
+         ~if-halted-expr
+         (throw e#)))))

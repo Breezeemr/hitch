@@ -1,7 +1,7 @@
 (ns hitch.selector
   (:require [hitch.oldprotocols :as oldproto]
             [hitch.protocol :as proto]
-            [hitch.tracking.halt :as halt :include-macros true]
+            [hitch.tracking.halt :as halt]
             [hitch.selector-tx-manager]))
 
 (defn- cljs-target? [env]
