@@ -1,6 +1,5 @@
 (ns hitch.selectors.kv-store-test
-  (:require [hitch.selector :refer [defselector]]
-            [hitch.selectors.kv-store :as kv]
+  (:require [hitch.selectors.kv-store :as kv]
             [hitch.graph :as graph]
             [hitch.pin :refer [pin]]
     #?(:cljs [hitch.mutable.graph :as mgraph])
