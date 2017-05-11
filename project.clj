@@ -11,7 +11,7 @@
   :profiles
   {:provided
    {:dependencies [[org.clojure/clojure "1.8.0"]
-                   [org.clojure/clojurescript "1.9.521"]]}
+                   [org.clojure/clojurescript "1.8.51"]]}
 
    :dev
    {:dependencies   [[com.cemerick/piggieback "0.2.1"]      ; needed by figwheel nrepl
