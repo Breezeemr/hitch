@@ -1,15 +1,25 @@
 (ns hitch.selectors.mutable-var-test
-  (:require [cljs.test :refer [] :refer-macros [is async testing]]
-            [devcards.core :as dc :refer-macros [deftest]]
-            [hitch.selectors.mutable-var :refer [mutable-var]]
+  (:require [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as graph]
-            [hitch.mutable.graph :as mgraph]
+    #?(:cljs [hitch.mutable.graph :as mgraph])
             [hitch.pin :refer [pin unpin]]
             [hitch.graphs.graph-manager :as gm]
-            [hitch.graphs.immutable :as im]))
+            [hitch.graphs.immutable :as im]
+    #?@(:cljs
+        [[cljs.test :as t :refer-macros [testing is async]]
+         [devcards.core :refer-macros [deftest]]]
+        :default
+        [[clojure.test :refer [deftest testing is]]])))
+
+#?(:clj
+   (defmacro async [done-sym & body]
+     `(let [done# (atom false)
+            ~done-sym (fn [] (reset! done# true))]
+        ~@body
+        (assert (deref done#) "Async body did not complete!"))))
 
 (def gctors
-  [["Mutable graph: " mgraph/graph]
+  [#?(:cljs ["Mutable graph: " mgraph/graph])
    ["Immutable graph: " #(gm/atom-GraphManager (im/->ImmutableGraph 1))]])
 
 (doseq [[graph-name gctor] gctors]
