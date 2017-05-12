@@ -1,6 +1,8 @@
 (ns hitch.graph
-  (:require [hitch.oldprotocols :as oldproto]))
-
+  #?(:clj
+     (:import (clojure.lang ILookup)))
+  (:require [hitch.oldprotocols :as oldproto]
+            [hitch.tracking.halt :as halt :refer [maybe-halt]]))
 
 (def ^:dynamic *execution-mode* true)
 (def ^:dynamic *tx-manager* nil)
@@ -161,29 +163,14 @@
      (dget-sel! tx (selector-constructor a b c d e f g) nf)
      (oldproto/inline selector-constructor tx a b c d e f g))))
 
-(def bomb (reify
-            IDeref
-            (-deref [_]
-              (throw oldproto/berror))
-            IPending
-            (-realized? [x]
-              false)))
-(deftype box [v]
-  IDeref
-  (-deref [_]
-    v)
-  IPending
-  (-realized? [x]
-    true))
-
 (defn select-sel!
   "Return a box containing the value for a selector from graph transaction
   context `tx`. The returned box is the same as that returned by `select!`."
   ([tx selector]
    (let [v (dget-sel! tx selector oldproto/NOT-IN-GRAPH-SENTINEL)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v)))))
+       halt/halt-box
+       (halt/select-box v)))))
 
 (defn select!
   "Return a box containing the value for a selector-constructor and its
@@ -194,55 +181,74 @@
   ([tx selector-constructor]
    (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v))))
+       halt/halt-box
+       (halt/select-box v))))
   ([tx selector-constructor a]
    (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v))))
+       halt/halt-box
+       (halt/select-box v))))
   ([tx selector-constructor a b]
    (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v))))
+       halt/halt-box
+       (halt/select-box v))))
   ([tx selector-constructor a b c]
    (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v))))
+       halt/halt-box
+       (halt/select-box v))))
   ([tx selector-constructor a b c d]
    (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v))))
+       halt/halt-box
+       (halt/select-box v))))
   ([tx selector-constructor a b c d e]
    (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v))))
+       halt/halt-box
+       (halt/select-box v))))
   ([tx selector-constructor a b c d e f]
    (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v))))
+       halt/halt-box
+       (halt/select-box v))))
   ([tx selector-constructor a b c d e f g]
    (let [v (dget! tx oldproto/NOT-IN-GRAPH-SENTINEL selector-constructor a b c d e f g)]
      (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-       bomb
-       (->box v)))))
+       halt/halt-box
+       (halt/select-box v)))))
 
 
-(deftype ManualTX [graph cb body
-                       ^:mutable old-requests
-                       ^:mutable not-requested
-                       ^:mutable new-requests
-                       ^:mutable all-requests]
-  ILookup
-  (-lookup [o data-selector]
-    (-lookup o data-selector nil))
-  (-lookup [o data-selector not-found]
-    (-lookup graph data-selector not-found))
+(deftype ManualTX
+  #?(:cljs
+     [graph cb body
+      ^:mutable old-requests
+      ^:mutable not-requested
+      ^:mutable new-requests
+      ^:mutable all-requests]
+     :clj
+     ;; TODO: Not sure how safe these volatiles are in CLJ!
+     ;; Or even whether something weaker is ok.
+     [graph cb body
+      ^:volatile-mutable old-requests
+      ^:volatile-mutable not-requested
+      ^:volatile-mutable new-requests
+      ^:volatile-mutable all-requests])
+
+  #?@(:cljs
+      [ILookup
+       (-lookup [o data-selector]
+         (-lookup o data-selector nil))
+       (-lookup [o data-selector not-found]
+         (-lookup graph data-selector not-found))]
+      :clj
+      [ILookup
+       (valAt [o data-selector]
+         (.valAt o data-selector nil))
+       (valAt [o data-selector not-found]
+         (.valAt ^ILookup graph data-selector not-found))])
+
   oldproto/IDependTrack
   (dget-sel! [this data-selector nf]
     (if (old-requests data-selector)
@@ -254,7 +260,7 @@
         (if (satisfies? oldproto/IEagerSelectorResolve graph)
           (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
           nf)
-        v) ))
+        v)))
   (get-depends [this] all-requests)
   oldproto/IDependencyGraph
   (apply-commands [_ selector-command-pairs]
@@ -286,60 +292,44 @@
 (defn try-fn
   ([body]
    (fn [graph]
-     (try
+     (halt/maybe-halt
        (body graph)
-       (catch :default ex (if (identical? oldproto/berror ex )
-                            oldproto/NOT-FOUND-SENTINEL
-                            (throw ex))))))
+       oldproto/NOT-FOUND-SENTINEL)))
   ([body a]
    (fn [graph]
-     (try
+     (halt/maybe-halt
        (body graph a)
-       (catch :default ex (if (identical? oldproto/berror ex )
-                            oldproto/NOT-FOUND-SENTINEL
-                            (throw ex))))))
+       oldproto/NOT-FOUND-SENTINEL)))
   ([body a b]
    (fn [graph]
-     (try
+     (halt/maybe-halt
        (body graph a b)
-       (catch :default ex (if (identical? oldproto/berror ex )
-                            oldproto/NOT-FOUND-SENTINEL
-                            (throw ex))))))
+       oldproto/NOT-FOUND-SENTINEL)))
   ([body a b c]
    (fn [graph]
-     (try
+     (halt/maybe-halt
        (body graph a b c)
-       (catch :default ex (if (identical? oldproto/berror ex )
-                            oldproto/NOT-FOUND-SENTINEL
-                            (throw ex))))))
+       oldproto/NOT-FOUND-SENTINEL)))
   ([body a b c d]
    (fn [graph]
-     (try
+     (halt/maybe-halt
        (body graph a b c d)
-       (catch :default ex (if (identical? oldproto/berror ex )
-                            oldproto/NOT-FOUND-SENTINEL
-                            (throw ex))))))
+       oldproto/NOT-FOUND-SENTINEL)))
   ([body a b c d e]
    (fn [graph]
-     (try
+     (halt/maybe-halt
        (body graph a b c d e)
-       (catch :default ex (if (identical? oldproto/berror ex )
-                            oldproto/NOT-FOUND-SENTINEL
-                            (throw ex))))))
+       oldproto/NOT-FOUND-SENTINEL)))
   ([body a b c d e f]
    (fn [graph]
-     (try
+     (halt/maybe-halt
        (body graph a b c d e f)
-       (catch :default ex (if (identical? oldproto/berror ex )
-                            oldproto/NOT-FOUND-SENTINEL
-                            (throw ex))))))
+       oldproto/NOT-FOUND-SENTINEL)))
   ([body a b c d e f g]
    (fn [graph]
-     (try
+     (halt/maybe-halt
        (body graph a b c d e f g)
-       (catch :default ex (if (identical? oldproto/berror ex )
-                            oldproto/NOT-FOUND-SENTINEL
-                            (throw ex)))))))
+       oldproto/NOT-FOUND-SENTINEL))))
 
 (defn init-context [graph cb wrapped-body]
   (let [mtx (manual-tx graph cb wrapped-body #{})

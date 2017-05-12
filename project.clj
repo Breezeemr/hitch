@@ -1,4 +1,4 @@
-(defproject com.breezeehr/hitch "0.1.6"
+(defproject com.breezeehr/hitch "0.1.7-SNAPSHOT"
   :description "A Clojurescript library designed to manage and cache derived data."
   :url "https://github.com/Breezeemr/hitch"
   :license {:name "Eclipse Public License"
@@ -6,6 +6,10 @@
   :scm "https://github.com/Breezeemr/hitch"
 
   :source-paths ["src"]
+  :java-source-paths ["src-java"]
+
+  ;; lein figwheel doesn't do automatic javac; use this alias instead
+  :aliases {"test-cljs" ["do" "javac," "figwheel"]}
 
   :profiles
   {:provided
@@ -14,12 +18,15 @@
 
    :dev
    {:dependencies   [[com.cemerick/piggieback "0.2.1"]      ; needed by figwheel nrepl
-                     [devcards "0.2.2"]]
-    :plugins        [[lein-figwheel "0.5.8"]]
+                     [devcards "0.2.3"]]
+    :plugins        [[lein-figwheel "0.5.10"]]
     :figwheel       {:http-server-root "public"
                      :nrepl-port       7889
                      :server-logfile   "target/figwheel-logfile.log"}
-    :resource-paths ["dev-resources" "target/devcards"]
+
+    ;; Target/classes is to ensure HaltException.class is in the classpath
+    ;; This is needed by halt.cljc at macro-time even though it is not used!
+    :resource-paths ["dev-resources" "target/devcards" "target/classes"]
     :cljsbuild      {:builds
                      [{:id           "devcards"
                        :source-paths ["src" "test"]
@@ -31,4 +38,4 @@
                                       :optimizations        :none
                                       :source-map           true
                                       :source-map-timestamp false
-                                      :cache-analysis       true}}]}}})
+                                      :cache-analysis       false}}]}}})

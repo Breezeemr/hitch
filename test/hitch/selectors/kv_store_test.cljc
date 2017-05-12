@@ -1,23 +1,32 @@
 (ns hitch.selectors.kv-store-test
-  (:require [cljs.test :refer-macros [is async]]
-            [hitch.selector :refer-macros [defselector]]
-            [devcards.core :refer-macros [deftest]]
-            [hitch.selectors.kv-store :as kv :refer [keyspace keystore-get]]
+  (:require [hitch.selectors.kv-store :as kv]
             [hitch.graph :as graph]
             [hitch.pin :refer [pin]]
-            [hitch.mutable.graph :as mgraph]
+    #?(:cljs [hitch.mutable.graph :as mgraph])
             [hitch.graphs.graph-manager :as gm]
-            [hitch.graphs.immutable :as im]))
+            [hitch.graphs.immutable :as im]
+    #?@(:cljs
+        [[cljs.test :as t :refer-macros [testing is async]]
+         [devcards.core :refer-macros [deftest]]]
+        :default
+        [[clojure.test :refer [deftest testing is]]])))
+
+#?(:clj
+   (defmacro async [done-sym & body]
+     `(let [done# (atom false)
+            ~done-sym (fn [] (reset! done# true))]
+        ~@body
+        (assert (deref done#) "Async body did not complete!"))))
 
 (def gctors
-  [["Mutable graph: " mgraph/graph]
+  [#?(:cljs ["Mutable graph: " mgraph/graph])
    ["Immutable graph: " #(gm/atom-GraphManager (im/->ImmutableGraph 1))]])
 
 (doseq [[graph-name gctor] gctors]
   (deftest async-hook-value-change
     (let [graph (gctor)]
       (async done
-        (let [ks-sel (keyspace :main)]
+        (let [ks-sel (kv/keyspace :main)]
           (is (= (get graph (kv/keystore-get ks-sel :test) nil) nil)
             (str graph-name "nil value before keystore is created."))
           (pin graph (kv/keystore-get ks-sel :test))
@@ -32,9 +41,9 @@
 
   (deftest sync-value-changes
     (let [graph   (gctor)
-          testsel (keyspace :main)
-          keysel  (keystore-get testsel :test)]
-      (is (= (get graph keysel :not-found) :not-found)
+          testsel (kv/keyspace :main)
+          keysel  (kv/keystore-get testsel :test)]
+      (is (= (get graph keysel ::nf) ::nf)
         (str graph-name "not-found value before keystore is created."))
       (pin graph keysel)
       (is (= (get graph keysel :not-found) nil)
