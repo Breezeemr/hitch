@@ -27,11 +27,11 @@
     (let [graph (gctor)]
       (async done
         (let [ks-sel (kv/keyspace :main)]
-          (is (= (get graph (kv/keystore-get ks-sel :test) nil) nil)
-            (str graph-name "nil value before keystore is created."))
+          (is (= (get graph (kv/keystore-get ks-sel :test) ::nf) ::nf)
+            (str graph-name "not-found value before keystore is created."))
           (pin graph (kv/keystore-get ks-sel :test))
-          (is (= (get graph (kv/keystore-get ks-sel :test) nil) nil)
-            (str graph-name "still nil value before keystore has a value."))
+          (is (= (get graph (kv/keystore-get ks-sel :test) ::nf) ::nf)
+            (str graph-name "not-found value on missing keys."))
           (graph/apply-commands graph [[ks-sel [:set-value {:test :cat}]]])
           (graph/hook graph (fn [v]
                               (is (= v :cat)
@@ -46,15 +46,15 @@
       (is (= (get graph keysel ::nf) ::nf)
         (str graph-name "not-found value before keystore is created."))
       (pin graph keysel)
-      (is (= (get graph keysel :not-found) nil)
-        (str graph-name "nil value after keystore is created"))
+      (is (= (get graph keysel ::nf) ::nf)
+        (str graph-name "not-found value after keystore is created"))
       (graph/apply-commands graph [[testsel [:set-value {:test 7}]]])
       (is (= (get graph keysel) 7)
-        (str graph-name "keystore-get value updated syncronously first time"))
+        (str graph-name "keystore-get value updated synchronously first time"))
       (graph/apply-commands graph [[testsel [:set-value {:test 8}]]])
       (is (= (get graph keysel) 8)
-        (str graph-name "keystore-get value updated syncronously second time"))
+        (str graph-name "keystore-get value updated synchronously second time"))
       (graph/apply-commands graph [[testsel [:set-value {:test 9}]]])
       (is (= (get graph keysel) 9)
-        (str graph-name "keystore-get value updated syncronously third time")))))
+        (str graph-name "keystore-get value updated synchronously third time")))))
 
