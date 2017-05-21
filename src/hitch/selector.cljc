@@ -8,54 +8,52 @@
 (defn- cljs-target? [env]
   (some? (:ns env)))
 
-(defn eval-selector [eval-fn-name constructor-binding-forms body]
-  `(defn ~eval-fn-name ~(into [] (map second) constructor-binding-forms)
-     ~@body))
-
-(defn selector-record [selector-name eval-fn-name constructor-binding-forms]
-  (let [graphsymbol (->> constructor-binding-forms ffirst)]
-    `(defrecord ~selector-name ~(into [] (map first) (rest constructor-binding-forms))
-       hitch.protocol/Selector
-       (~'value [~'selector ~graphsymbol ~'state]
-         (let [~'dtx (hitch.selector-tx-manager/tx ~graphsymbol ~'selector)]
-           (hitch.selector/attempt ~eval-fn-name ~'dtx
-             ~@(map first (rest constructor-binding-forms))))))))
-
-(defn sel-constructor
-  [env name eval-fn-name selector-name constructor-binding-forms body]
+(defn- sel-constructor
+  [env name eval-fn-name selector-name param-names]
   `(def ~name
      (reify
        hitch.oldprotocols/ISelectorFactory
-       (~'inline ~(into ['this] (map first) constructor-binding-forms)
+       (~'inline [~'_ dtx# ~@param-names]
          (assert (satisfies? hitch.oldprotocols/IDependencyGraph
-                   ~(ffirst constructor-binding-forms)))
-         ~(->> constructor-binding-forms
-               (map first)
-               (cons eval-fn-name)))
+                   dtx#))
+         (~eval-fn-name dtx# ~@param-names))
        ~(if (cljs-target? env)
           'cljs.core/IFn
           'clojure.lang.IFn)
        (~(if (cljs-target? env)
            '-invoke
            'invoke)
-         ~(into ['this] (map first) (rest constructor-binding-forms))
-         ~(->> constructor-binding-forms
-               (map first)
-               rest
-               (cons (symbol (str "->" selector-name))))))))
+         ~(into ['_] param-names)
+         ~(cons (symbol (str "->" selector-name)) param-names)))))
 
-(defn- create-binding-syms [binding-form]
-  (mapv (juxt gensym identity) binding-form))
+(defn- param-names [binding-form]
+  (mapv (fn [x]
+          (assert (not= x '&)
+            "Variadic parameters are not allowed on defselector.")
+          (cond
+            (symbol? x) x
+            (and (map? x) (:as x)) (:as x)
+            (and (vector? x)
+              (>= (count x) 2)
+              (= (-> x pop peek) :as)) (peek x)
+            :else
+            (throw (ex-info "Every parameter to defselector must have a name, either directly or with a top-level :as"
+                     {:binding-form binding-form
+                      :bad-param x}))))
+    binding-form))
 
 (defmacro defselector [name constructor-binding-forms & body]
-  (let [symbol-binding-pairs (create-binding-syms constructor-binding-forms)
-        eval-fn-name         (gensym (str name "-eval-fn"))
+  (let [record-field-names   (param-names (rest constructor-binding-forms))
+        eval-fn-name         (symbol (str name "-eval-fn"))
         selector-name        (symbol (str name "-selector"))]
     `(do
-       ~(eval-selector eval-fn-name symbol-binding-pairs body)
-       ~(selector-record selector-name eval-fn-name symbol-binding-pairs)
-       ~(sel-constructor &env name eval-fn-name selector-name symbol-binding-pairs body))))
-
+       (defn ~eval-fn-name ~constructor-binding-forms ~@body)
+       (defrecord ~selector-name ~record-field-names
+         hitch.protocol/Selector
+         (~'value [selector# graph# state#]
+           (let [dtx# (hitch.selector-tx-manager/tx graph# selector#)]
+             (hitch.selector/attempt ~eval-fn-name dtx# ~@record-field-names))))
+       ~(sel-constructor &env name eval-fn-name selector-name record-field-names))))
 
 (defn create-resolved-value
   ([vfn tx-manager]
