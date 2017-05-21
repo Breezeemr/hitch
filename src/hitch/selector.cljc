@@ -13,18 +13,18 @@
   `(def ~name
      (reify
        hitch.oldprotocols/ISelectorFactory
-       (~'inline [~'_ dtx# ~@param-names]
-         (assert (satisfies? hitch.oldprotocols/IDependencyGraph
-                   dtx#))
+       (~'inline [_# dtx# ~@param-names]
+         (assert (satisfies? hitch.oldprotocols/IDependencyGraph dtx#))
          (~eval-fn-name dtx# ~@param-names))
+
        ~(if (cljs-target? env)
           'cljs.core/IFn
           'clojure.lang.IFn)
        (~(if (cljs-target? env)
            '-invoke
            'invoke)
-         ~(into ['_] param-names)
-         ~(cons (symbol (str "->" selector-name)) param-names)))))
+         [_# ~@param-names]
+         (~(symbol (str "->" selector-name)) ~@param-names)))))
 
 (defn- param-names [binding-form]
   (mapv (fn [x]

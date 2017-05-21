@@ -9,7 +9,7 @@
   (testing "defselector eval-fn generation"
     (is (= (TEST-SELECTOR-eval-fn nil 1 [2] {:k 3}) [1 [2] {:k 3}])))
   (testing "defselector record property names are correct"
-    (let [{:keys [A B C]} (map->TEST-SELECTOR-selector {:A 1 :B [2] :C {:k 3}})]
+    (let [{:keys [A B C]} (->TEST-SELECTOR-selector 1 [2] {:k 3})]
       (is (= A 1))
       (is (= B [2]))
       (is (= C {:k 3}))))
