@@ -1,15 +1,14 @@
 (ns hitch.selectors.kv-store
-  (:refer-clojure :exclude [get-in])
-  (:require [hitch.oldprotocols :as oldproto]
-            [hitch.protocol :as proto]
+  (:refer-clojure :exclude [get get-in])
+  (:require [hitch.protocol :as proto]
             [hitch.graph :as graph]
             [hitch.tracking.halt :as halt]
             [hitch.selector #?(:cljs :refer-macros :default :refer) [defselector]]))
 
 (defonce ^:private NOT-FOUND #?(:cljs (js/Object.) :default (Object.)))
 
-(defselector keystore-get [graph sel k]
-  (let [found (get @(graph/select-sel! graph sel) k NOT-FOUND)]
+(defselector get [graph sel k]
+  (let [found (clojure.core/get @(graph/select-sel! graph sel) k NOT-FOUND)]
     (if (identical? found NOT-FOUND)
       (halt/halt!)
       found)))
@@ -22,27 +21,24 @@
 
 (defn- update-deps [deps selector #?(:cljs ^boolean add? :default add?)]
   (condp instance? selector
-    keystore-get-selector
+    get-selector
     (if add?
       (update deps [(:k selector)] (fnil conj #{}) selector)
       (update deps [(:k selector)] disj selector))
     get-in-selector
     (if add?
       (update deps (:path selector) (fnil conj #{}) selector)
-      (update deps (:path selector) disj selector))))
+      (update deps (:path selector) disj selector))
+
+    ;; Unrecognized selectors will not be updated
+    deps))
 
 (defn- add-dirty-sels [dirty-sels deps dirty-path]
-  (let [cpath (count dirty-path)]
-    (into dirty-sels (comp
-                       (take-while (fn [kv]
-                                     (let [path (key kv)]
-                                       (or (= path dirty-path)
-                                         (and (< cpath (count path))
-                                           (= (subvec path 0 cpath)
-                                             dirty-path))))))
-                       (mapcat val))
-      (subseq dirty-sels >= dirty-path))))
-
+  (into dirty-sels
+    (comp
+      (drop 1)
+      (mapcat deps))
+    (reductions conj [] dirty-path)))
 
 (defrecord KVStoreServiceSelector [keyspace]
   proto/InformedSelector
@@ -50,22 +46,19 @@
 
   proto/StatefulSelector
   (create [selector]
-    (proto/->StateEffect {:deps (sorted-map) :value oldproto/NOT-FOUND-SENTINEL} nil nil))
+    (proto/->StateEffect {:deps {} :value NOT-FOUND} nil nil))
   (destroy [selector state]
     nil)
 
   proto/CommandableSelector
-  (command-accumulator
-    [s state] (assoc state :dirty-sels #{}))
+  (command-accumulator [s state]
+    (assoc state :dirty-sels #{}))
   (command-step [s acc command]
     (let [[cmd arg] command]
       (case cmd
-        ;; [:clear]
-        :clear (-> (assoc acc :value oldproto/NOT-FOUND-SENTINEL)
-                   (update :dirty-sels into cat (vals (:deps acc))))
         ;; [:set-value indexed]
-        :set-value (-> (assoc acc :value arg)
-                       (update :dirty-sels into cat (vals (:deps acc))))
+        ::reset (-> (assoc acc :value arg)
+                    (update :dirty-sels into cat (vals (:deps acc))))
         ;; [::assoc-in path value]
         ::assoc-in (-> (update acc :value assoc-in arg (peek command))
                        (update :dirty-sels add-dirty-sels (:deps acc) arg))
@@ -74,12 +67,14 @@
         ::proto/child-del (-> (update acc :deps update-deps arg false)
                               (update :dirty-sels conj arg)))))
   (command-result [s acc]
-    (proto/->StateEffect (dissoc acc :dirty-sels) nil (:dirty-sels acc)))
+    (proto/->StateEffect (dissoc acc :dirty-sels) nil
+      (when-not (identical? (:value acc) NOT-FOUND)
+        (:dirty-sels acc))))
 
   proto/Selector
   (value [this graph state]
     (let [v (:value state)]
-      (if (identical? v oldproto/NOT-FOUND-SENTINEL)
+      (if (identical? v NOT-FOUND)
         (proto/->SelectorUnresolved nil)
         (proto/->SelectorValue v nil)))))
 
