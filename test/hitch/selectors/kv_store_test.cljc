@@ -90,6 +90,64 @@
           (unhook-a)
           (unhook-b)))))
 
-  #_(deftest efficient-get-in-updates
-      ;;TODO
-      ))
+  (deftest efficient-get-in-updates
+    (let [graph         (gctor)
+          ksp           (kv/keyspace :main)
+
+          expected      (volatile! {})
+          update-counts (volatile! {})
+          unhook-top0   (let [path [:top 0]]
+                          (graph/hook-change-sel graph
+                            (fn [v]
+                              (vswap! update-counts update path (fnil inc 0))
+                              (is (= v (get @expected path))
+                                (str "New value for " (pr-str path) " as expected")))
+                            (kv/get-in ksp path)))
+          unhook-a11    (let [path [:top 0 :a10 :a11]]
+                          (graph/hook-change-sel graph
+                            (fn [v]
+                              (vswap! update-counts update path (fnil inc 0))
+                              (is (= v (get @expected path))
+                                (str "New value for " (pr-str path) " as expected")))
+                            (kv/get-in ksp path)))
+          unhook-a20    (let [path [:top 1 :a20]]
+                          (graph/hook-change-sel graph
+                            (fn [v]
+                              (vswap! update-counts update path (fnil inc 0))
+                              (is (= v (get @expected path))
+                                (str "New value for " (pr-str path) "as expected")))
+                            (kv/get-in ksp path)))]
+      (try
+        (vreset! expected {[:top 0]           {:a10 {:a11 :a11-v
+                                                     :a12 :a12-v}}
+                           [:top 0 :a10 :a11] :a11-v
+                           [:top 1 :a20]      {:a21 :a21-v
+                                               :a22 :a22-v}})
+        (graph/apply-commands graph
+          [[ksp [::kv/reset {:top [{:a10 {:a11 :a11-v
+                                          :a12 :a12-v}}
+                                   {:a20 {:a21 :a21-v
+                                          :a22 :a22-v}}]}]]])
+
+        ;; Write to :a10 should update [:top 0], [:top 0 :a10 :a11], not [:top 1 :a20]
+
+        (vreset! expected {[:top 0]           {:a10 {:a11 :a11-v
+                                                     :a12 :a12-v
+                                                     :a13 :a13-v}}
+                           [:top 0 :a10 :a11] :a11-v
+                           [:top 1 :a20]      {:a21 :a21-v
+                                               :a22 :a22-v}})
+        (graph/apply-commands graph
+          [[ksp [::kv/assoc-in [:top 0 :a10] {:a11 :a11-v
+                                              :a12 :a12-v
+                                              :a13 :a13-v}]]])
+        (is (= @update-counts
+              {[:top 0]           2
+               [:top 0 :a10 :a11] 2
+               [:top 1 :a20]      1})
+          "Unaffected paths should not update.")
+
+        (finally
+          (unhook-top0)
+          (unhook-a11)
+          (unhook-a20))))))

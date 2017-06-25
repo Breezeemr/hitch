@@ -34,11 +34,57 @@
     deps))
 
 (defn- add-dirty-sels [dirty-sels deps dirty-path]
-  (into dirty-sels
-    (comp
-      (drop 1)
-      (mapcat deps))
-    (reductions conj [] dirty-path)))
+  (-> (into dirty-sels
+        (comp
+          (drop 1)
+          (mapcat deps))
+        (reductions conj [] dirty-path))
+      (into
+        (comp
+          (let [dpc (count dirty-path)]
+            (take-while (fn [[k]]
+                          (and (>= (count k) dpc)
+                            (= dirty-path (subvec k 0 dpc))))))
+          (mapcat val))
+        (subseq deps > dirty-path))))
+
+(letfn [(cmp [^objects vec-b+maxi i a]
+          ;; INVARIANT: vec-a is longer than or equal-len vec-b
+          ;; INVARIANT: vec-a and vec-b are len >= 1
+          (let [vec-b (aget vec-b+maxi 0)
+                maxi  (aget vec-b+maxi 1)
+                b     (nth vec-b i)
+                diff  (compare a b)]
+            (if (zero? diff)
+              (if (== i maxi)
+                (reduced vec-b+maxi)
+                vec-b+maxi)
+              (reduced diff))))
+        (finalize [x default]
+          (if (number? x)
+            x
+            default))]
+  (defn- depth-first-path-compare [vec-a vec-b]
+    (let [cva (count vec-a)
+          cvb (count vec-b)]
+      (cond
+        (zero? cva) (if (zero? cvb) 0 -1)
+        (zero? cvb) (if (zero? cva) 0 1)
+        (>= cva cvb)
+        (-> (reduce-kv cmp
+              (doto (object-array 2)
+                (aset 0 vec-b)
+                (aset 1 ^Object (dec (count vec-b))))
+              vec-a)
+            (finalize (if (== cva cvb) 0 1)))
+        :else
+        (-> (reduce-kv cmp
+              (doto (object-array 2)
+                (aset 0 vec-a)
+                (aset 1 ^Object (dec (count vec-a))))
+              vec-b)
+            (finalize 1)
+            (-))))))
 
 (defrecord KVStoreServiceSelector [keyspace]
   proto/InformedSelector
@@ -46,7 +92,8 @@
 
   proto/StatefulSelector
   (create [selector]
-    (proto/->StateEffect {:deps {} :value NOT-FOUND} nil nil))
+    (proto/->StateEffect {:deps (sorted-map-by depth-first-path-compare)
+                          :value NOT-FOUND} nil nil))
   (destroy [selector state]
     nil)
 
@@ -67,9 +114,7 @@
         ::proto/child-del (-> (update acc :deps update-deps arg false)
                               (update :dirty-sels conj arg)))))
   (command-result [s acc]
-    (proto/->StateEffect (dissoc acc :dirty-sels) nil
-      (when-not (identical? (:value acc) NOT-FOUND)
-        (:dirty-sels acc))))
+    (proto/->StateEffect (dissoc acc :dirty-sels) nil (:dirty-sels acc)))
 
   proto/Selector
   (value [this graph state]
