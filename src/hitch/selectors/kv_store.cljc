@@ -8,16 +8,10 @@
 (defonce ^:private NOT-FOUND #?(:cljs (js/Object.) :default (Object.)))
 
 (defselector get [graph sel k]
-  (let [found (clojure.core/get @(graph/select-sel! graph sel) k NOT-FOUND)]
-    (if (identical? found NOT-FOUND)
-      (halt/halt!)
-      found)))
+  (clojure.core/get @(graph/select-sel! graph sel) k))
 
 (defselector get-in [graph keystore path]
-  (let [found (clojure.core/get-in @(graph/select-sel! graph keystore) path NOT-FOUND)]
-    (if (identical? found NOT-FOUND)
-      (halt/halt!)
-      found)))
+  (clojure.core/get-in @(graph/select-sel! graph keystore) path))
 
 (defn- update-deps [deps selector #?(:cljs ^boolean add? :default add?)]
   (condp instance? selector
