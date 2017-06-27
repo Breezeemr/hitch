@@ -533,7 +533,8 @@
                   (let [unknown-value? (unknown? value)]
                     (when-not unknown-value?
                       (let [ext-ch (:ext-children dirtynode)]
-                        (when-not (zero? (count ext-ch))
+                        (when-not (or (zero? (count ext-ch))
+                                    (= value original-value))
                           (vswap! ext-recalcs into! ext-ch))))
                     (cond-> (dissoc dirtynode :original-value)
                       (or unknown-value? (= value original-value))
