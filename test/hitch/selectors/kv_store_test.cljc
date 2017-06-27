@@ -83,8 +83,10 @@
 
         (vreset! expected-a {:a2 :a-value-2})
         (graph/apply-commands graph [[testsel [::kv/assoc-in [:a :a2] :a-value-2]]])
-        (is (= @a-update-count 2) "Update `a` the correct number of times.")
-        (is (= @b-update-count 1) "Update `b` only once because its path is not touched.")
+        (is (= @a-update-count 2) (str graph-name
+                                    "Update `a` the correct number of times."))
+        (is (= @b-update-count 1) (str graph-name
+                                    "Update `b` only once because its path is not touched."))
 
         (finally
           (unhook-a)
@@ -101,53 +103,122 @@
                             (fn [v]
                               (vswap! update-counts update path (fnil inc 0))
                               (is (= v (get @expected path))
-                                (str "New value for " (pr-str path) " as expected")))
+                                (str graph-name
+                                  "New value for " (pr-str path) " as expected")))
                             (kv/get-in ksp path)))
           unhook-a11    (let [path [:top 0 :a10 :a11]]
                           (graph/hook-change-sel graph
                             (fn [v]
                               (vswap! update-counts update path (fnil inc 0))
                               (is (= v (get @expected path))
-                                (str "New value for " (pr-str path) " as expected")))
+                                (str graph-name
+                                  "New value for " (pr-str path) " as expected")))
+                            (kv/get-in ksp path)))
+          unhook-a12    (let [path [:top 0 :a10 :a12]]
+                          (graph/hook-change-sel graph
+                            (fn [v]
+                              (vswap! update-counts update path (fnil inc 0))
+                              (is (= v (get @expected path))
+                                (str graph-name
+                                  "New value for " (pr-str path) " as expected")))
+                            (kv/get-in ksp path)))
+          unhook-a13    (let [path [:top 0 :a10 :a13]]
+                          (graph/hook-change-sel graph
+                            (fn [v]
+                              (vswap! update-counts update path (fnil inc 0))
+                              (is (= v (get @expected path))
+                                (str graph-name
+                                  "New value for " (pr-str path) " as expected")))
                             (kv/get-in ksp path)))
           unhook-a20    (let [path [:top 1 :a20]]
                           (graph/hook-change-sel graph
                             (fn [v]
                               (vswap! update-counts update path (fnil inc 0))
                               (is (= v (get @expected path))
-                                (str "New value for " (pr-str path) "as expected")))
+                                (str graph-name
+                                  "New value for " (pr-str path) "as expected")))
                             (kv/get-in ksp path)))]
       (try
-        (vreset! expected {[:top 0]           {:a10 {:a11 :a11-v
-                                                     :a12 :a12-v}}
-                           [:top 0 :a10 :a11] :a11-v
-                           [:top 1 :a20]      {:a21 :a21-v
-                                               :a22 :a22-v}})
-        (graph/apply-commands graph
-          [[ksp [::kv/reset {:top [{:a10 {:a11 :a11-v
-                                          :a12 :a12-v}}
-                                   {:a20 {:a21 :a21-v
-                                          :a22 :a22-v}}]}]]])
+        (testing "Initialize root value"
+          (vreset! expected {[:top 0]           {:a10 {:a11 :a11-v
+                                                       :a12 :a12-v}}
+                             [:top 0 :a10 :a11] :a11-v
+                             [:top 0 :a10 :a12] :a12-v
+                             [:top 0 :a10 :a13] nil
+                             [:top 1 :a20]      {:a21 :a21-v
+                                                 :a22 :a22-v}})
+          (graph/apply-commands graph
+            [[ksp [::kv/reset {:top [{:a10 {:a11 :a11-v
+                                            :a12 :a12-v}}
+                                     {:a20 {:a21 :a21-v
+                                            :a22 :a22-v}}]}]]])
 
-        ;; Write to :a10 should update [:top 0], [:top 0 :a10 :a11], not [:top 1 :a20]
 
-        (vreset! expected {[:top 0]           {:a10 {:a11 :a11-v
-                                                     :a12 :a12-v
-                                                     :a13 :a13-v}}
-                           [:top 0 :a10 :a11] :a11-v
-                           [:top 1 :a20]      {:a21 :a21-v
-                                               :a22 :a22-v}})
-        (graph/apply-commands graph
-          [[ksp [::kv/assoc-in [:top 0 :a10] {:a11 :a11-v
-                                              :a12 :a12-v
-                                              :a13 :a13-v}]]])
-        (is (= @update-counts
-              {[:top 0]           2
-               [:top 0 :a10 :a11] 2
-               [:top 1 :a20]      1})
-          "Unaffected paths should not update.")
+
+          (let [uc      @update-counts
+                uc-top0 (uc [:top 0])
+                uc-a11  (uc [:top 0 :a10 :a11])
+                uc-a12  (uc [:top 0 :a10 :a12])
+                uc-a13  (uc [:top 0 :a10 :a13])
+                uc-a20  (uc [:top 1 :a20])]
+            (is (= uc-top0 1) (str graph-name "Initial update."))
+            (is (= uc-a11 1) (str graph-name "Initial update."))
+            (is (= uc-a12 1) (str graph-name "Initial update."))
+            (is (= uc-a13 1) (str graph-name "Not-present path should see update with value nil."))
+            (is (= uc-a20 1) (str graph-name "Initial update."))))
+
+        (testing "Updates after write"
+          (vreset! expected {[:top 0]           {:a10 {:a11 :a11-v
+                                                       :a12 :a12-v2
+                                                       :a13 :a13-v}}
+                             [:top 0 :a10 :a11] :a11-v
+                             [:top 0 :a10 :a12] :a12-v2
+                             [:top 0 :a10 :a13] :a13-v
+                             [:top 1 :a20]      {:a21 :a21-v
+                                                 :a22 :a22-v}})
+          (graph/apply-commands graph
+            [[ksp [::kv/assoc-in [:top 0 :a10] {:a11 :a11-v
+                                                :a12 :a12-v2
+                                                :a13 :a13-v}]]])
+          (let [uc      @update-counts
+                uc-top0 (uc [:top 0])
+                uc-a11  (uc [:top 0 :a10 :a11])
+                uc-a12  (uc [:top 0 :a10 :a12])
+                uc-a13  (uc [:top 0 :a10 :a13])
+                uc-a20  (uc [:top 1 :a20])]
+            (is (= uc-top0 2) (str graph-name "Parent of write point must update."))
+            (is (= uc-a11 1) (str graph-name "Child of write point with unchanged value should not update."))
+            (is (= uc-a12 2) (str graph-name "Child of write point with changed value should update."))
+            (is (= uc-a13 2) (str graph-name "Child of write point which first receives a value should update for the first time."))
+            (is (= uc-a20 1) (str graph-name "Sibling of write point should not update."))))
+
+        (testing "Indirect deletion of key"
+          (vreset! expected {[:top 0]           {:a10 {:a11 :a11-v
+                                                       :a12 :a12-v2}}
+                             [:top 0 :a10 :a11] :a11-v
+                             [:top 0 :a10 :a12] :a12-v2
+                             [:top 0 :a10 :a13] nil
+                             [:top 1 :a20]      {:a21 :a21-v
+                                                 :a22 :a22-v}})
+          (graph/apply-commands graph
+            [[ksp [::kv/assoc-in [:top 0 :a10] {:a11 :a11-v
+                                                :a12 :a12-v2}]]])
+
+          (let [uc      @update-counts
+                uc-top0 (uc [:top 0])
+                uc-a11  (uc [:top 0 :a10 :a11])
+                uc-a12  (uc [:top 0 :a10 :a12])
+                uc-a13  (uc [:top 0 :a10 :a13])
+                uc-a20  (uc [:top 1 :a20])]
+            (is (= uc-top0 3) (str graph-name "Parent of write point must update."))
+            (is (= uc-a11 1) (str graph-name "Child of write point with unchanged value should not update."))
+            (is (= uc-a12 2) (str graph-name "Child of write point with changed value should update."))
+            (is (= uc-a13 3) (str graph-name "Indirectly deleted child should update."))
+            (is (= uc-a20 1) (str graph-name "Sibling of write point should not update."))))
 
         (finally
           (unhook-top0)
           (unhook-a11)
+          (unhook-a12)
+          (unhook-a13)
           (unhook-a20))))))
