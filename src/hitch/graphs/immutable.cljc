@@ -552,20 +552,6 @@
         ;; INVARIANT: At this point, dep-changes and recalcs are empty
         (destroy-orphaned-nodes effects))))
 
-(defn- prepare-ops [selnodes sel->cmd->arg]
-  (when *trace* (record! [:prepare-ops sel->cmd->arg]))
-  (reduce-kv
-    (fn [sel->ops sel cmd->arg]
-      (let [selnode (get selnodes sel)]
-        (if (and (nil? selnode)
-              (empty? (-> cmd->arg ::update-ext-children :add)))
-          ;; Degenerate case: if we never add an external child to a node that
-          ;; does not exist, no need to produce any ops for the node.
-          (dissoc sel->ops sel)
-          sel->ops)))
-    sel->cmd->arg
-    sel->cmd->arg))
-
 (defrecord ImmutableGraph [graph-id]
   proto/StatefulSelector
   (create [s] (proto/->StateEffect {} nil nil))
@@ -618,9 +604,9 @@
                                 :error       "Unrecognized command"})))
   (command-result [s acc]
     (when *trace*
-      (vreset! op-history []))
+      (vreset! op-history [[:ops (:sel->cmd->arg acc)]]))
     (let [{:keys [selnodes sel->cmd->arg]} acc
-          sel->ops       (prepare-ops selnodes sel->cmd->arg)
+          sel->ops       sel->cmd->arg
           effects        (effect-queue)
           dirty-selnodes (apply-ops selnodes sel->ops effects)
           [new-selnodes recalcs] (merge-dirty-selnodes dirty-selnodes selnodes)]
