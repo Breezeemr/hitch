@@ -54,18 +54,20 @@
       IPending
       (-realized? [_] false))))
 
+(if-clj-target
+  (deftype SelectBox [value]
+    IDeref
+    (deref [_] value)
+    IPending
+    (isRealized [_] true))
+  (deftype SelectBox [value]
+    IDeref
+    (-deref [_] value)
+    IPending
+    (-realized? [_] true)))
+
 (defn select-box [value]
-  (if-clj-target
-    (reify
-      IDeref
-      (deref [_] value)
-      IPending
-      (isRealized [_] true))
-    (reify
-      IDeref
-      (-deref [_] value)
-      IPending
-      (-realized? [_] true))))
+  (->SelectBox value))
 
 (defmacro maybe-halt
   "Evaluate `expr`; if `expr` halts, evaluate `if-halted-expr` instead."
