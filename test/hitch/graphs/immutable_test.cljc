@@ -2,7 +2,7 @@
   (:require [hitch.graphs.immutable :as im]
             [hitch.graphs.graph-manager :as gm]
             [hitch.protocol :as hp]
-    #?@(:cljs    [[cljs.test :as t :refer-macros [testing is]]
+    #?@(:cljs    [[cljs.test :as t :refer-macros [testing is async]]
                   [devcards.core :refer-macros [deftest]]]
         :default [[clojure.test :refer [deftest testing is]]])))
 
