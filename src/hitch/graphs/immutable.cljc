@@ -555,10 +555,16 @@
 (defrecord ImmutableGraph [graph-id]
   proto/StatefulSelector
   (create [s] (proto/->StateEffect {} nil nil))
-  (destroy [s state]
-    ; TODO: tx to destroy all destroyable selectors
-    nil
-    )
+  (destroy [s selnodes]
+    ;; TODO: call destroy in topological order.
+    ;; Probably means remove all ext-deps from stateful selectors then force gc
+    ;; (once gc exists)
+    (comp-effects
+      (into []
+        (keep (fn [[selector {:keys [state]}]]
+                (when (satisfies? proto/StatefulSelector selector)
+                  (proto/destroy selector state))))
+        selnodes)))
   proto/Selector
   (value [s _ selnodes]
     (proto/->SelectorValue (->GraphValues selnodes) nil))
