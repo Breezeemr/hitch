@@ -82,12 +82,15 @@
                     oob-request-data
                     effect
                     recalc-external-children
-                    ]} @(transact-sync agm [[::hp/child-add vec-selector ext-child]]
+                    observable-changed-selector-values
+                    ] :as x} @(transact-sync agm [[::hp/child-add vec-selector ext-child]]
                           oob-data)]
+        (prn (keys x))
         (is (true? running?))
         (is (= tx-id 1))
         (is (= oob-request-data oob-data))
         (is (= recalc-external-children #{ext-child}))
+        (is (= observable-changed-selector-values {vec-selector [1 2 3]}))
         (is (zero? error-count))
         (is (nil? effect))
         (is (= (get (:value graph) vec-selector) [1 2 3]))

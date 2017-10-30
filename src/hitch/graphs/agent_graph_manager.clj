@@ -26,15 +26,17 @@
           [status :as r] (gm/apply-graph-node-commands graph-node commands)]
       (case status
         :ok
-        (let [[_ graph-node' {:keys [effect recalc-external-children]}] r]
-          {:running?                 (:running? gm-state)
-           :graph-before             graph-node
-           :graph                    graph-node'
-           :tx-id                    (unchecked-inc (:tx-id gm-state))
-           :error-count              (:error-count gm-state)
-           :effect                   effect
-           :recalc-external-children recalc-external-children
-           :oob-request-data         oob-request-data})
+        (let [[_ graph-node' {:keys [effect recalc-external-children
+                                     observable-changed-selector-values]}] r]
+          {:running?                           (:running? gm-state)
+           :graph-before                       graph-node
+           :graph                              graph-node'
+           :tx-id                              (unchecked-inc (:tx-id gm-state))
+           :error-count                        (:error-count gm-state)
+           :effect                             effect
+           :recalc-external-children           recalc-external-children
+           :observable-changed-selector-values observable-changed-selector-values
+           :oob-request-data                   oob-request-data})
         :error
         (let [[_ error] r]
           {:running?         (:running? gm-state)
@@ -148,6 +150,7 @@
        :error-count              count-incremented-by-tx-errors
        :effect                   effect-fn-if-any
        :recalc-external-children set-of-ext-children-whose-subscribed-vals-changed
+       :observable-changed-selector-values  {sel new-value ...}
        :oob-request-data         oob-request-data-from-the-transact-request}
 
   Transaction results look like this after an error:
