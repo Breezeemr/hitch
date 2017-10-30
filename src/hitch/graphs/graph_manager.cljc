@@ -54,11 +54,12 @@
                                   first
                                   (into []))]
         [:error graph-node (assoc acc :pending-commands pending-commands)])
-      (let [{:keys [effect recalc-child-selectors] new-state :state}
+      (let [{:keys [recalc-child-selectors] new-state :state :as se}
             (hp/command-result graph acc)]
         [:ok (assoc graph-node :state new-state
                                :value (new-value graph old-value new-state))
-         {:effect effect :recalc-external-children recalc-child-selectors}]))))
+         (-> (dissoc se :state :recalc-child-selectors)
+             (assoc :recalc-external-children recalc-child-selectors))]))))
 
 (letfn [(swap-transact* [graph-node cmds v-tx-res]
           (let [[_ new-gm :as res] (apply-graph-node-commands graph-node cmds)]

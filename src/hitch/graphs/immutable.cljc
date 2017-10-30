@@ -523,7 +523,8 @@
     dirty-selnodes))
 
 (defn- merge-dirty-selnodes [dirty-selnodes selnodes]
-  (let [ext-recalcs (volatile! (transient #{}))]
+  (let [ext-recalcs (volatile! (transient #{}))
+        val-changes  (volatile! (transient {}))]
     [(->> dirty-selnodes
           (reduce-kv
             (fn [sns sel {:keys [value original-value] :as dirtynode}]
@@ -535,13 +536,15 @@
                       (let [ext-ch (:ext-children dirtynode)]
                         (when-not (or (zero? (count ext-ch))
                                     (= value original-value))
-                          (vswap! ext-recalcs into! ext-ch))))
+                          (vswap! ext-recalcs into! ext-ch)
+                          (vswap! val-changes assoc! sel value))))
                     (cond-> (dissoc dirtynode :original-value)
                       (or unknown-value? (= value original-value))
                       (assoc :value original-value))))))
             (transient selnodes))
           persistent!)
-     (persistent! @ext-recalcs)]))
+     (persistent! @ext-recalcs)
+     (persistent! @val-changes)]))
 
 (defn- apply-ops [selnodes sel->ops effects]
   (let [pending-deps-changes (dep-changes)
@@ -615,9 +618,12 @@
           sel->ops       sel->cmd->arg
           effects        (effect-queue)
           dirty-selnodes (apply-ops selnodes sel->ops effects)
-          [new-selnodes recalcs] (merge-dirty-selnodes dirty-selnodes selnodes)]
-      (proto/->StateEffect
-        new-selnodes
-        (when-some [effects (not-empty (clear-effects! effects))]
-          (comp-effects effects))
-        (not-empty recalcs)))))
+          [new-selnodes recalcs val-changes] (merge-dirty-selnodes dirty-selnodes selnodes)]
+      (cond->
+        (proto/->StateEffect
+          new-selnodes
+          (when-some [effects (not-empty (clear-effects! effects))]
+            (comp-effects effects))
+          (not-empty recalcs))
+        (pos? (count val-changes))
+        (assoc :observable-changed-selector-values val-changes)))))
