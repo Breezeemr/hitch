@@ -244,6 +244,7 @@
     (normalize-tx! graph))
   (update-parents [this child adds rms]
     ;(prn "update-parents " child adds rms )
+    (normalize-tx! this)
     (doseq [add adds
             :let [n (get nodemap add)]
             :when n]
