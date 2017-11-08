@@ -129,8 +129,6 @@
                        :error-mode :continue)]
     (add-watch gm-agent "effect+notify-watcher"
       (effect+notify-watcher effect-agent notify-agent))
-    (when effect
-      (effect-runner -1 0 effect gm-agent))
 
     {:gm-agent     gm-agent
      :effect-agent effect-agent
