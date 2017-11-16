@@ -49,28 +49,30 @@
 (defn added-deps [graph child source filter]
   ;(prn "filtered-set-add" selector source filter)
   (run! (fn [parent]
-          (let [parentnode  (get-or-create-node graph parent)
-                subscribers (.-subscribers parentnode)]
-            (when-not (contains? subscribers child)
-              ;(prn "add subscrption" child "to " parent)
-              (set! (.-subscribers parentnode) (conj subscribers child)))
-            (when (satisfies? proto/InformedSelector parent)
-              (-apply-selector-command graph parent [:hitch.protocol/child-add child]))
-            ))
-    (eduction (remove filter) source)))
+          (when (filter parent)
+            (let [parentnode  (get-or-create-node graph parent)
+                  subscribers (.-subscribers parentnode)]
+              (when-not (contains? subscribers child)
+                ;(prn "add subscrption" child "to " parent)
+                (set! (.-subscribers parentnode) (conj subscribers child)))
+              (when (satisfies? proto/InformedSelector parent)
+                (-apply-selector-command graph parent [:hitch.protocol/child-add child]))
+              )))
+    source))
 
 (defn removed-deps [graph child source filter]
   ;(prn "filtered-set-add" selector source filter)
   (run! (fn [parent]
-          (let [parentnode  (get-or-create-node graph parent)
-                subscribers (.-subscribers parentnode)]
-            (when (contains? subscribers child)
-              ;(prn "add subscrption" child "to " parent)
-              (set! (.-subscribers parentnode) (conj subscribers child)))
-            (when (satisfies? proto/InformedSelector parent)
-              (-apply-selector-command graph parent [:hitch.protocol/child-del child]))
-            ))
-    (eduction (remove filter) source)))
+          (when (filter parent)
+            (let [parentnode  (get-or-create-node graph parent)
+                  subscribers (.-subscribers parentnode)]
+              (when (contains? subscribers child)
+                ;(prn "add subscrption" child "to " parent)
+                (set! (.-subscribers parentnode) (conj subscribers child)))
+              (when (satisfies? proto/InformedSelector parent)
+                (-apply-selector-command graph parent [:hitch.protocol/child-del child]))
+              )))
+    source))
 
 (defn init-calc-node! [graph node]
   (let [selector (.-selector node)
