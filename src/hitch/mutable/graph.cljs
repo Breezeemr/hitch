@@ -49,7 +49,7 @@
 (defn added-deps [graph child source filter]
   ;(prn "filtered-set-add" selector source filter)
   (run! (fn [parent]
-          (when (filter parent)
+          (when-not (filter parent)
             (let [parentnode  (get-or-create-node graph parent)
                   subscribers (.-subscribers parentnode)]
               (when-not (contains? subscribers child)
@@ -63,7 +63,7 @@
 (defn removed-deps [graph child source filter]
   ;(prn "filtered-set-add" selector source filter)
   (run! (fn [parent]
-          (when (filter parent)
+          (when-not (filter parent)
             (let [parentnode  (get-or-create-node graph parent)
                   subscribers (.-subscribers parentnode)]
               (when (contains? subscribers child)
