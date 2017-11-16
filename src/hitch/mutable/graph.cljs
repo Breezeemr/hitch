@@ -93,35 +93,32 @@
     (added-deps graph selector dependencies old-deps)
     (removed-deps graph selector old-deps dependencies)))
 ;;;; new api
+
+(defn invalidate-selector-fn [graph]
+  (fn [changed-items selector]
+    (if-let [node (get (.-nodemap graph) selector)]
+      (let [{new-value :value dependencies :parents :as vcontainer} (proto/value selector graph (.-state node))
+            old-deps (.-refs node)]
+        (set! (.-refs node) dependencies)
+        ;(prn "vcontainer " vcontainer)
+        ;inlineing invalidate produces error
+        (added-deps graph selector dependencies old-deps)
+        (removed-deps graph selector old-deps dependencies)
+        (cond
+          (= (.-value node) new-value) changed-items
+          (and (.-value node) (instance? proto/SelectorUnresolved vcontainer)) changed-items
+          (not= (.-value node) new-value) (do
+                                            ;(prn " value changed" vcontainer(type selector) (.-value node) new-value )
+                                            (set! (.-value node) new-value)
+
+                                            ;:value-changed
+                                            (conj! changed-items selector))))
+
+      changed-items)))
+
 (defn invalidate-level [graph selectors]
-  (loop [selectors     selectors #_(if (satisfies? IIterable selectors)
-                                     selectors
-                                     (-iterator selectors))
-         changed-items (transient #{})]
-    (if-let [selector (first selectors)]
-      (if-let [node (get (.-nodemap graph) selector)]
-        (let [{new-value :value dependencies :parents :as vcontainer} (proto/value selector graph (.-state node))
-              old-deps (.-refs node)]
-          (set! (.-refs node) dependencies)
-          ;(prn "vcontainer " vcontainer)
-          ;inlineing invalidate produces error
-          (added-deps graph selector dependencies old-deps)
-          (removed-deps graph selector old-deps dependencies)
-          (cond
-            (= (.-value node) new-value) (do                ;(prn " value-unchanged" (type selector) new-value) ;:value-unchanged
-                                           (recur (rest selectors) changed-items))
-            (and (.-value node) (instance? proto/SelectorUnresolved vcontainer)) (do ; (prn " value-stale" (type selector) (.-value node)) ;:stale
-                                                                                   (recur (rest selectors) changed-items))
-            (not= (.-value node) new-value) (do
-                                              ;(prn " value changed" vcontainer(type selector) (.-value node) new-value )
-                                              (set! (.-value node) new-value)
+  (persistent! (reduce (invalidate-selector-fn graph) (transient #{}) selectors)))
 
-                                              ;:value-changed
-                                              (recur (rest selectors)
-                                                (conj! changed-items selector)))))
-
-        (recur (rest selectors) changed-items))
-      (persistent! changed-items))))
 (defn get-children-selectors [graph parents]
   (into #{} (mapcat (fn [parent]
                       (.-subscribers (get (.-nodemap graph) parent))))
