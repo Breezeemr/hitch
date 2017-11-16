@@ -54,9 +54,9 @@
                   subscribers (.-subscribers parentnode)]
               (when-not (contains? subscribers child)
                 ;(prn "add subscrption" child "to " parent)
-                (set! (.-subscribers parentnode) (conj subscribers child)))
-              (when (satisfies? proto/InformedSelector parent)
-                (-apply-selector-command graph parent [:hitch.protocol/child-add child]))
+                (set! (.-subscribers parentnode) (conj subscribers child))
+                (when (satisfies? proto/InformedSelector parent)
+                  (-apply-selector-command graph parent [:hitch.protocol/child-add child])))
               )))
     source))
 
@@ -68,9 +68,9 @@
                   subscribers (.-subscribers parentnode)]
               (when (contains? subscribers child)
                 ;(prn "add subscrption" child "to " parent)
-                (set! (.-subscribers parentnode) (conj subscribers child)))
-              (when (satisfies? proto/InformedSelector parent)
-                (-apply-selector-command graph parent [:hitch.protocol/child-del child]))
+                (set! (.-subscribers parentnode) (conj subscribers child))
+                (when (satisfies? proto/InformedSelector parent)
+                  (-apply-selector-command graph parent [:hitch.protocol/child-del child])))
               )))
     source))
 
