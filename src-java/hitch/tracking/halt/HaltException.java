@@ -7,11 +7,8 @@ package hitch.tracking.halt;
 public final class HaltException extends RuntimeException {
     private static final HaltException instance = new HaltException();
 
-    static {
-        instance.setStackTrace(new StackTraceElement[]{});
-    }
-
     private HaltException() {
+        super("HALT", null, false, false);
     }
 
     public static final HaltException getInstance() {
