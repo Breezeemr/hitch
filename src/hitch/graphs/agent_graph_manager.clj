@@ -3,7 +3,7 @@
   (:require [hitch.protocol :as hp]
             [hitch.oldprotocols :as op]
             [hitch.graphs.graph-manager :as gm])
-  (:import (clojure.lang ILookup IDeref)))
+  (:import (clojure.lang ILookup IDeref IRef)))
 
 (defn- gm-agent-transact-runner [gm-state commands oob-request-data]
   (cond
@@ -101,6 +101,15 @@
       (send-off effect-agent effect-runner (:tx-id new-state) effect gm-agent))))
 
 
+(defn- graph-agent-watch-key []
+  (name (gensym "graph-agent-watch_")))
+
+(defn- graph-agent-watch-key? [watch-id]
+  (and (string? watch-id) (.startsWith ^String watch-id "graph-agent-watch_")))
+
+(defn- get-watches [^IRef ref]
+  (keys (.getWatches ref)))
+
 ;; PUBLIC INTERFACE
 
 (defn agent-graph-manager
@@ -132,8 +141,7 @@
 
     {:gm-agent     gm-agent
      :effect-agent effect-agent
-     :notify-agent notify-agent
-     :watches      (atom #{})}))
+     :notify-agent notify-agent}))
 
 (defn watch-agent-graph-manager
   "Add a watch function on the graph-manager's agent. The function will be called
@@ -176,17 +184,16 @@
 
   Returns an opaque id you can use to unwatch with
   `unwatch-agent-graph-manager`."
-  [{:keys [gm-agent watches]} watch-fn]
-  (let [watch-id (gensym "graph-agent-watch_")]
-    (swap! watches conj watch-id)
+  [{:keys [gm-agent]} watch-fn]
+  (let [watch-id (graph-agent-watch-key)]
     (add-watch gm-agent watch-id (fn [_ _ _ new-state] (watch-fn new-state)))
     watch-id))
 
 (defn unwatch-agent-graph-manager
-  "Removes a watch added with `watch-agent-graph-manager`. Returns true if the
-  watch was removed; false if there was no watch with the supplied id."
-  [{:keys [gm-agent watches]} watch-id]
-  (let [has-watch (contains? @watches watch-id)]
+  "Removes a watch added with `watch-agent-graph-manager`. Returns true if
+  the watch was removed or was already gone."
+  [{:keys [gm-agent]} watch-id]
+  (let [has-watch (graph-agent-watch-key? watch-id)]
     (when has-watch
       (remove-watch gm-agent watch-id))
     has-watch))
@@ -224,7 +231,7 @@
   Returns nil if graph manager is already stopped; true if all agents are
   completely flushed and all watches removed; or false if the timeout was
   hit first (watches were not removed)."
-  [{:keys [gm-agent effect-agent notify-agent watches]} timeout-ms]
+  [{:keys [gm-agent effect-agent notify-agent]} timeout-ms]
   (when (gm-agent-transact! gm-agent :stop! nil)
     (let [finished-waiting? (if (some? timeout-ms)
                              (await-for timeout-ms gm-agent effect-agent notify-agent)
@@ -232,6 +239,7 @@
                                  true))]
       (when finished-waiting?
         (remove-watch gm-agent "effect+notify-watcher")
-        (run! #(remove-watch gm-agent %) @watches)
-        (reset! watches []))
+        (->> (get-watches gm-agent)
+             (filter graph-agent-watch-key?)
+             (run! #(remove-watch gm-agent %))))
       finished-waiting?)))
