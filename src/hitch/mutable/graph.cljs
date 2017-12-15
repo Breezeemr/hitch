@@ -44,6 +44,9 @@
             (get-external-dependents graph changed-selector)))
     ext-items))
 
+(defn unused? [n]
+  (and (nil? (not-empty (.-external-dependencies n))) (nil? (not-empty (.-subscribers n)))))
+
 (declare -apply-selector-command)
 
 (defn added-deps [graph child source filter]
@@ -68,10 +71,11 @@
                   subscribers (.-subscribers parentnode)]
               (when (contains? subscribers child)
                 ;(prn "add subscrption" child "to " parent)
-                (set! (.-subscribers parentnode) (conj subscribers child))
+                (set! (.-subscribers parentnode) (disj subscribers child))
                 (when (satisfies? proto/InformedSelector parent)
                   (-apply-selector-command graph parent [:hitch.protocol/child-del child])))
-              )))
+              (when (unused? parentnode)
+                (set! (.-gc-list graph) (conj (.-gc-list graph) parentnode))))))
     source))
 
 (defn init-calc-node! [graph node]
@@ -202,10 +206,27 @@
   )
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate
+                          ^:mutable gc-list ^:mutable gc-timer
                           ^:mutable internal-invalidated
                           ^:mutable external-invalidate!]
   Object
   (get-unresolved-selectors [_] (filter #(identical? (val (.-value %)) NODE-NOT-RESOLVED-SENTINEL) nodemap))
+  (gc-pass [g]
+    (when (not-empty gc-list)
+      (let [gc-items gc-list]
+        (set! gc-list #{})
+        (run! (fn [n]
+                (when (unused? n)
+                  (let [data-selector (.-selector n)]
+                    (removed-deps g data-selector (.-refs n) #{})
+                    (set! nodemap (dissoc nodemap data-selector)))))
+          gc-items)
+        (normalize-tx! g))))
+  (gc-start [g gc-freq]
+    (set! gc-timer (js/setInterval (fn [] (.gc-pass g)) gc-freq)))
+  (gc-pause [_]
+    (js/clearInterval gc-timer)
+    (set! gc-timer nil))
   ILookup
   (-lookup [o data-selector]
     (-lookup o data-selector nil))
@@ -251,8 +272,10 @@
     (doseq [rm rms
             :let [n (get nodemap rm)]
             :when n]
-      (set! (.-external-dependencies n) (not-empty (disj (.-external-dependencies n) child))))
-    )
+      (let [new-external-deps (not-empty (disj (.-external-dependencies n) child))]
+        (when (and (nil? new-external-deps) (nil? (not-empty (.-subscribers n))))
+          (set! gc-list (conj gc-list n)))
+        (set! (.-external-dependencies n) new-external-deps))))
   IBatching
   (-request-invalidations [graph invalidaiton]
     (if internal-invalidated
@@ -266,7 +289,7 @@
       (persistent! ret))))
 
 (defn graph []
-  (DependencyGraph. {} {} nil identity))
+  (DependencyGraph. {} {} #{} nil nil identity))
 
 (defn get-node-map [graph]
   (.-nodemap graph))
