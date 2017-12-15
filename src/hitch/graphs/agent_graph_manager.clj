@@ -213,6 +213,19 @@
   [{:keys [gm-agent]} commands oob-request-data]
   (gm-agent-transact! gm-agent commands oob-request-data))
 
+(defn flush-agent-graph-manager!
+  [{:keys [gm-agent effect-agent notify-agent]} timeout-ms]
+  (let [finished-waiting? (if (some? timeout-ms)
+                            (await-for timeout-ms gm-agent effect-agent notify-agent)
+                            (do (await gm-agent effect-agent notify-agent)
+                                true))]
+    (when finished-waiting?
+      (remove-watch gm-agent "effect+notify-watcher")
+      (->> (get-watches gm-agent)
+           (filter graph-agent-watch-key?)
+           (run! #(remove-watch gm-agent %))))
+    finished-waiting?))
+
 (defn stop-and-flush-agent-graph-manager!
   "Will ask the agent-based graph-manager to stop all transactions then wait
   until all pending requests are done and all agent queues are emptied, or
@@ -227,19 +240,13 @@
 
   The graph, effect, and notify agents should not be used after this command.
 
-
-  Returns nil if graph manager is already stopped; true if all agents are
-  completely flushed and all watches removed; or false if the timeout was
-  hit first (watches were not removed)."
-  [{:keys [gm-agent effect-agent notify-agent]} timeout-ms]
+  Returns a blocking derefable containing nil if graph manager is already
+  stopped; true if all agents are completely flushed and all watches removed;
+  or false if the timeout was hit first (watches were not removed)."
+  [{:keys [gm-agent] :as agm} timeout-ms]
   (when (gm-agent-transact! gm-agent :stop! nil)
-    (let [finished-waiting? (if (some? timeout-ms)
-                             (await-for timeout-ms gm-agent effect-agent notify-agent)
-                             (do (await gm-agent effect-agent notify-agent)
-                                 true))]
-      (when finished-waiting?
-        (remove-watch gm-agent "effect+notify-watcher")
-        (->> (get-watches gm-agent)
-             (filter graph-agent-watch-key?)
-             (run! #(remove-watch gm-agent %))))
-      finished-waiting?)))
+    (if *agent*
+      (future (flush-agent-graph-manager! agm timeout-ms))
+      ;; We use a promise and not atom or volatile so deref-with-timeout works
+      (doto (promise)
+        (deliver (flush-agent-graph-manager! agm timeout-ms))))))

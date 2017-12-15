@@ -80,7 +80,7 @@
 
     (try
       (let [ext-child         (reify op/ExternalDependent
-                           (-change-notify [_] nil))
+                                (-change-notify [_] nil))
             oob-data          {:OOB true}
             created?          (promise)
             commanded?        (promise)
@@ -118,7 +118,7 @@
         (is (deref commanded? 1 false) "Command effect should run"))
 
       (finally
-        (agm/stop-and-flush-agent-graph-manager! agm nil)
+        @(agm/stop-and-flush-agent-graph-manager! agm nil)
         (binding [*out* *err*]
           (when-not (empty? @gm-errors)
             (println "Graph Manager Errors:")
