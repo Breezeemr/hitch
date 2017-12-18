@@ -75,7 +75,7 @@
                 (when (satisfies? proto/InformedSelector parent)
                   (-apply-selector-command graph parent [:hitch.protocol/child-del child])))
               (when (unused? parentnode)
-                (set! (.-gc-list graph) (conj (.-gc-list graph) parentnode))))))
+                (add-to-gc-list graph parentnode)))))
     source))
 
 (defn init-calc-node! [graph node]
@@ -202,11 +202,18 @@
   (let [v (.-value node)]
     (if (identical? v NODE-NOT-RESOLVED-SENTINEL)
       nf
-      v))
-  )
+      v)))
+
+(defn schedule-gc [g]
+  (when (not-empty (.-gc-list g))
+    (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) (.-gc-timer g)))))
+
+(defn add-to-gc-list [g x]
+  (set! (.-gc-list g) (conj (.-gc-list g) x))
+  (schedule-gc g))
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate
-                          ^:mutable gc-list ^:mutable gc-timer
+                          ^:mutable gc-list ^:mutable gc-timer ^:mutable cancel-gc
                           ^:mutable internal-invalidated
                           ^:mutable external-invalidate!]
   Object
@@ -221,11 +228,15 @@
                     (removed-deps g data-selector (.-refs n) #{})
                     (set! nodemap (dissoc nodemap data-selector)))))
           gc-items)
-        (normalize-tx! g))))
-  (gc-start [g gc-freq]
-    (set! gc-timer (js/setInterval (fn [] (.gc-pass g)) gc-freq)))
+        (normalize-tx! g)
+        (schedule-gc g))))
+  (gc-start [g gc-time]
+    (set! gc-timer gc-time)
+    (when-not cancel-gc
+      (.gc-pass g)))
   (gc-pause [_]
-    (js/clearInterval gc-timer)
+    (when cancel-gc
+      (js/clearTimeout cancel-gc))
     (set! gc-timer nil))
   ILookup
   (-lookup [o data-selector]
@@ -274,7 +285,7 @@
             :when n]
       (let [new-external-deps (not-empty (disj (.-external-dependencies n) child))]
         (when (and (nil? new-external-deps) (nil? (not-empty (.-subscribers n))))
-          (set! gc-list (conj gc-list n)))
+          (add-to-gc-list this n))
         (set! (.-external-dependencies n) new-external-deps))))
   IBatching
   (-request-invalidations [graph invalidaiton]
