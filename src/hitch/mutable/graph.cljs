@@ -196,7 +196,10 @@
         current-pending-actions))))
 
 (defn schedule-actions [graph]
-  (goog.async.nextTick (process-actions graph)))
+  (when-not @scheduled-actions
+    (vreset! scheduled-actions true)
+    (goog.async.nextTick (process-actions graph)))
+  )
 
 (defn handle-resolution [node nf]
   (let [v (.-value node)]
@@ -226,7 +229,13 @@
                 (when (unused? n)
                   (let [data-selector (.-selector n)]
                     (removed-deps g data-selector (.-refs n) #{})
-                    (set! nodemap (dissoc nodemap data-selector)))))
+                    (set! nodemap (dissoc nodemap data-selector))
+                    (when (satisfies? proto/StatefulSelector data-selector)
+                      (let [state (proto/destroy data-selector (.-state n))]
+                        (when-let [effect (:effect state)]
+                          (schedule-actions g)
+                          (vswap! pending-actions conj effect)))
+                      ))))
           gc-items)
         (normalize-tx! g)
         (schedule-gc g))))
@@ -256,9 +265,7 @@
         (let [new-node (if (satisfies? proto/StatefulSelector data-selector)
                          (let [state (proto/create data-selector)]
                            (when-let [effect (:effect state)]
-                             (when-not @scheduled-actions
-                               (vreset! scheduled-actions true)
-                               (schedule-actions graph))
+                             (schedule-actions graph)
                              (vswap! pending-actions conj effect))
                            ;(run! #(-request-invalidations graph %) (:recalc-child-selectors state))
                            (node data-selector (:state state)))
