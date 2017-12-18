@@ -300,7 +300,7 @@
       (persistent! ret))))
 
 (defn graph []
-  (DependencyGraph. {} {} #{} nil nil identity))
+  (DependencyGraph. {} {} #{} nil nil nil identity))
 
 (defn get-node-map [graph]
   (.-nodemap graph))
