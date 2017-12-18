@@ -151,9 +151,7 @@
                      ;(prn  "new " new-state :recalc-child-selectors (:recalc-child-selectors result) )
                      (set! (.-state node) new-state)
                      (when-let [effect (:effect result)]
-                       (when-not @scheduled-actions
-                         (vreset! scheduled-actions true)
-                         (schedule-actions graph))
+                       (schedule-actions graph)
                        (vswap! pending-actions conj effect))
                      (if (satisfies? proto/SilentSelector selector)
                        (conj (:recalc-child-selectors result) selector )
