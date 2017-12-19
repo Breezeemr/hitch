@@ -7,6 +7,14 @@
 (def pending-actions (volatile! []))
 (def scheduled-actions (volatile! false))
 
+(defn schedule-gc [g]
+  (when (not-empty (.-gc-list g))
+    (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) (.-gc-timer g)))))
+
+(defn add-to-gc-list [g x]
+  (set! (.-gc-list g) (conj (.-gc-list g) x))
+  (schedule-gc g))
+
 (defprotocol IBatching
   (-request-invalidations [graph invalidations])
   (peek-invalidations [graph])
@@ -205,13 +213,6 @@
       nf
       v)))
 
-(defn schedule-gc [g]
-  (when (not-empty (.-gc-list g))
-    (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) (.-gc-timer g)))))
-
-(defn add-to-gc-list [g x]
-  (set! (.-gc-list g) (conj (.-gc-list g) x))
-  (schedule-gc g))
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate
                           ^:mutable gc-list ^:mutable gc-timer ^:mutable cancel-gc
