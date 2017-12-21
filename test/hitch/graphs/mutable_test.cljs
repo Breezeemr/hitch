@@ -6,8 +6,26 @@
             [hitch.graph :as graph]
             [hitch.selectors.mutable-var :refer [mutable-var]]
             [cljs.test :as t :refer-macros [testing is async]]
-            [devcards.core :refer-macros [deftest]]))
+            [devcards.core :refer-macros [deftest]]
+            [hitch.selectors.http :as http]))
 
+
+(deftest simple-get-ok
+  (let [graph (mgraph/graph)
+        http-sel (http/http "/test.txt" :get nil nil nil nil nil)]
+    (async done
+      (let [next-phase (fn []
+                         ;(pin graph http-sel)
+                         (.gc-pass graph)
+                         (is (= (get graph http-sel :not-loaded) :not-loaded))
+
+                         (done))]
+
+        (graph/hook graph (fn [[status value :as result]]
+                            (is (= result [:ok "cat\n"]))
+                            (js/setTimeout next-phase 10)
+                            )
+          http/http "/test.txt" :get nil nil nil nil nil)))))
 
 (deftest gc
   (let [graph (mgraph/graph)
@@ -42,4 +60,8 @@
       (is (= (get graph (mutable-var :test) :hitch.graphs.mutable-test/not-found) :hitch.graphs.mutable-test/not-found))
       (is (= (get graph first-var :hitch.graphs.mutable-test/not-found) :hitch.graphs.mutable-test/not-found))
       (is (= (get graph ff-var :hitch.graphs.mutable-test/not-found) :hitch.graphs.mutable-test/not-found)))))
+
+
+
+
 
