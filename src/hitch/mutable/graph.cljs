@@ -8,8 +8,9 @@
 (def scheduled-actions (volatile! false))
 
 (defn schedule-gc [g]
-  (when (not-empty (.-gc-list g))
-    (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) (.-gc-timer g)))))
+  (when-let [timer (.-gc-timer g)]
+    (when (not-empty (.-gc-list g))
+      (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) timer)))))
 
 (defn add-to-gc-list [g x]
   (set! (.-gc-list g) (conj (.-gc-list g) x))
