@@ -225,6 +225,45 @@
     vector of children to recalculate using the :recalc-child-selectors key
     of StateEffect."))
 
+
+(defprotocol Var
+  (machine-selector [v]
+    "Return the selector of a machine which will implement this var.
+  Also automatically makes the var a child of the machine."))
+
+(defprotocol Machine
+  (apply-machine-commands [m read-only-graph node-state commands]
+    "Advance the state of the machine and graph in response to commands.
+
+    Receives:
+
+    * `read-only-graph` ILookup from selector key to current (possibly
+      uncommited) selector value.
+    * `node-state` State of the machine's node in the graph. Has the following
+      keys:
+      - `:state` The machine's private state.
+      - `:children` A set of selectors (all Vars) which depend on this machine.
+      - `:parents` A set of selectors which this machine depends on.
+        Whenever the value of a parent selector changes, the machine will
+        receive a `[:hitch.protocol/parent-value-change parent-selector]`
+        command.
+    * `commands` A reducible collection of commands.
+
+    Returns a map with the following keys:
+
+    * `:state` The new private state of the machine.
+    * `:dep-change` A map from a selector to a boolean. `true` means add the
+      selector as a machine parent and inform the machine of changes to the
+      parent's value; `false` means remove the selector as a machine parent.
+      It is ok to depend on your own vars: this is the only way to
+      guarantee that the var will exist. Dependency changes are applied
+      before `:var-reset`.
+    * `:var-reset` A map of var selectors (which must be machine-controlled!)
+       to a new value for each var. Vars with no children will be ignored.
+    * `:apply-commands` A optional collection of `[selector command]` pairs to
+       apply within the same currently-executing transaction.
+    * `:effect` An optional effect function."))
+
 (defprotocol GraphManager
   (transact! [graph-manager cmds]
     "Apply a transaction to a graph manager and mutate the graph.
