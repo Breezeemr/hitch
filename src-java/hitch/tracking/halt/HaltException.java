@@ -11,15 +11,15 @@ public final class HaltException extends RuntimeException {
         super("HALT", null, false, false);
     }
 
-    public static final HaltException getInstance() {
+    public static HaltException getInstance() {
         return instance;
     }
 
-    public static final HaltException doThrow() {
+    public static void doThrow() {
         throw instance;
     }
 
-    public static final boolean isHalt(Object o) {
+    public static boolean isHalt(Object o) {
         return instance == o;
     }
 
