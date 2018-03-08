@@ -189,9 +189,6 @@
   commands are added to the selector's command queue which inform when child
   selectors begin or cease depending on the current selector.")
 
-(defn informed-selector? [s]
-  (satisfies? InformedSelector s))
-
 (defrecord StateEffect [state effect recalc-child-selectors])
 
 (defrecord CommandError [accumulator pending-commands bad-command error])
@@ -238,7 +235,7 @@
     Receives:
 
     * `read-only-graph` ILookup from selector key to current (possibly
-      uncommited) selector value.
+      uncommitted) selector value.
     * `node-state` State of the machine's node in the graph. Has the following
       keys:
       - `:state` The machine's private state.
@@ -263,6 +260,9 @@
     * `:apply-commands` A optional collection of `[selector command]` pairs to
        apply within the same currently-executing transaction.
     * `:effect` An optional effect function."))
+
+(defn informed-selector? [s]
+  (or (satisfies? InformedSelector s) (satisfies? Machine s)))
 
 (defprotocol GraphManager
   (transact! [graph-manager cmds]
