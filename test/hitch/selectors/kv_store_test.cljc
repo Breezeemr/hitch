@@ -2,6 +2,7 @@
   (:require [hitch.selectors.kv-store :as kv]
             [hitch.graph :as graph]
             [hitch.pin :refer [pin]]
+            [hitch.test-common :refer :all]
     #?(:cljs [hitch.mutable.graph :as mgraph])
             [hitch.graphs.graph-manager :as gm]
             [hitch.graphs.immutable :as im]
@@ -10,13 +11,6 @@
          [devcards.core :refer-macros [deftest]]]
         :default
         [[clojure.test :refer [deftest testing is]]])))
-
-#?(:clj
-   (defmacro async [done-sym & body]
-     `(let [done# (atom false)
-            ~done-sym (fn [] (reset! done# true))]
-        ~@body
-        (assert (deref done#) "Async body did not complete!"))))
 
 (def gctors
   [#?(:cljs ["Mutable graph: " mgraph/graph])
