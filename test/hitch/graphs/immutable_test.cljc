@@ -2,10 +2,17 @@
   (:require [hitch.graphs.immutable :as im]
             [hitch.graphs.graph-manager :as gm]
             [hitch.protocol :as hp]
-            [hitch.test-common :refer :all]
+            [hitch.test-common :refer [->Constant ->SelVec]]
     #?@(:cljs    [[cljs.test :as t :refer-macros [testing is async]]
                   [devcards.core :refer-macros [deftest]]]
         :default [[clojure.test :refer [deftest testing is]]])))
+
+#?(:clj
+   (defmacro async [done-sym & body]
+     `(let [done# (atom false)
+            ~done-sym (fn [] (reset! done# true))]
+        ~@body
+        (assert (deref done#) "Async body did not complete!"))))
 
 (defrecord EffectSel [on-command-effect]
   hp/CommandableSelector

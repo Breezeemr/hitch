@@ -5,7 +5,7 @@
             [hitch.graph :as h]
             [hitch.graphs.immutable :as im]
             [hitch.graphs.agent-graph-manager :as agm]
-            [hitch.test-common :refer :all]))
+            [hitch.test-common :refer [->Constant ->SelVec]]))
 
 (defrecord EffectSel [on-create-effect]
   hp/StatefulSelector

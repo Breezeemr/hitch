@@ -1,14 +1,6 @@
 (ns hitch.test-common
   (:require [hitch.protocol :as hp]))
 
-;; cljs.test.async
-#?(:clj
-   (defmacro async [done-sym & body]
-     `(let [done# (atom false)
-            ~done-sym (fn [] (reset! done# true))]
-        ~@body
-        (assert (deref done#) "Async body did not complete!"))))
-
 (defrecord Constant [v]
   hp/Selector
   (value [_ _ _]
@@ -40,3 +32,37 @@
       (if (= v ::not-found)
         (hp/->SelectorUnresolved parents)
         (hp/->SelectorValue v parents)))))
+
+;; Machine which will var-reset its vars with their own :v param
+(defrecord EchoMachine []
+  hp/Machine
+  (apply-machine-commands [_ g s commands]
+    (reduce
+      (fn [r [cmd sel]]
+        (case cmd
+          ::hp/child-add (assoc-in r [:var-reset sel] (:v sel))
+          ::hp/child-del r
+          ::hp/parent-value-change r))
+      commands)))
+
+;; The value of an EchoVar
+(defrecord EchoVar [v]
+  hp/Var
+  (machine-selector [_] (->EchoMachine)))
+
+(defrecord FnMachine []
+  hp/Machine
+  (apply-machine-commands [_ g s commands]
+    (reduce
+      (fn [r [cmd f]]
+        (case cmd
+          :do (f r g s)
+          ::hp/child-add r
+          ::hp/child-del r
+          ::hp/parent-value-change r))
+      {}
+      commands)))
+
+(defrecord FnVar [id]
+  hp/Var
+  (machine-selector [_] (->FnMachine)))

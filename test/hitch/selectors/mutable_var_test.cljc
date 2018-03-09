@@ -1,7 +1,6 @@
 (ns hitch.selectors.mutable-var-test
   (:require [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as graph]
-            [hitch.test-common :refer :all]
     #?(:cljs [hitch.mutable.graph :as mgraph])
             [hitch.pin :refer [pin unpin]]
             [hitch.graphs.graph-manager :as gm]
@@ -11,6 +10,13 @@
          [devcards.core :refer-macros [deftest]]]
         :default
         [[clojure.test :refer [deftest testing is]]])))
+
+#?(:clj
+   (defmacro async [done-sym & body]
+     `(let [done# (atom false)
+            ~done-sym (fn [] (reset! done# true))]
+        ~@body
+        (assert (deref done#) "Async body did not complete!"))))
 
 (def gctors
   [#?(:cljs ["Mutable graph: " mgraph/graph])
