@@ -204,12 +204,19 @@ ArrayList
     [recalcs parents]))
 
 (defn- needs-recalc? [selnode old-state]
-  (and
-    (or (not (cempty? (:int-children selnode)))
-      (not (cempty? (:ext-children selnode))))
-    (or #?(:default (:new? selnode)
-           :cljs    ^boolean (:new? selnode))
-      (not= old-state (:state selnode)))))
+  (if (some? (:machine selnode))
+    ;; Vars should recalc if they're new, lose all children, or change their value
+    ;; Value change recalcs are scheduled during the var-reset, not here.
+    ;; If they're new or lose children, we need to inform the machine of the
+    ;; child add/del; informs are done during the recalc phase.
+    (or
+      #?(:default (:new? selnode) :cljs ^boolean (:new? selnode))
+      (and (cempty? (:int-children selnode)) (cempty? (:ext-children selnode))))
+    (and
+      (or (not (cempty? (:int-children selnode)))
+        (not (cempty? (:ext-children selnode))))
+      (or #?(:default (:new? selnode) :cljs ^boolean (:new? selnode))
+        (not= old-state (:state selnode))))))
 
 (defn- recalc-sel-if-needed! [selnode sel old-state recalcs]
   ;; INVARIANT: All sel deps are known
@@ -545,15 +552,18 @@ ArrayList
       (transient dirty-selnodes)
       changes)))
 
-(defn- new-sel-value-var [varsel {old-value :value :keys [parents machine]} ds]
-  (let [parents (if (cempty? parents)
-                  (conj parents machine)
-                  parents)]
-    (if-some [[_ new-value] (-> (ds machine) :var-reset (find varsel))]
+(defn- new-sel-value-var
+  [varsel {old-value :value
+           :keys     [int-children ext-children parents machine]} ds]
+  (let [parents (if (and (cempty? int-children) (cempty? ext-children))
+                  #{}
+                  (conj parents machine))
+        new-value (-> (get ds machine) :var-reset (get varsel UNKNOWN))]
+    (if-not (identical? UNKNOWN new-value)
       (proto/->SelectorValue new-value parents)
-      (if (identical? UNKNOWN old-value)
-        (proto/->SelectorUnresolved parents)
-        (proto/->SelectorValue old-value parents)))))
+      (if-not (identical? UNKNOWN old-value)
+        (proto/->SelectorValue old-value parents)
+        (proto/->SelectorUnresolved parents)))))
 
 (defn- new-sel-value-selector [sel {:keys [state]} ds selnodes]
   (proto/value sel (->MergedGraphValues ds selnodes) state))
@@ -568,7 +578,7 @@ ArrayList
   ()
   (let [sn               (get|create-selnode! ds selnodes sel effects)
         {:keys [parents] old-value :value} sn
-        sv               (proto/value sel (->MergedGraphValues ds selnodes) (:state sn)) #_(new-sel-value sel sn ds selnodes)
+        sv               (new-sel-value sel sn ds selnodes)
         new-parents      (coerce-to-set (:parents sv))
         unknown-value?   (proto/selector-unresolved? sv)
         new-value        (if unknown-value?

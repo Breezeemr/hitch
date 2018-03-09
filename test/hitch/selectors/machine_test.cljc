@@ -1,8 +1,9 @@
 (ns hitch.selectors.machine-test
-  (:require [hitch.selectors.mutable-var :refer [mutable-var]]
+  (:require [hitch.protocol :as hp]
+            [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as h]
             [hitch.test-common :refer [->FnMachine ->FnVar ->EchoMachine
-                                       ->EchoVar]]
+                                       ->EchoVar ->LogMachine ->LogVar]]
             [hitch.pin :refer [pin unpin]]
             [hitch.graphs.graph-manager :as gm]
             [hitch.graphs.immutable :as im]
@@ -31,21 +32,51 @@
                             [:do (fn [r g state]
                                    (vreset! run? true)
                                    r)]]])
-      (is (false? @run?) (str graph-name "Machine should not receive commands"))
+      (is (false? @run?)
+        (str graph-name "Machine should not receive commands"))
       (is (= ::absent (get-node g fn-machine ::absent))
-        "Machine should not exist because it received no commands")))
+        (str graph-name "Machine should not exist because it received no commands"))))
 
   (deftest cannot-depend-on-machines-from-the-outside
     (let [g (gctor)]
       (pin g fn-machine)
-      (is (= ::absent (->> ::absent (get-node g fn-machine)))
-        "Machine should not be pinnable")
+      (is (= ::absent (get-node g fn-machine ::absent))
+        (str graph-name "Machine should not be pinnable"))
       (is (= ::absent (get @g fn-machine ::absent))
-        "Machine should never have a value")))
+        (str graph-name "Machine should never have a value"))))
 
-  (deftest create-machine-via-var)
-
-  (deftest orphan-var)
+  (deftest create-machine-via-var
+    (let [g (gctor)
+          log (volatile! [])
+          log-var (->LogVar log)
+          log-machine (->LogMachine log)]
+      (testing "Var creation"
+        (pin g log-var)
+        (is (get-node g log-var nil)
+          (str graph-name "Var should exist because pinned"))
+        (is (get-node g log-machine nil)
+          (str graph-name "Machine should exist because its var is pinned"))
+        (let [[a b & xs] @log]
+          (is (= a [:create])
+            (str graph-name "Machine's create method should be called"))
+          (is (= b [:commands 0 [[::hp/child-add log-var]]])
+            (str graph-name "Machine should be notified of added var dependency"))
+          (is (empty? xs)
+            (str graph-name "No other events should happen to the Machine"))))
+      (testing "Var removal"
+        (vreset! log [])
+        (unpin g log-var)
+        (is (nil? (get-node g log-var nil))
+          (str graph-name "Var should not exist because unpinned"))
+        (is (nil? (get-node g log-var nil))
+          (str graph-name "Machine should not exist because unpinned"))
+        (let [[a b & xs] @log]
+          (is (= a [:commands 1 [[::hp/child-del log-var]]])
+            (str graph-name "Machine should be notified of removed var dependency"))
+          (is (= b [:destroy 2])
+            (str graph-name "Machine should be destroyed with latest machine state"))
+          (is (empty? xs)
+            (str graph-name "No other events should happen to the machine"))))))
 
   (deftest machine-sees-parent-update-from-other-var)
 

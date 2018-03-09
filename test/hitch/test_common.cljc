@@ -1,4 +1,5 @@
 (ns hitch.test-common
+  #?(:clj (:import (java.io Writer)))
   (:require [hitch.protocol :as hp]))
 
 (defrecord Constant [v]
@@ -71,3 +72,51 @@
 (defrecord FnVar [id]
   hp/Var
   (machine-selector [_] (->FnMachine)))
+
+(defrecord LogMachine [log-volatile]
+  hp/StatefulSelector
+  (create [_]
+    (vswap! log-volatile conj [:create])
+    (hp/->StateEffect {:count 0} nil nil))
+  (destroy [_ s]
+    (vswap! log-volatile conj [:destroy (:count s)])
+    nil)
+  hp/Machine
+  (apply-machine-commands [_ g {:keys [state]} commands]
+    (vswap! log-volatile conj [:commands (:count state) commands])
+    {:state (update state :count inc)}))
+
+(defrecord LogVar [log-volatile]
+  hp/Var
+  (machine-selector [_] (->LogMachine log-volatile)))
+
+
+#?(:cljs
+   (extend-protocol IPrintWithWriter
+     LogMachine
+     (-pr-writer [o writer opts]
+       (doto writer
+         (-write "#<LogMachine ")
+         (-write (str (hash (:log-volatile o))))
+         (-write ">")))
+
+     LogVar
+     (-pr-writer [o writer opts]
+       (doto writer
+         (-write "#<LogVar ")
+         (-write (str (hash (:log-volatile o))))
+         (-write ">")))))
+
+#?(:clj
+   (defmethod print-method LogMachine [c, ^Writer w]
+     (doto w
+       (.write "#<LogMachine ")
+       (.write (str (hash (:log-volatile c))))
+       (.write ">"))))
+
+#?(:clj
+   (defmethod print-method LogVar [c, ^Writer w]
+     (doto w
+       (.write "#<LogVar ")
+       (.write (str (hash (:log-volatile c))))
+       (.write ">"))))
