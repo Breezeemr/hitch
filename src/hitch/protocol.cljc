@@ -245,7 +245,18 @@
         Whenever the value of a parent selector changes, the machine will
         receive a `[:hitch.protocol/parent-value-change parent-selector]`
         command.
-    * `commands` A reducible collection of commands.
+    * `commands` A reducible collection of commands. Possible commands are:
+      - `[:hitch.protocol/parent-value-change parent-selector]` Issued when
+        a parent selector's value changed.
+      - `[:hitch.protocol/child-add var-selector]` Issued when a child var
+        begins depending on the machine.
+      - `[:hitch.protocol/child-del var-selector]` Issued a child var ceases
+        depending on the machine.
+      - `[:hitch.protocol/var-command var-selector command]` Issued when a var
+        received a command. All commands issued to vars are forwarded to their
+        machine. It is not possible to issue a command to a machine *except*
+        through one of its vars.
+
 
     Returns a map with the following keys:
 
@@ -258,8 +269,6 @@
       before `:var-reset`.
     * `:var-reset` A map of var selectors (which must be machine-controlled!)
        to a new value for each var. Vars with no children will be ignored.
-    * `:apply-commands` A optional collection of `[selector command]` pairs to
-       apply within the same currently-executing transaction.
     * `:effect` An optional effect function."))
 
 (defn informed-selector? [s]

@@ -680,6 +680,50 @@ ArrayList
         ;; INVARIANT: At this point, dep-changes and recalcs are empty
         (destroy-orphaned-nodes effects))))
 
+(defn- im-child-add [acc [_ sel x]]
+  (->> (update-in (-> acc :sel->cmd->arg (get sel {}))
+         [::update-ext-children :add] (fnil conj #{}) x)
+       (assoc-in acc [:sel->cmd->arg sel])))
+
+(defn- im-child-del [acc [_ sel x]]
+  (->> (update-in (-> acc :sel->cmd->arg (get sel {}))
+         [::update-ext-children :del] (fnil conj #{}) x)
+       (assoc-in acc [:sel->cmd->arg sel])))
+
+(defn- im-child-adds-dels [acc [_ sel adds dels]]
+  (as-> (:sel->cmd->arg acc) sca
+    (reduce (fn [sca del-sel]
+              (update-in sca [del-sel ::update-ext-children :del]
+                (fnil conj #{}) sel))
+      sca dels)
+    (reduce (fn [sca add-sel]
+              (update-in sca [add-sel ::update-ext-children :add]
+                (fnil conj #{}) sel))
+      sca adds)
+    (assoc acc :sel->cmd->arg sca)))
+
+(defn- im-command [acc [_ sel command]]
+  (cond
+    (not (vector? command))
+    (proto/map->CommandError
+      {:accumulator acc
+       :error       "Malformed command; must be vector like `[:cmd-keyword & args]`"})
+
+    (satisfies? proto/Machine sel)
+    (proto/map->CommandError
+      {:accumulator acc
+       :error       "Machines cannot receive commands directly"})
+
+    :else
+    ;; Commands addressed to vars get re-addressed to machines
+    (let [[sel' command']
+          (if (satisfies? proto/Var sel)
+            [(proto/machine-selector sel) [::proto/var-selector sel command]]
+            [sel command])]
+      (->> (update (-> acc :sel->cmd->arg (get sel' {}))
+             ::commands (fnil conj []) command')
+           (assoc-in acc [:sel->cmd->arg sel'])))))
+
 (defrecord ImmutableGraph [graph-id]
   proto/StatefulSelector
   (create [_] (proto/->StateEffect {} nil nil))
@@ -702,38 +746,12 @@ ArrayList
   proto/CommandableSelector
   (command-accumulator [_ selnodes]
     {:selnodes selnodes :sel->cmd->arg {}})
-  (command-step [_ acc [type sel x :as command]]
-    ;; TODO: Validate commands
+  (command-step [_ acc [type :as command]]
     (case type
-      ::proto/child-add
-      (->> (update-in (-> acc :sel->cmd->arg (get sel {}))
-             [::update-ext-children :add] (fnil conj #{}) x)
-           (assoc-in acc [:sel->cmd->arg sel]))
-
-      ::proto/child-del
-      (->> (update-in (-> acc :sel->cmd->arg (get sel {}))
-             [::update-ext-children :del] (fnil conj #{}) x)
-           (assoc-in acc [:sel->cmd->arg sel]))
-
-      ::child-adds-dels
-      (as-> (:sel->cmd->arg acc) sca
-        (reduce (fn [sca del-sel]
-                  (update-in sca [del-sel ::update-ext-children :del]
-                    (fnil conj #{}) sel))
-          sca
-          (nth command 3))
-        (reduce (fn [sca add-sel]
-                  (update-in sca [add-sel ::update-ext-children :add]
-                    (fnil conj #{}) sel))
-          sca
-          x)
-        (assoc acc :sel->cmd->arg sca))
-
-      ::proto/command
-      (do (assert (vector? x) "Commands must be vectors like `[:command-keyword & args]`.")
-          (->> (update (-> acc :sel->cmd->arg (get sel {}))
-                 ::commands (fnil conj []) x)
-               (assoc-in acc [:sel->cmd->arg sel])))
+      ::proto/child-add (im-child-add acc command)
+      ::proto/child-del (im-child-del acc command)
+      ::child-adds-dels (im-child-adds-dels acc command)
+      ::proto/command (im-command acc command)
       (proto/map->CommandError {:accumulator acc
                                 :error       "Unrecognized command"})))
   (command-result [s acc]

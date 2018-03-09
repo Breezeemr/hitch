@@ -38,8 +38,11 @@
   hp/Machine
   (apply-machine-commands [_ g s commands]
     (reduce
-      (fn [r [cmd sel]]
+      (fn [r [cmd sel [varcmd v]]]
         (case cmd
+          ::hp/var-command
+          (case varcmd
+            :reset! (assoc-in r [:var-reset sel] v))
           ::hp/child-add (assoc-in r [:var-reset sel] (:v sel))
           ::hp/child-del r
           ::hp/parent-value-change r))
@@ -54,9 +57,11 @@
   hp/Machine
   (apply-machine-commands [_ g s commands]
     (reduce
-      (fn [r [cmd f]]
+      (fn [r [cmd sel [fwdcmd f]]]
         (case cmd
-          :do (f r g s)
+          ::hp/var-selector
+          (case fwdcmd
+            :do (f r g s))
           ::hp/child-add r
           ::hp/child-del r
           ::hp/parent-value-change r))

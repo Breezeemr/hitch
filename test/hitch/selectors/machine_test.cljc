@@ -10,13 +10,13 @@
         [[devcards.core :refer-macros [deftest]]
          [cljs.test :as t :refer-macros [testing is async]]]
         :default
-        [[clojure.test :refer [deftest testing is]]]))
-  #?(:clj
-     (:import (hitch.graphs.immutable GraphValues))))
+        [[clojure.test :refer [deftest testing is]]])))
 
 
 (defn- get-immutable-graph-node [g sel nf]
-  (-> ^GraphValues @g (.-selnodes) (get sel nf)))
+  ;; Don't type hint GraphValues: something tricky with redefs will cause
+  ;; "java.lang.ClassCastException: GraphValues cannot be cast to GraphValues"
+  (-> @g (.-selnodes) (get sel nf)))
 
 (def fn-machine (->FnMachine))
 
@@ -24,25 +24,23 @@
   [["Immutable graph: " #(gm/atom-GraphManager (im/->ImmutableGraph 1)) get-immutable-graph-node]])
 
 (doseq [[graph-name gctor get-node] gctors]
-  (deftest create-and-orphan-machine
+  (deftest cannot-command-machines
     (let [g    (gctor)
           run? (volatile! false)]
       (h/apply-commands g [[fn-machine
                             [:do (fn [r g state]
-                                   (assoc r :effect (fn [_]
-                                                      (vreset! run? true))))]]])
-      (is @run? (str graph-name "Effect should run"))
-      (is (= ::notfound (get-node g fn-machine ::notfound))
-        "Machine should not exist because no-one requires it")))
+                                   (vreset! run? true)
+                                   r)]]])
+      (is (false? @run?) (str graph-name "Machine should not receive commands"))
+      (is (= ::absent (get-node g fn-machine ::absent))
+        "Machine should not exist because it received no commands")))
 
-  (deftest create-and-self-pin-machine
+  (deftest cannot-depend-on-machines-from-the-outside
     (let [g (gctor)]
-      (h/apply-commands g [[fn-machine
-                            [:do (fn [r g state]
-                                   (assoc r :dep-change {fn-machine true}))]]])
-      (is (get-node g fn-machine nil)
-        "Machine should exist because it depends on itself")
-      (is (= ::notfound (get @g fn-machine ::notfound))
+      (pin g fn-machine)
+      (is (= ::absent (->> ::absent (get-node g fn-machine)))
+        "Machine should not be pinnable")
+      (is (= ::absent (get @g fn-machine ::absent))
         "Machine should never have a value")))
 
   (deftest create-machine-via-var)
@@ -66,7 +64,7 @@
   (deftest cannot-external-dep-a-machine
     (let [g (gctor)]
       (pin g fn-machine)
-      (is (= ::notfound (get-node g fn-machine ::notfound))
+      (is (= ::absent (get-node g fn-machine ::absent))
         "Should not be possible to depend on a machine externally")))
 
   )
