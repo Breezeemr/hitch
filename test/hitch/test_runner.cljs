@@ -2,6 +2,7 @@
   (:require [hitch.selectors.mutable-var-test]
             [hitch.selectors.kv-store-test]
             [hitch.selectors.http-test]
+            [hitch.selectors.machine-test]
             [hitch.graphs.immutable-test]
             [hitch.graphs.mutable-test]
             [cljs.test :as test :include-macros true :refer [report]])
@@ -53,6 +54,7 @@
     'hitch.selectors.mutable-var-test
     'hitch.selectors.kv-store-test
     'hitch.selectors.http-test
+    'hitch.selectors.machine-test
     'hitch.graphs.immutable-test
     'hitch.graphs.mutable-test
     ))
