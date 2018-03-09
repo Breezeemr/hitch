@@ -143,7 +143,8 @@
   * Effect: A 1-arg function which, when called, performs some side-effect.
     Effects are only called at the end of a successful transaction after all
     commands have been processed and new selector values recalculated.
-    The effect function receives a transactable GraphManager as its argument.")
+    The effect function receives a transactable GraphManager as its argument."
+  (:refer-clojure :exclude [Var]))
 
 
 (defrecord SelectorUnresolved [parents])
