@@ -44,34 +44,16 @@
           ::hp/var-command
           (case varcmd
             :reset! (assoc-in r [:var-reset sel] v))
-          ::hp/child-add (assoc-in r [:var-reset sel] (:v sel))
-          ::hp/child-del r
-          ::hp/parent-value-change r))
-      commands)))
-
-;; The value of an EchoVar
-(defrecord EchoVar [v]
-  hp/Var
-  (machine-selector [_] (->EchoMachine)))
-
-(defrecord FnMachine []
-  hp/Machine
-  (apply-machine-commands [_ g s commands]
-    (reduce
-      (fn [r [cmd sel [fwdcmd f]]]
-        (case cmd
-          ::hp/var-selector
-          (case fwdcmd
-            :do (f r g s))
-          ::hp/child-add r
+          ::hp/child-add (assoc-in r [:var-reset sel] (:initial sel))
           ::hp/child-del r
           ::hp/parent-value-change r))
       {}
       commands)))
 
-(defrecord FnVar [id]
+;; The value of an EchoVar
+(defrecord EchoVar [initial]
   hp/Var
-  (machine-selector [_] (->FnMachine)))
+  (machine-selector [_] (->EchoMachine)))
 
 (defrecord LogMachine [log-volatile]
   hp/StatefulSelector
@@ -82,9 +64,15 @@
     (vswap! log-volatile conj [:destroy (:count s)])
     nil)
   hp/Machine
-  (apply-machine-commands [_ g {:keys [state]} commands]
+  (apply-machine-commands [_ g {:keys [state] :as sn} commands]
     (vswap! log-volatile conj [:commands (:count state) commands])
-    {:state (update state :count inc)}))
+    (reduce (fn [r [type _varsel [subcmd f]]]
+              (case type
+                ::hp/var-command (case subcmd
+                                   :fn (f r g sn))
+                r))
+      {:state (update state :count inc)}
+      commands)))
 
 (defrecord LogVar [log-volatile]
   hp/Var

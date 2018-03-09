@@ -138,6 +138,29 @@ ArrayList
                        v))
                    nf)))]))
 
+(deftype MergedLookup [m1 m2]
+  ILookup
+  #?@(:clj  [(valAt [this k]
+               (.valAt this k nil))
+             (valAt [_ k nf]
+               (let [v (.valAt ^ILookup m1 k UNKNOWN)]
+                 (if (unknown? v)
+                   (let [v (.valAt ^ILookup m2 k UNKNOWN)]
+                     (if (unknown? v)
+                       nf
+                       v))
+                   v)))]
+      :cljs [(-lookup [this k]
+               (-lookup this k nil))
+             (-lookup [_ k nf]
+               (let [v (-lookup m1 k UNKNOWN)]
+                 (if (unknown? v)
+                   (let [v (-lookup m2 k UNKNOWN)]
+                     (if (unknown? v)
+                       nf
+                       v))
+                   v)))]))
+
 ;; SelectorNode
 
 (defrecord ^:private SelectorNode
@@ -224,10 +247,10 @@ ArrayList
     (do
       (when *trace* (record! [:enq-recalc sel]))
       (enq-recalc! recalcs sel)
-      (assoc selnode :new? false))
+      (dissoc selnode :new?))
     (if #?(:default (:new? selnode)
            :cljs    ^boolean (:new? selnode))
-      (assoc selnode :new? false)
+      (dissoc selnode :new?)
       selnode)))
 
 
@@ -429,11 +452,12 @@ ArrayList
 (defn- apply-machine-commands
   ([ds selnodes machine-sel commands effects recalcs deps]
    (apply-machine-commands ds selnodes
-     (get|create-selnode! ds selnodes machine-sel effects)
+     (dissoc (get|create-selnode! ds selnodes machine-sel effects) :new?)
      machine-sel commands effects recalcs deps))
   ([ds selnodes sn machine-sel commands effects recalcs deps]
+   (when *trace* (record! [:machine-commands commands]))
    (let [ro-graph  (->MergedGraphValues {machine-sel sn}
-                     (->MergedGraphValues ds selnodes))
+                     (->MergedLookup ds selnodes))
          r         (proto/apply-machine-commands machine-sel ro-graph sn commands)
          ;; NOTE: skipping :commands for now
          {:keys [state dep-change var-reset effect]} r
@@ -449,6 +473,9 @@ ArrayList
          (when-not (and (cempty? adds) (cempty? dels))
            (record! [:enq-parent-changes machine-sel {:adds adds :dels dels}]))))
      (enq-parent-deps! deps machine-sel adds+dels)
+     (when *trace*
+       (when (seq (keys var-reset))
+         (record! [:enc-recalcs :var-reset machine-sel (keys var-reset)])))
      (enq-recalc-children! recalcs machine-sel (keys var-reset))
 
      (when *trace*
@@ -503,7 +530,8 @@ ArrayList
   [ds selnodes selnode sel adds+dels effects recalcs deps]
   (when-some [commands (not-cempty (adds+dels->commands adds+dels))]
     (when *trace* (record! [:inform-of-child-changes sel (add+del->map adds+dels)]))
-    (apply-machine-commands ds selnodes selnode sel commands effects recalcs deps)))
+    (-> (apply-machine-commands ds selnodes selnode sel commands effects recalcs deps)
+        (dissoc :new?))))
 
 (defn- update-selnode-children [ds selnodes sel adds+dels effects recalcs deps]
   (when *trace* (record! [:update-int-children sel (add+del->map adds+dels)]))
@@ -575,7 +603,6 @@ ArrayList
 
 (defn- recalculate-node [sel ds selnodes effects recalcs deps]
   (when *trace* (record! [:recalc sel]))
-  ()
   (let [sn               (get|create-selnode! ds selnodes sel effects)
         {:keys [parents] old-value :value} sn
         sv               (new-sel-value sel sn ds selnodes)
@@ -608,7 +635,9 @@ ArrayList
       changed-value? (assoc :value new-value))))
 
 (defn- recalculate-machine-node [dirty-parents machine-sel ds selnodes effects recalcs deps]
-  (let [sn       (get|create-selnode! ds selnodes machine-sel effects)
+  (when *trace* (record! [:recalc machine-sel]))
+  (let [sn       (-> (get|create-selnode! ds selnodes machine-sel effects)
+                     (dissoc :new?))
         commands (not-cempty
                    (into []
                      (keep #(when (contains? dirty-parents %)
@@ -734,7 +763,7 @@ ArrayList
     ;; Commands addressed to vars get re-addressed to machines
     (let [[sel' command']
           (if (satisfies? proto/Var sel)
-            [(proto/machine-selector sel) [::proto/var-selector sel command]]
+            [(proto/machine-selector sel) [::proto/var-command sel command]]
             [sel command])]
       (->> (update (-> acc :sel->cmd->arg (get sel' {}))
              ::commands (fnil conj []) command')
