@@ -3,7 +3,8 @@
             [clojure.set])
   #?(:clj
      (:import (clojure.lang ILookup)
-              (java.util ArrayList))))
+              (java.util ArrayList)
+              (java.io Writer))))
 
 ;; Tracing machinery
 (def #?(:default ^:dynamic *trace*
@@ -67,12 +68,17 @@ ArrayList
 ;; UNKNOWN value sentinel
 
 (defonce ^:private UNKNOWN
-  (reify
-    #?@(:clj  [Object
-               (toString [_] "#<UNKNOWN>")]
-        :cljs [IPrintWithWriter
-               (-pr-writer [_ writer opts]
-                 (-write writer "#<UNKNOWN>"))])))
+  (-> (reify
+        #?@(:clj  [Object
+                   (toString [_] "#<UNKNOWN>")]
+            :cljs [IPrintWithWriter
+                   (-pr-writer [_ writer opts]
+                     (-write writer "#<UNKNOWN>"))]))
+      #?(:clj (vary-meta assoc :type ::UNKNOWN))))
+
+#?(:clj
+   (defmethod print-method ::UNKNOWN [c, ^Writer w]
+     (.write w "#<UNKNOWN>")))
 
 (defn- unknown? [x] (identical? UNKNOWN x))
 
