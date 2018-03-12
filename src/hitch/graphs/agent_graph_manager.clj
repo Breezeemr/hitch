@@ -3,7 +3,7 @@
   (:require [hitch.protocol :as hp]
             [hitch.oldprotocols :as op]
             [hitch.graphs.graph-manager :as gm])
-  (:import (clojure.lang ILookup IDeref IRef)))
+  (:import (clojure.lang ILookup IDeref IRef Agent)))
 
 (defn- gm-agent-transact-runner [gm-state commands oob-request-data]
   (cond
@@ -90,7 +90,8 @@
 
 (defn- effect-runner [prev-effect-tx-id tx-id effect gm-agent]
   (let [gm (->EffectGraphManager gm-agent {::effect-from-tx-id tx-id})]
-    (effect gm))
+    (when (:running? @gm-agent)
+      (.execute Agent/soloExecutor (effect gm))))
   tx-id)
 
 (defn- effect+notify-watcher [effect-agent notify-agent]
