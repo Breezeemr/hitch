@@ -4,7 +4,7 @@
             [hitch.graph :as h]
             [hitch.test-common :refer [->EchoMachine ->EchoVar
                                        ->LogMachine ->LogVar
-                                       ->SelVec]]
+                                       ->Constant ->SelVec]]
             [hitch.pin :refer [pin unpin]]
             [hitch.graphs.graph-manager :as gm]
             [hitch.graphs.immutable :as im]
@@ -79,19 +79,57 @@
           (is (empty? xs)
             (str graph-name "No other events should happen to the machine"))))))
 
-  (deftest machine-can-var-reset-on-child-add
-    (let [g        (gctor)
-          echo-var (->EchoVar 0)]
-      (pin g echo-var)
-      (is (= 0 (get @g echo-var))
-        (str graph-name "Var-reset should apply in same TX as child-add"))))
+  (deftest machine-can-dep-change
+    (let [g         (gctor)
+          log       (volatile! [])
+          c1        (->Constant 1)
+          c2        (->Constant 2)
+          c3        (->Constant 3)
+          log-var   (->LogVar log)
+          machine   (->LogMachine log)]
+      (pin g log-var)
+      (h/apply-commands g [[log-var
+                            [:fn (fn [r g _]
+                                   (is (and
+                                         (= ::absent (get g c1 ::absent))
+                                         (= ::absent (get g c2 ::absent)))
+                                     (str graph-name "Machine parent should not yet be visible"))
+                                   (assoc r :dep-change {c1 true
+                                                         c2 true}))]]])
+      (is (= #{c1 c2} (:parents (get-node g machine nil)))
+        (str graph-name "Machine should gain requested parents"))
 
-  (deftest machine-sees-parent-update-from-other-var
+      (h/apply-commands g [[log-var
+                            [:fn (fn [r g _]
+                                   (is (and
+                                         (= 1 (get g c1 ::absent))
+                                         (= 2 (get g c2 ::absent)))
+                                     (str graph-name "Machine parents from previous dep change should be visible"))
+                                   (assoc r :dep-change {c1 false
+                                                         c2 false
+                                                         c3 true}))]]])
+
+      (is (= #{c3} (:parents (get-node g machine nil)))
+        (str graph-name "Machine should be able to add and remove deps in same command"))
+
+      (h/apply-commands g [[log-var
+                            [:fn (fn [r g _]
+                                   (is (and
+                                         (= 3 (get g c3 ::absent)))
+                                     (str graph-name "Machine parents from previous dep change should be visible"))
+                                   (assoc r :dep-change {c1 false
+                                                         c2 false
+                                                         c3 false}))]]])
+      (is (empty? (:parents (get-node g machine nil)))
+        (str graph-name "Machine should be able to remove all deps"))
+      ))
+
+  (deftest machine-can-var-reset-on-child-add
     (let [g         (gctor)
           log       (volatile! [])
           log-var   (->LogVar log)
           other-var (->EchoVar 0)
-          seen-vals  (volatile! [])]
+          seen-vals (volatile! [])]
       (pin g log-var)
       (pin g other-var)
 
@@ -99,13 +137,48 @@
         [[log-var [:fn (fn [r g _]
                          (vswap! seen-vals conj (get g other-var ::absent))
                          (assoc r :dep-change {other-var true}))]]])
+      (prn @log)
       (vreset! log [])
       (h/apply-commands g [[other-var [:reset! 1]]])
 
-      (is (= @log [[:commands 2 [[::hp/parent-value-change other-var]]]])
+      (is (= @log [[:commands 3 [[::hp/parent-value-change other-var]]]])
         (str graph-name "Machine should be notified of value change on parent var owned by another machine"))
       (is (= [0] @seen-vals)
-        (str graph-name "Machine should see current var value"))
+        (str graph-name "Machine should see current var value only once"))
+
+      ))
+
+  (deftest machine-sees-parent-update-from-other-var
+    (let [g         (gctor)
+          log       (volatile! [])
+          log-var   (->LogVar log)
+          other-var (->EchoVar 0)
+          seen-vals  (volatile! [])
+          log-var-cmd [:fn (fn [r g _]
+                             (vswap! seen-vals conj (get g other-var ::absent))
+                             (assoc r :dep-change {other-var true}))]]
+      (pin g log-var)
+      (pin g other-var)
+
+      (vreset! log [])
+
+      (h/apply-commands g
+        [[log-var log-var-cmd]])
+
+      (is (= [[:commands 1 [::hp/var-command log-var log-var-cmd]]]
+            @log)
+        "Machine should only see dep-change command, never parent-value-change from pre-existing other-var.")
+
+      (is (= [0] @seen-vals)
+        (str graph-name "Machine should see current other-var value"))
+
+      (vreset! log [])
+      (h/apply-commands g [[other-var [:reset! 1]]])
+
+
+      (is (= @log [[:commands 2 [[::hp/parent-value-change other-var]]]])
+        (str graph-name "Machine should be notified of value change on parent var owned by another machine"))
+
 
       )
     )

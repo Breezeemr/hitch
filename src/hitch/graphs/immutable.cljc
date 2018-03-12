@@ -465,7 +465,8 @@ ArrayList
                        ;; NOTE: keeping var-reset for the recalc phase of vars
                        ;; Var should look in here for its new value
                        (update :var-reset merge var-reset))
-         adds+dels (dep-changes->adds+dels (:parents sn') dep-change)]
+         adds+dels (dep-changes->adds+dels (:parents sn') dep-change)
+         sn'       (update sn' :parents apply-adds+dels adds+dels)]
      (when *trace*
        (let [[adds dels] adds+dels
              adds (into [] adds)
