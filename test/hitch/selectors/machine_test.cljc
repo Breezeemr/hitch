@@ -1,6 +1,5 @@
 (ns hitch.selectors.machine-test
-  (:import #?(:cljs (cljs.core ExceptionInfo)
-              :default (clojure.lang ExceptionInfo)))
+  (:import #?(:clj (clojure.lang ExceptionInfo)))
   (:require [hitch.protocol :as hp]
             [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as h]
