@@ -458,6 +458,30 @@ ArrayList
           (enq-recalc-children! recalc sel recalc-child-selectors)
           selnode')))))
 
+(defn- #?(:cljs    ^boolean var-belongs-to-machine?
+          :default var-belongs-to-machine?)
+  [ds selnodes machine-sel var-sel]
+  (or
+    (= machine-sel (:machine (lookup ds var-sel)))
+    (= machine-sel (:machine (lookup selnodes var-sel)))
+    (and
+      (satisfies? proto/Var var-sel)
+      (= machine-sel (proto/machine-selector var-sel)))))
+
+(defn- merge-var-reset* [vr! ds selnodes machine-sel var-sel value]
+  (if (var-belongs-to-machine? ds selnodes machine-sel var-sel)
+    (assoc! vr! var-sel value)
+    (throw-ex-info "Machines cannot var-reset non-vars or other machine's vars"
+      {:machine       machine-sel
+       :bad-var-reset [var-sel value]})))
+
+(defn- merge-var-reset [old-vr ds selnodes machine-sel new-vr]
+  (persistent!
+    (reduce-kv (fn [vr! var-sel value]
+                 (merge-var-reset* vr! ds selnodes machine-sel var-sel value))
+      (transient (if (nil? old-vr) {} old-vr))
+      new-vr)))
+
 (defn- apply-machine-commands
   ([ds selnodes machine-sel commands effects recalcs deps]
    (apply-machine-commands ds selnodes
@@ -473,7 +497,8 @@ ArrayList
          sn'       (-> (assoc sn :state state)
                        ;; NOTE: keeping var-reset for the recalc phase of vars
                        ;; Var should look in here for its new value
-                       (update :var-reset merge var-reset))
+                       (update :var-reset merge-var-reset ds selnodes
+                         machine-sel var-reset))
          adds+dels (dep-changes->adds+dels (:parents sn') dep-change)
          sn'       (update sn' :parents apply-adds+dels adds+dels)]
      (when *trace*

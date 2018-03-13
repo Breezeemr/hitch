@@ -1,5 +1,6 @@
 (ns hitch.selectors.machine-test
-  (:import (clojure.lang ExceptionInfo))
+  (:import #?(:cljs (cljs.core ExceptionInfo)
+              :default (clojure.lang ExceptionInfo)))
   (:require [hitch.protocol :as hp]
             [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as h]
@@ -31,16 +32,11 @@
 (doseq [[graph-name gctor get-node] gctors]
   (deftest cannot-command-machines
     (let [g       (gctor)
-          run?    (volatile! false)
-          machine (->LogMachine (volatile! []))]
-      (h/apply-commands g [[machine
-                            [:fn (fn [r _g _sn]
-                                   (vreset! run? true)
-                                   r)]]])
-      (is (false? @run?)
-        (str graph-name "Machine should not receive commands"))
-      (is (= ::absent (get-node g machine ::absent))
-        (str graph-name "Machine should not exist because it received no commands"))))
+          log     (volatile! [])
+          machine (->LogMachine log)]
+      (h/apply-commands g [[machine [:fn (fn [r _g _sn] r)]]])
+      (is (empty? @log)
+        (str graph-name "Machine should not receive commands"))))
 
   (deftest cannot-depend-on-machines-from-the-outside
     (let [g       (gctor)
@@ -351,8 +347,44 @@
         (str graph-name
           "Realized selectors should see parent var-resets"))))
 
-  (deftest cannot-var-reset-non-vars)
+  (deftest cannot-var-reset-non-vars
+    (let [g         (gctor)
+          log       (volatile! [])
+          log-var   (->LogVar log)
+          mut-var   (mutable-var :foo)
+          reset-cmd [:fn (fn [r _g _sn]
+                           (assoc r :var-reset {mut-var 1}))]]
 
-  (deftest can-var-reset-only-own-vars)
+      (pin g mut-var)
+
+      (is (= ::threw (try
+                       (h/apply-commands g [[log-var reset-cmd]])
+                       (catch ExceptionInfo e ::threw)))
+        (str graph-name "Machines cannot var-reset non-vars"))))
+
+  (deftest can-var-reset-only-own-vars
+    (let [g         (gctor)
+          log       (volatile! [])
+          log-var   (->LogVar log)
+          reset-cmd [:fn (fn [r _g _sn]
+                           (assoc r :var-reset {(->EchoVar 0) 1}))]]
+
+      (pin g log-var)
+
+      (is (= ::threw (try
+                       (h/apply-commands g [[log-var reset-cmd]])
+                       (catch ExceptionInfo e ::threw)))
+        (str graph-name "Machines cannot var-reset other machine's vars"))))
+
+  (deftest machine-effects-run
+    (let [g       (gctor)
+          run     (volatile! [])
+          log-var (->LogVar (volatile! []))]
+      (h/apply-commands g [[log-var
+                            [:fn (fn [r _g _sn]
+                                   (assoc r
+                                     :effect (fn [_] (vswap! run conj true))))]]])
+      (is (= [true] @run)
+        (str graph-name "Machine effects should run"))))
 
   )
