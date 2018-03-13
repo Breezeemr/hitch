@@ -66,10 +66,20 @@
   hp/Machine
   (apply-machine-commands [_ g {:keys [state] :as sn} commands]
     (vswap! log-volatile conj [:commands (:count state) commands])
-    (reduce (fn [r [type _varsel [subcmd f]]]
+    (reduce (fn [r [type parent-sel [subcmd f]]]
               (case type
-                ::hp/var-command (case subcmd
-                                   :fn (f r g sn))
+                ::hp/var-command
+                (case subcmd
+                  :fn (f r g sn)
+                  :log (let [lv (f r g sn)]
+                         (vswap! log-volatile conj [:log (:count state) lv])
+                         r))
+
+                ::hp/parent-value-change
+                (do
+                  (vswap! log-volatile conj [:new-parent-value (:count state) parent-sel (get g parent-sel ::absent)])
+                  r)
+
                 r))
       {:state (update state :count inc)}
       commands)))

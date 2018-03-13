@@ -14,6 +14,10 @@
         :default
         [[clojure.test :refer [deftest testing is]]])))
 
+(defn- select-all-keys [m ks nf]
+  (into {}
+    (map #(do [% (get m % nf)]))
+    ks))
 
 (defn- get-immutable-graph-node [g sel nf]
   ;; Don't type hint GraphValues: something tricky with redefs will cause
@@ -29,7 +33,7 @@
           run?    (volatile! false)
           machine (->LogMachine (volatile! []))]
       (h/apply-commands g [[machine
-                            [:fn (fn [r g state]
+                            [:fn (fn [r _g _sn]
                                    (vreset! run? true)
                                    r)]]])
       (is (false? @run?)
@@ -110,7 +114,8 @@
                                                          c3 true}))]]])
 
       (is (= #{c3} (:parents (get-node g machine nil)))
-        (str graph-name "Machine should be able to add and remove deps in same command"))
+        (str graph-name
+          "Machine should be able to add and remove deps in same command"))
 
       (h/apply-commands g [[log-var
                             [:fn (fn [r g _]
@@ -121,94 +126,220 @@
                                                          c2 false
                                                          c3 false}))]]])
       (is (empty? (:parents (get-node g machine nil)))
-        (str graph-name "Machine should be able to remove all deps"))
-      ))
+        (str graph-name "Machine should be able to remove all deps"))))
 
   (deftest machine-can-var-reset-on-child-add
-    (let [g         (gctor)
-          log       (volatile! [])
-          log-var   (->LogVar log)
-          other-var (->EchoVar 0)
-          seen-vals (volatile! [])]
+    (let [g        (gctor)
+          echo-var (->EchoVar 0)]
+      (pin g echo-var)
+      (is (= 0 (get @g echo-var))
+        (str graph-name
+          "Machine can var-reset its own Var as soon as it is ::hp/child-add-ed"))))
+
+  (deftest machine-does-not-see-parent-update-for-realized-unchanging-parent
+    (let [g            (gctor)
+          log          (volatile! [])
+          log-var      (->LogVar log)
+          realized-sel (->Constant 0)
+          log-cmd      [:log (fn [_r g _sn]
+                               (select-all-keys g [realized-sel] ::absent))]
+          dep-cmd      [:fn (fn [r _g _sn]
+                              (assoc r :dep-change {realized-sel true}))]]
+      (pin g realized-sel)
       (pin g log-var)
-      (pin g other-var)
 
-      (h/apply-commands g
-        [[log-var [:fn (fn [r g _]
-                         (vswap! seen-vals conj (get g other-var ::absent))
-                         (assoc r :dep-change {other-var true}))]]])
-      (prn @log)
       (vreset! log [])
-      (h/apply-commands g [[other-var [:reset! 1]]])
 
-      (is (= @log [[:commands 3 [[::hp/parent-value-change other-var]]]])
-        (str graph-name "Machine should be notified of value change on parent var owned by another machine"))
-      (is (= [0] @seen-vals)
-        (str graph-name "Machine should see current var value only once"))
+      (h/apply-commands g [[log-var log-cmd] [log-var dep-cmd]])
+      (let [[cmds seen-val & other] @log]
+        (is (= cmds [:commands 1 [[::hp/var-command log-var log-cmd]
+                                  [::hp/var-command log-var dep-cmd]]]))
 
-      ))
+        (is (= seen-val [:log 1 {realized-sel 0}])
+          (str graph-name
+            "Machine should see value of realized selector before adding as a parent"))
+
+        (is (empty? other)
+          (str graph-name
+            "Machine should not be notified of parent-value-change after adding as parent if parent value did not change")))))
+
+  (deftest machine-sees-parent-update-from-created-parent
+    (let [g          (gctor)
+          log        (volatile! [])
+          log-var    (->LogVar log)
+          parent-sel (->Constant 0)
+          log-cmd    [:log (fn [_r g _sn]
+                             (select-all-keys g [parent-sel] ::absent))]
+          dep-cmd    [:fn (fn [r _g _sn]
+                            (assoc r :dep-change {parent-sel true}))]]
+      (pin g log-var)
+
+      (vreset! log [])
+
+      (h/apply-commands g [[log-var log-cmd] [log-var dep-cmd]])
+      (let [[cmds seen-val parent-val-chg parent-val & other] @log]
+        (is (= cmds [:commands 1 [[::hp/var-command log-var log-cmd]
+                                  [::hp/var-command log-var dep-cmd]]]))
+
+        (is (= seen-val [:log 1 {parent-sel ::absent}])
+          (str graph-name
+            "Machine should not see value of unrealized selector before adding as a parent"))
+
+        (is (= parent-val-chg [:commands 2 [[::hp/parent-value-change parent-sel]]])
+          (str graph-name "Machine should see parent-value-change of newly-created parent"))
+
+        (is (= parent-val [:new-parent-value 2 parent-sel 0])
+          (str graph-name "Machine should see new parent val at moment of parent-value-change"))
+
+        (is (empty? other)
+          (str graph-name "Machine should not see any other updates")))))
 
   (deftest machine-sees-parent-update-from-other-var
-    (let [g         (gctor)
-          log       (volatile! [])
-          log-var   (->LogVar log)
-          other-var (->EchoVar 0)
-          seen-vals  (volatile! [])
-          log-var-cmd [:fn (fn [r g _]
-                             (vswap! seen-vals conj (get g other-var ::absent))
+    (let [g           (gctor)
+          log         (volatile! [])
+          log-var     (->LogVar log)
+          other-var   (->EchoVar 0)
+          log-var-cmd [:fn (fn [r _g _sn]
                              (assoc r :dep-change {other-var true}))]]
       (pin g log-var)
       (pin g other-var)
 
       (vreset! log [])
 
-      (h/apply-commands g
-        [[log-var log-var-cmd]])
-
-      (is (= [[:commands 1 [::hp/var-command log-var log-var-cmd]]]
-            @log)
-        "Machine should only see dep-change command, never parent-value-change from pre-existing other-var.")
-
-      (is (= [0] @seen-vals)
-        (str graph-name "Machine should see current other-var value"))
+      (h/apply-commands g [[log-var log-var-cmd]])
 
       (vreset! log [])
       (h/apply-commands g [[other-var [:reset! 1]]])
 
+      (let [[parent-change-command new-parent-value & other] @log]
+        (is (= parent-change-command
+              [:commands 2 [[::hp/parent-value-change other-var]]])
+          (str graph-name
+            "Machine should be notified of value change on parent var owned by another machine"))
 
-      (is (= @log [[:commands 2 [[::hp/parent-value-change other-var]]]])
-        (str graph-name "Machine should be notified of value change on parent var owned by another machine"))
+        (is (= new-parent-value [:new-parent-value 2 other-var 1])
+          (str graph-name
+            "Machine should see new parent value when notified of its change"))
 
+        (is (empty? other)
+          (str graph-name "No other commands should be issued")))))
 
-      )
-    )
+  (deftest machine-sees-parent-update-from-selector
+    (let [g           (gctor)
+          log         (volatile! [])
+          log-var     (->LogVar log)
+          distant-sel (mutable-var :foo)
+          parent-sel  (->SelVec [distant-sel])
+          log-cmd     [:log (fn [_r g _sn]
+                              (select-all-keys g [parent-sel] ::absent))]
+          dep-cmd     [:fn (fn [r _g _sn]
+                             (assoc r :dep-change {parent-sel true}))]]
+      (pin g log-var)
+      (pin g distant-sel)
 
-  ;; Not sure if this test should pass
-  ;; Protocol mentions deps applied before var-resets, but I don't remember why?
-  #_(deftest var-reset-propagates-immediately
-      (let [g         (gctor)
-            log       (volatile! [])
-            log-var   (->LogVar log)
-            other-var (->EchoVar 0)
-            seen-val  (volatile! nil)]
-        (pin g log-var)
-        (pin g other-var)
+      (vreset! log [])
 
-        (h/apply-commands g
-          [[other-var [:reset! 1]]
-           [log-var [:fn (fn [r g _]
-                           (if (nil? @seen-val)
-                             (vreset! seen-val (get g other-var))
-                             (vreset! seen-val ::seen-twice))
-                           (assoc r :dep-change {other-var true}))]]])
-        (is (= 1 @seen-val)
-          (str graph-name "Var reset should be visible on the graph during command application"))))
+      (h/apply-commands g [[log-var log-cmd]
+                           [log-var dep-cmd]])
 
-  (deftest machine-sees-parent-update-from-selector)
+      (is (= [[:commands 1 [[::hp/var-command log-var log-cmd]
+                            [::hp/var-command log-var dep-cmd]]]
+              [:log 1 {parent-sel ::absent}]] @log)
+        (str graph-name
+          "Machine parent value should not be visible"))
 
-  (deftest machine-does-not-see-own-var-update)
+      (vreset! log [])
 
-  (deftest machine-does-not-see-parent-update-for-realized-unchanging-parent)
+      (h/apply-commands g [[distant-sel [:set-value 1]]])
+
+      (let [[parent-change-command new-parent-value & other] @log]
+        (is (= parent-change-command
+              [:commands 2 [[::hp/parent-value-change parent-sel]]])
+          (str graph-name
+            "Machine should be notified of value change on parent selector"))
+
+        (is (= new-parent-value [:new-parent-value 2 parent-sel [1]])
+          (str graph-name
+            "Machine should see new parent value when notified of its change"))
+
+        (is (empty? other)
+          (str graph-name "No other commands should be issued")))))
+
+  (deftest var-reset-without-children-is-not-saved
+    (let [g       (gctor)
+          log     (volatile! [])
+          log-var (->LogVar log)
+          rst-cmd [:fn (fn [r _g _sn]
+                         (assoc r :var-reset {log-var 1}))]]
+
+      (h/apply-commands g [[log-var rst-cmd]])
+
+      (is (= ::absent (get-node g log-var ::absent))
+        (str graph-name "Var-reset on unused vars should not be visible in graph"))))
+
+  (deftest machine-does-not-see-own-var-update
+    (let [g         (gctor)
+          log       (volatile! [])
+          log-var   (->LogVar log)
+          log-cmd   [:log (fn [_r g _sn]
+                            (select-all-keys g [log-var] ::absent))]
+          dep-cmd   [:fn (fn [r _g _sn]
+                           (assoc r
+                             :var-reset {log-var 1}
+                             :dep-change {log-var true}))]
+          reset-cmd [:fn (fn [r _g _sn]
+                           (assoc r :var-reset {log-var 2}))]]
+
+      (pin g log-var)
+
+      (h/apply-commands g [[log-var dep-cmd]])
+
+      (h/apply-commands g [[log-var log-cmd]
+                           [log-var reset-cmd]])
+
+      (is (->> @log
+               (filter (fn [[type]] (= type :commands)))
+               (mapcat (fn [[_ _ cmds]]
+                         (map first cmds)))
+
+               (not-any? #(= ::hp/parent-value-change %)))
+        (str graph-name "Machine should never receive parent-value-change for its own vars"))))
+
+  (deftest selectors-dont-see-unrealized-vars
+    (let [g         (gctor)
+          log       (volatile! [])
+          log-var   (->LogVar log)
+          sel       (->SelVec [log-var])
+          reset-cmd [:fn (fn [r _g _sn]
+                           (assoc r :var-reset {log-var 1}))]]
+
+      (pin g sel)
+
+      (is (= ::absent (get @g sel ::absent))
+        (str graph-name "Selector with unset var parent should not be realized"))
+
+      (h/apply-commands g [[log-var reset-cmd]])
+
+      (is (= [1] (get @g sel ::absent))
+        (str graph-name "Selector should see var-reset of unrealized var"))))
+
+  (deftest selectors-see-var-resets
+    (let [g         (gctor)
+          var       (->EchoVar 0)
+          sel       (->SelVec [var])]
+
+      (pin g sel)
+
+      (is (= [0] (get @g sel ::absent))
+        (str graph-name
+          "Selector should see parent var-reset issued in same tx as selector creation"))
+
+      (h/apply-commands g [[var [:reset! 1]]])
+
+      (is (= [1] (get @g sel ::absent))
+        (str graph-name
+          "Realized selectors should see parent var-resets"))))
+
 
   (deftest only-vars-can-dep-machines)
 
@@ -216,13 +347,10 @@
 
   (deftest can-var-reset-only-own-vars)
 
-  (deftest selectors-see-var-resets)
-
   (deftest cannot-external-dep-a-machine
     (let [g       (gctor)
           machine (->EchoMachine)]
       (pin g machine)
       (is (= ::absent (get-node g machine ::absent))
         "Should not be possible to depend on a machine externally")))
-
   )

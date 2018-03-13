@@ -35,8 +35,9 @@ ArrayList
 
 ;; Needed for transients: clj transients are callable but cljs are not.
 ;; Could use get, but less efficient
-#?(:clj  (defn- lookup [^ILookup xs v] (.valAt xs v))
-   :cljs (defn- lookup [xs v] (-lookup xs v)))
+#?(:clj     (defn- lookup [^ILookup xs v] (.valAt xs v))
+   :cljs    (defn- lookup [xs v] (-lookup xs v))
+   :default (defn- lookup [xs v] (get xs v)))
 
 (defn- update!
   ([xs! k f]
@@ -365,19 +366,27 @@ ArrayList
 (defn- create-selnode! [sel effects]
   (when *trace* (record! [:create sel]))
   (let [sn (new-SelectorNode)]
-    (cond
-      (satisfies? proto/Var sel)
-      (assoc sn :machine (proto/machine-selector sel))
+    (cond->
+      (cond
+        (satisfies? proto/Var sel)
+        (assoc sn :machine (proto/machine-selector sel))
 
-      (satisfies? proto/StatefulSelector sel)
-      (let [{:keys [state effect]} (proto/create sel)]
-        (when *trace* (when effect (record! [:enq-effect :create sel])))
-        (enq-effect! effects effect)
-        (when *trace* (record! [:state-oncreate sel state]))
-        (assoc sn :state state))
+        (satisfies? proto/StatefulSelector sel)
+        (let [{:keys [state effect]} (proto/create sel)]
+          (when *trace* (when effect (record! [:enq-effect :create sel])))
+          (enq-effect! effects effect)
+          (when *trace* (record! [:state-oncreate sel state]))
+          (assoc sn :state state))
 
-      :else
-      sn)))
+        :else
+        sn)
+
+      ;; Machine's value is either ::machine-parents-known if no parents
+      ;; or all parents are realized (not UNKNOWN).
+      ;; This is a trick to ensure machines are not notified of
+      ;; ::hp/parent-value-change unnecessarily.
+      (satisfies? proto/Machine sel)
+      (assoc :value ::machine-parents-known))))
 
 (defn- get|create-selnode! [dirty-selnodes selnodes sel effects]
   (if-some [sn (get-selnode dirty-selnodes selnodes sel)]
@@ -561,11 +570,7 @@ ArrayList
       ;; our value.
       ;; This is basically a special case of "recalc my children after value
       ;; change" where some children were not known at the moment we recalced.
-      (let [recalc-children (filterv #(unknown?
-                                        (:value
-                                          #?(:default (get ds %)
-                                             :clj     (.valAt ^ILookup ds %)
-                                             :cljs    (-lookup ds %))))
+      (let [recalc-children (filterv #(unknown? (:value (lookup ds %)))
                               (get-adds adds+dels))]
         (when *trace*
           (when-not (cempty? recalc-children)
@@ -584,10 +589,10 @@ ArrayList
 (defn- new-sel-value-var
   [varsel {old-value :value
            :keys     [int-children ext-children parents machine]} ds]
-  (let [parents (if (and (cempty? int-children) (cempty? ext-children))
+  (let [parents   (if (and (cempty? int-children) (cempty? ext-children))
                   #{}
                   (conj parents machine))
-        new-value (-> (get ds machine) :var-reset (get varsel UNKNOWN))]
+        new-value (-> (lookup ds machine) :var-reset (get varsel UNKNOWN))]
     (if-not (identical? UNKNOWN new-value)
       (proto/->SelectorValue new-value parents)
       (if-not (identical? UNKNOWN old-value)
@@ -635,6 +640,22 @@ ArrayList
                 (assoc :parents new-parents))
       changed-value? (assoc :value new-value))))
 
+(defn- #?(:cljs    ^boolean all-known?
+          :default all-known?)
+  [ds selnodes sels]
+  (let [g (->MergedGraphValues ds selnodes)]
+    (reduce (fn [_ sel]
+              (if (unknown? (lookup g sel))
+                (reduced false)
+                true))
+      true
+      sels)))
+
+(defn- add-machine-node-value [{:keys [parents] :as sn} ds selnodes]
+  (if (all-known? ds selnodes parents)
+    (assoc sn :value ::machine-parents-known)
+    (assoc sn :value UNKNOWN)))
+
 (defn- recalculate-machine-node [dirty-parents machine-sel ds selnodes effects recalcs deps]
   (when *trace* (record! [:recalc machine-sel]))
   (let [sn       (-> (get|create-selnode! ds selnodes machine-sel effects)
@@ -644,9 +665,10 @@ ArrayList
                      (keep #(when (contains? dirty-parents %)
                               [::proto/parent-value-change %]))
                      (:parents sn)))]
-    (if (some? commands)
-      (apply-machine-commands ds selnodes sn machine-sel commands effects recalcs deps)
-      sn)))
+    (-> (if (some? commands)
+          (apply-machine-commands ds selnodes sn machine-sel commands effects recalcs deps)
+          sn)
+        (add-machine-node-value ds selnodes))))
 
 (defn- recalculate-nodes [dirty-parents recalc-sels dirty-selnodes selnodes effects recalcs deps]
   (persistent!
