@@ -599,8 +599,24 @@ ArrayList
         (proto/->SelectorValue old-value parents)
         (proto/->SelectorUnresolved parents)))))
 
+(defn- #?(:cljs    ^boolean has-machines?
+          :default has-machines?)
+  [sels]
+  (reduce
+    (fn [_ s]
+      (if (satisfies? proto/Machine s)
+        (reduced true)
+        false))
+    false sels))
+
 (defn- new-sel-value-selector [sel {:keys [state]} ds selnodes]
-  (proto/value sel (->MergedGraphValues ds selnodes) state))
+  (let [{:keys [parents] :as v}
+        (proto/value sel (->MergedGraphValues ds selnodes) state)]
+    (if (has-machines? parents)
+      (throw-ex-info "Selectors cannot depend on machines"
+        {:selector sel
+         :parents  parents})
+      v)))
 
 (defn- new-sel-value [sel sn ds selnodes]
   (if (satisfies? proto/Var sel)

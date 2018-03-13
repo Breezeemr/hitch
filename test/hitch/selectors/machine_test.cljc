@@ -1,4 +1,5 @@
 (ns hitch.selectors.machine-test
+  (:import (clojure.lang ExceptionInfo))
   (:require [hitch.protocol :as hp]
             [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as h]
@@ -46,9 +47,19 @@
           machine (->EchoMachine)]
       (pin g machine)
       (is (= ::absent (get-node g machine ::absent))
-        (str graph-name "Machine should not be pinnable"))
-      (is (= ::absent (get @g machine ::absent))
-        (str graph-name "Machine should never have a value"))))
+        (str graph-name "Machine should not be pinnable"))))
+
+  (deftest selectors-cannot-depend-on-machines
+    (let [g       (gctor)
+          machine (->EchoMachine)
+          sel     (->SelVec [machine])
+          pin-sel (try
+                    (pin g sel)
+                    (catch ExceptionInfo e
+                      ::threw))]
+
+      (is (= ::threw pin-sel)
+        (str graph-name "Ordinary selectors cannot depend on machines"))))
 
   (deftest create-machine-via-var
     (let [g (gctor)
@@ -340,17 +351,8 @@
         (str graph-name
           "Realized selectors should see parent var-resets"))))
 
-
-  (deftest only-vars-can-dep-machines)
-
   (deftest cannot-var-reset-non-vars)
 
   (deftest can-var-reset-only-own-vars)
 
-  (deftest cannot-external-dep-a-machine
-    (let [g       (gctor)
-          machine (->EchoMachine)]
-      (pin g machine)
-      (is (= ::absent (get-node g machine ::absent))
-        "Should not be possible to depend on a machine externally")))
   )
