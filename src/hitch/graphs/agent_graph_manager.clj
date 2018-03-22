@@ -31,7 +31,7 @@
           {:running?                           (:running? gm-state)
            :graph-before                       graph-node
            :graph                              graph-node'
-           :tx-id                              (unchecked-inc (:tx-id gm-state))
+           :tx-id                              (unchecked-inc ^long (:tx-id gm-state))
            :error-count                        (:error-count gm-state)
            :effect                             effect
            :recalc-external-children           recalc-external-children
@@ -44,7 +44,7 @@
            :graph            graph-node
            :tx-id            (:tx-id gm-state)
            :error            error
-           :error-count      (unchecked-inc (:error-count gm-state))
+           :error-count      (unchecked-inc ^long (:error-count gm-state))
            :oob-request-data oob-request-data})))))
 
 (defn- gm-agent-transact! [gm-agent commands oob-request-data]

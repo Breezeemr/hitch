@@ -724,19 +724,19 @@ ArrayList
 (defn- stabilize-nodes [dirty-selnodes selnodes effects recalcs deps max-cycles]
   ;; all deps, then all recalcs
   ;; during deps, if informed, issue commands and update
-  (if (zero? max-cycles)
+  (if (zero? ^long max-cycles)
     (throw-ex-info "Could not stabilize graph: aborting transaction." {})
     (if-some [child-changes (not-cempty (clear-deps! deps))]
       (do
         (when *trace* (record! [:stabilize-children max-cycles]))
         (let [ds (update-selnodes-children child-changes selnodes dirty-selnodes effects recalcs deps)]
-          (recur ds selnodes effects recalcs deps (dec max-cycles))))
+          (recur ds selnodes effects recalcs deps (dec ^long max-cycles))))
       (let [[need-recalc dirty-parents] (clear-recalcs! recalcs)]
         (if-not (cempty? need-recalc)
           (do
             (when *trace* (record! [:stabilize-values max-cycles]))
             (let [ds (recalculate-nodes dirty-parents need-recalc dirty-selnodes selnodes effects recalcs deps)]
-              (recur ds selnodes effects recalcs deps (dec max-cycles))))
+              (recur ds selnodes effects recalcs deps (dec ^long max-cycles))))
           dirty-selnodes)))))
 
 (defn- destroy-orphaned-nodes
