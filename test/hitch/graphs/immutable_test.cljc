@@ -25,6 +25,7 @@
   (let [gn           (:graph-node (gm/create-graph-node (im/->ImmutableGraph 1)))
         vec-selector (->SelVec [(->Constant 1) (->Constant 2) (->Constant 3)])
         [status {:keys [value state] :as new-node} {:keys [effect recalc-external-children
+                                                           selector-changes-by-ext-child
                                                            observable-changed-selector-values]}]
         (gm/apply-graph-node-commands gn
           [[::hp/child-add vec-selector :ext1]])]
@@ -61,6 +62,7 @@
       (is (= (get value vec-selector) [1 2 3])))
     (is (nil? effect))
     (is (= (set recalc-external-children) #{:ext1}))
+    (is (= selector-changes-by-ext-child {:ext1 [vec-selector]}))
     (is (= observable-changed-selector-values {vec-selector [1 2 3]}))))
 
 (deftest always-run-effects

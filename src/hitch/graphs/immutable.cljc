@@ -756,9 +756,17 @@ ArrayList
     dirty-selnodes
     dirty-selnodes))
 
+(defn- update-ext-recalcs [ext-recalcs! ext-chs sel]
+  (reduce (fn [m! ext-ch]
+            (let [sels (if-some [sels (m! ext-ch)]
+                         sels
+                         (transient []))]
+              (assoc! m! ext-ch (conj! sels sel))))
+    ext-recalcs! ext-chs))
+
 (defn- merge-dirty-selnodes [dirty-selnodes selnodes]
-  (let [ext-recalcs (volatile! (transient #{}))
-        val-changes  (volatile! (transient {}))]
+  (let [ext-recalcs (volatile! (transient {}))
+        val-changes (volatile! (transient {}))]
     [(->> dirty-selnodes
           (reduce-kv
             (fn [sns sel {:keys [value original-value] :as dirtynode}]
@@ -767,10 +775,10 @@ ArrayList
                 (assoc! sns sel
                   (let [unknown-value? (unknown? value)]
                     (when-not unknown-value?
-                      (let [ext-ch (:ext-children dirtynode)]
-                        (when-not (or (zero? (count ext-ch))
+                      (let [ext-chs (:ext-children dirtynode)]
+                        (when-not (or (zero? (count ext-chs))
                                     (= value original-value))
-                          (vswap! ext-recalcs into! ext-ch)
+                          (vswap! ext-recalcs update-ext-recalcs ext-chs sel)
                           (vswap! val-changes assoc! sel value))))
                     (cond-> (dissoc dirtynode :original-value :var-reset)
                       (or unknown-value? (= value original-value))
@@ -876,6 +884,10 @@ ArrayList
           new-selnodes
           (when-some [effects (not-cempty (clear-effects! effects))]
             (comp-effects effects))
-          (not-cempty recalcs))
+          (not-cempty (keys recalcs)))
         (pos? (count val-changes))
-        (assoc :observable-changed-selector-values val-changes)))))
+        (-> (assoc :observable-changed-selector-values val-changes)
+            (assoc :selector-changes-by-ext-child
+                   (persistent!
+                     (reduce-kv (fn [r k v] (assoc! r k (persistent! v)))
+                       (transient recalcs) recalcs))))))))
