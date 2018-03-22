@@ -91,7 +91,7 @@
 (defn- effect-runner [prev-effect-tx-id tx-id effect gm-agent]
   (let [gm (->EffectGraphManager gm-agent {::effect-from-tx-id tx-id})]
     (when (:running? @gm-agent)
-      (.execute Agent/soloExecutor (effect gm))))
+      (.execute Agent/soloExecutor #(effect gm))))
   tx-id)
 
 (defn- effect+notify-watcher [effect-agent notify-agent]
