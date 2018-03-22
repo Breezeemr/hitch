@@ -741,20 +741,23 @@ ArrayList
 
 (defn- destroy-orphaned-nodes
   [dirty-selnodes effects]
-  (reduce-kv
-    (fn [dn sel {:keys [int-children ext-children state] :as _selnode}]
-      (if (and (zero? (count int-children)) (zero? (count ext-children)))
-        (do
-          (when (satisfies? proto/StatefulSelector sel)
-            (let [effect (proto/destroy sel state)]
-              (when *trace*
-                (when effect
-                  (record! [:enq-effect :destroy sel])))
-              (enq-effect! effects effect)))
-          (assoc dn sel nil))
-        dn))
-    dirty-selnodes
-    dirty-selnodes))
+  (let [gc-mark (volatile! (transient #{}))
+        ds      (reduce-kv
+                  (fn [dn sel {:keys [int-children ext-children state] :as selnode}]
+                    (if (and (zero? (count int-children)) (zero? (count ext-children)))
+                      (do
+                        (vswap! gc-mark into! (:parents selnode))
+                        (when (satisfies? proto/StatefulSelector sel)
+                          (let [effect (proto/destroy sel state)]
+                            (when *trace*
+                              (when effect
+                                (record! [:enq-effect :destroy sel])))
+                            (enq-effect! effects effect)))
+                        (assoc dn sel nil))
+                      dn))
+                  dirty-selnodes
+                  dirty-selnodes)]
+    [ds (persistent! @gc-mark)]))
 
 (defn- update-ext-recalcs [ext-recalcs! ext-chs sel]
   (reduce (fn [m! ext-ch]
@@ -788,13 +791,49 @@ ArrayList
      (persistent! @ext-recalcs)
      (persistent! @val-changes)]))
 
-(defn- apply-ops [selnodes sel->ops effects]
+(defn- dirty-orphaned-nodes [dirty-selnodes selnodes gc-marked]
+  ;; This is the "mark-update" phase of a mark-sweep gc.
+  ;; For every sel in gc-marked, if it is not in dirty-selnodes but
+  ;; it is in selnodes *and* it has no more children, copy the node to
+  ;; dirty-selnodes. `destroy-orphaned-nodes` performs the actual sweep
+  ;; and also updates the mark list for the next round of gc
+  (if (cempty? gc-marked)
+    dirty-selnodes
+    (persistent!
+      (reduce
+        (fn [ds! marked-sel]
+          ;; NOTE: transients do not support `contains?`
+          (if (unknown? (ds! marked-sel UNKNOWN))
+            (if-some [sn (selnodes marked-sel)]
+              (if (and (cempty? (:int-children sn)) (cempty? (:ext-children sn)))
+                (assoc! ds! marked-sel sn)
+                ds!)
+              ds!)
+            ds!))
+        (transient dirty-selnodes)
+        gc-marked))))
+
+(defn full-gc [dirty-selnodes selnodes effects]
+  ;; NOTE: does not detect cycles
+  ;; At the end, we can find nodes unreachable from ext-children nodes and
+  ;; forcibly remove them all at once. ("all at once" may require some subtlety
+  ;; for effectful selectors, and maybe machines too)
+  (loop [ds dirty-selnodes gc-marked (keys selnodes)]
+    (let [[ds gc-marked] (-> ds
+                             (dirty-orphaned-nodes selnodes gc-marked)
+                             (destroy-orphaned-nodes effects))]
+      (if (cempty? gc-marked)
+        ds
+        (recur ds gc-marked)))))
+
+(defn- apply-ops [selnodes sel->ops gc-marked effects]
   (let [pending-deps-changes (dep-changes)
         pending-recalcs      (recalc-queue)]
     (-> {}
         (apply-external-ops selnodes effects pending-recalcs pending-deps-changes sel->ops)
         (stabilize-nodes selnodes effects pending-recalcs pending-deps-changes 1000)
         ;; INVARIANT: At this point, dep-changes and recalcs are empty
+        (dirty-orphaned-nodes selnodes gc-marked)
         (destroy-orphaned-nodes effects))))
 
 (defn- im-child-add [acc [_ sel x]]
@@ -865,6 +904,8 @@ ArrayList
     {:selnodes selnodes :sel->cmd->arg {}})
   (command-step [_ acc [type :as command]]
     (case type
+      ::gc-sweep (update acc :gc-sweep (fnil into #{}) (second command))
+      ::gc-full (assoc acc :gc-full? true)
       ::proto/child-add (im-child-add acc command)
       ::proto/child-del (im-child-del acc command)
       ::child-adds-dels (im-child-adds-dels acc command)
@@ -874,17 +915,21 @@ ArrayList
   (command-result [s acc]
     (when *trace*
       (vreset! op-history [[:ops (:sel->cmd->arg acc)]]))
-    (let [{:keys [selnodes sel->cmd->arg]} acc
+    (let [{:keys [selnodes sel->cmd->arg gc-sweep gc-full?]} acc
           sel->ops       sel->cmd->arg
           effects        (effect-queue)
-          dirty-selnodes (apply-ops selnodes sel->ops effects)
+          [dirty-selnodes gc-mark :as x] (apply-ops selnodes sel->ops gc-sweep effects)
+          [dirty-selnodes gc-mark] (if (true? gc-full?)
+                                     [(full-gc dirty-selnodes selnodes effects) #{}]
+                                     x)
           [new-selnodes recalcs val-changes] (merge-dirty-selnodes dirty-selnodes selnodes)]
       (cond->
-        (proto/->StateEffect
-          new-selnodes
-          (when-some [effects (not-cempty (clear-effects! effects))]
-            (comp-effects effects))
-          (not-cempty (keys recalcs)))
+        (-> (proto/->StateEffect
+              new-selnodes
+              (when-some [effects (not-cempty (clear-effects! effects))]
+                (comp-effects effects))
+              (not-cempty (keys recalcs)))
+            (assoc :gc-mark gc-mark))
         (pos? (count val-changes))
         (-> (assoc :observable-changed-selector-values val-changes)
             (assoc :selector-changes-by-ext-child
