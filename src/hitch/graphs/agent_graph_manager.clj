@@ -26,7 +26,7 @@
           [status :as r] (gm/apply-graph-node-commands graph-node commands)]
       (case status
         :ok
-        (let [[_ graph-node' {:keys [effect recalc-external-children
+        (let [[_ graph-node' {:keys [effect selector-changes-by-ext-child
                                      observable-changed-selector-values]}] r]
           {:running?                           (:running? gm-state)
            :graph-before                       graph-node
@@ -34,7 +34,7 @@
            :tx-id                              (unchecked-inc ^long (:tx-id gm-state))
            :error-count                        (:error-count gm-state)
            :effect                             effect
-           :recalc-external-children           recalc-external-children
+           :selector-changes-by-ext-child      selector-changes-by-ext-child
            :observable-changed-selector-values observable-changed-selector-values
            :oob-request-data                   oob-request-data})
         :error
@@ -85,7 +85,7 @@
     nil))
 
 (defn- notify-runner [prev-notify-tx-id tx-id ext-children]
-  (run! op/-change-notify ext-children)
+  (run! op/-change-notify (keys ext-children))
   tx-id)
 
 (defn- effect-runner [prev-effect-tx-id tx-id effect gm-agent]
@@ -96,7 +96,7 @@
 
 (defn- effect+notify-watcher [effect-agent notify-agent]
   (fn [key gm-agent prev-state new-state]
-    (when-some [ext-children (not-empty (:recalc-external-children new-state))]
+    (when-some [ext-children (not-empty (:selector-changes-by-ext-child new-state))]
       (send-off notify-agent notify-runner (:tx-id new-state) ext-children))
     (when-some [effect (:effect new-state)]
       (send-off effect-agent effect-runner (:tx-id new-state) effect gm-agent))))

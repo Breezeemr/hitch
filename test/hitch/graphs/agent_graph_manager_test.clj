@@ -67,14 +67,14 @@
                     error-count
                     oob-request-data
                     effect
-                    recalc-external-children
                     observable-changed-selector-values
+                    selector-changes-by-ext-child
                     ] :as x} @(transact-sync agm [[::hp/child-add vec-selector ext-child]]
                           oob-data)]
         (is (true? running?))
         (is (= tx-id 1))
         (is (= oob-request-data oob-data))
-        (is (= recalc-external-children #{ext-child}))
+        (is (= selector-changes-by-ext-child {ext-child [vec-selector]}))
         (is (= observable-changed-selector-values {vec-selector [1 2 3 :created]}))
         (is (zero? error-count))
         (is (identical? effect effect-sel-effect))

@@ -54,12 +54,12 @@
                                   first
                                   (into []))]
         [:error graph-node (assoc acc :pending-commands pending-commands)])
-      (let [{:keys [recalc-child-selectors] new-state :state :as se}
+      (let [{:keys [selector-changes-by-ext-child] new-state :state :as se}
             (hp/command-result graph acc)]
         [:ok (assoc graph-node :state new-state
                                :value (new-value graph old-value new-state))
          (-> (dissoc se :state :recalc-child-selectors)
-             (assoc :recalc-external-children recalc-child-selectors))]))))
+             (assoc :selector-changes-by-ext-child selector-changes-by-ext-child))]))))
 
 (letfn [(swap-transact* [graph-node cmds v-tx-res]
           (let [[_ new-gm :as res] (apply-graph-node-commands graph-node cmds)]
@@ -118,9 +118,9 @@
                  (when-not (empty? cmds)
                    (let [tx-result (update-graph-node! gns cmds)]
                      (if (= (first tx-result) ::hp/tx-ok)
-                       (let [{:keys [effect recalc-external-children]} (peek tx-result)]
+                       (let [{:keys [effect selector-changes-by-ext-child]} (peek tx-result)]
                          (when (some? effect) (run-effect! this effect))
-                         (run! op/-change-notify recalc-external-children)
+                         (run! op/-change-notify (keys selector-changes-by-ext-child))
                          (pop tx-result))
                        tx-result))))
 
