@@ -14,7 +14,7 @@
   false)
 
 (defonce ^:private op-history (volatile! []))
-ArrayList
+
 (defn- record! [op]
   (vswap! op-history conj op)
   nil)
@@ -172,6 +172,16 @@ ArrayList
     :new? true
     :original-value UNKNOWN))
 
+(defn- #?(:cljs    ^boolean no-children?
+          :default no-children?)
+  [sn]
+  (and (cempty? (:int-children sn)) (cempty? (:ext-children sn))))
+
+(defn- mark-destroyablity [sn]
+  (if (and (no-children? sn))
+    (assoc sn :destroy? true)
+    (dissoc sn :destroy?)))
+
 ;; Internal reduction state manipulation functions
 
 ;;; Early Termination
@@ -235,10 +245,9 @@ ArrayList
     ;; child add/del; informs are done during the recalc phase.
     (or
       #?(:default (:new? selnode) :cljs ^boolean (:new? selnode))
-      (and (cempty? (:int-children selnode)) (cempty? (:ext-children selnode))))
+      (no-children? selnode))
     (and
-      (or (not (cempty? (:int-children selnode)))
-        (not (cempty? (:ext-children selnode))))
+      (not (no-children? selnode))
       (or #?(:default (:new? selnode) :cljs ^boolean (:new? selnode))
         (not= old-state (:state selnode))))))
 
@@ -548,11 +557,12 @@ ArrayList
     (reduce-kv
       (fn [ds sel ops]
         (assoc! ds sel
-          (if (satisfies? proto/Machine sel)
-            ;; NOTE: Machines have no ext-deps, so ignore ::update-ext-children
-            (apply-machine-commands ds selnodes sel (::commands ops) effects
-              recalcs deps)
-            (apply-external-ops* ds selnodes sel ops effects recalcs))))
+          (-> (if (satisfies? proto/Machine sel)
+                ;; NOTE: Machines have no ext-deps, so ignore ::update-ext-children
+                (apply-machine-commands ds selnodes sel (::commands ops) effects
+                  recalcs deps)
+                (apply-external-ops* ds selnodes sel ops effects recalcs))
+              (mark-destroyablity))))
       (transient dirty-selnodes)
       sel->ops)))
 
@@ -601,7 +611,7 @@ ArrayList
           (when-not (cempty? recalc-children)
             (record! [:enq-recalcs :new-children sel recalc-children])))
         (enq-recalc-children! recalcs sel recalc-children)))
-    (assoc! ds sel sn')))
+    (assoc! ds sel (mark-destroyablity sn'))))
 
 (defn- update-selnodes-children [changes selnodes dirty-selnodes effects recalcs deps]
   (persistent!
@@ -678,7 +688,8 @@ ArrayList
         (record! [:value sel new-value])))
     (cond-> (-> sn
                 (dissoc :new?)
-                (assoc :parents new-parents))
+                (assoc :parents new-parents)
+                (mark-destroyablity))
       changed-value? (assoc :value new-value))))
 
 (defn- #?(:cljs    ^boolean all-known?
@@ -721,7 +732,36 @@ ArrayList
       (transient dirty-selnodes)
       recalc-sels)))
 
-(defn- stabilize-nodes [dirty-selnodes selnodes effects recalcs deps max-cycles]
+(defn- mark-orphaned-nodes [dirty-selnodes selnodes]
+  (cond-> (into {} (filter #(:destroy? (val %))) dirty-selnodes)
+    (some? selnodes) (into (comp
+                             (filter #(no-children? (val %)))
+                             (remove #(contains? dirty-selnodes (key %)))
+                             (map #(assoc (val %) :original-value (:value (val %)))))
+                       selnodes)))
+
+(defn- gc-sweep-node [sn sel deps]
+  ;; INVARIANT: node has no children
+  (let [{:keys [parents]} sn]
+    (when *trace*
+      (record! [:gc-sweep sel])
+      (record! [:enq-parent-changes sel {:adds #{} :dels parents}]))
+    (enq-parent-deps! deps sel [#{} parents])
+    sn))
+
+(defn- gc-sweep* [ds sel sn deps]
+  (let [sn (gc-sweep-node sn sel deps)]
+    (assoc! ds sel sn)))
+
+(defn- gc-sweep [gc-marked dirty-selnodes deps]
+  (persistent!
+    (reduce-kv
+      (fn [ds sel sn] (gc-sweep* ds sel sn deps))
+      (transient dirty-selnodes)
+      gc-marked)))
+
+(defn- stabilize-nodes
+  [dirty-selnodes selnodes effects recalcs deps full-gc? max-gc-cycles max-cycles]
   ;; all deps, then all recalcs
   ;; during deps, if informed, issue commands and update
   (if (zero? ^long max-cycles)
@@ -729,35 +769,46 @@ ArrayList
     (if-some [child-changes (not-cempty (clear-deps! deps))]
       (do
         (when *trace* (record! [:stabilize-children max-cycles]))
-        (let [ds (update-selnodes-children child-changes selnodes dirty-selnodes effects recalcs deps)]
-          (recur ds selnodes effects recalcs deps (dec ^long max-cycles))))
+        (let [ds (update-selnodes-children child-changes selnodes dirty-selnodes
+                   effects recalcs deps)]
+          (recur ds selnodes effects recalcs deps full-gc? max-gc-cycles
+            (dec ^long max-cycles))))
       (let [[need-recalc dirty-parents] (clear-recalcs! recalcs)]
         (if-not (cempty? need-recalc)
           (do
             (when *trace* (record! [:stabilize-values max-cycles]))
-            (let [ds (recalculate-nodes dirty-parents need-recalc dirty-selnodes selnodes effects recalcs deps)]
-              (recur ds selnodes effects recalcs deps (dec ^long max-cycles))))
-          dirty-selnodes)))))
+            (let [ds (recalculate-nodes dirty-parents need-recalc dirty-selnodes
+                       selnodes effects recalcs deps)]
+              (recur ds selnodes effects recalcs deps full-gc? max-gc-cycles
+                (dec ^long max-cycles))))
+          (if (pos? ^long max-gc-cycles)
+            (do
+              (when *trace* (record! [:gc-cycle max-gc-cycles (and full-gc? :full) max-cycles]))
+              (let [gc-marked (mark-orphaned-nodes dirty-selnodes
+                                (when (true? full-gc?) selnodes))]
+                (if (cempty? gc-marked)
+                  dirty-selnodes
+                  (let [ds (gc-sweep gc-marked dirty-selnodes deps)]
+                    (recur ds selnodes effects recalcs deps false
+                      (dec ^long max-gc-cycles) max-cycles)))))
+            dirty-selnodes))))))
 
 (defn- destroy-orphaned-nodes
   [dirty-selnodes effects]
-  (let [gc-mark (volatile! (transient #{}))
-        ds      (reduce-kv
-                  (fn [dn sel {:keys [int-children ext-children state] :as selnode}]
-                    (if (and (zero? (count int-children)) (zero? (count ext-children)))
-                      (do
-                        (vswap! gc-mark into! (:parents selnode))
-                        (when (satisfies? proto/StatefulSelector sel)
-                          (let [effect (proto/destroy sel state)]
-                            (when *trace*
-                              (when effect
-                                (record! [:enq-effect :destroy sel])))
-                            (enq-effect! effects effect)))
-                        (assoc dn sel nil))
-                      dn))
-                  dirty-selnodes
-                  dirty-selnodes)]
-    [ds (persistent! @gc-mark)]))
+  (reduce-kv
+    (fn [dn sel {:keys [destroy?] :as selnode}]
+      (if (true? destroy?)
+        (do
+          (when (satisfies? proto/StatefulSelector sel)
+            (let [effect (proto/destroy sel (:state selnode))]
+              (when *trace*
+                (when effect
+                  (record! [:enq-effect :destroy sel])))
+              (enq-effect! effects effect)))
+          (assoc dn sel nil))
+        dn))
+    dirty-selnodes
+    dirty-selnodes))
 
 (defn- update-ext-recalcs [ext-recalcs! ext-chs sel]
   (reduce (fn [m! ext-ch]
@@ -791,49 +842,18 @@ ArrayList
      (persistent! @ext-recalcs)
      (persistent! @val-changes)]))
 
-(defn- dirty-orphaned-nodes [dirty-selnodes selnodes gc-marked]
-  ;; This is the "mark-update" phase of a mark-sweep gc.
-  ;; For every sel in gc-marked, if it is not in dirty-selnodes but
-  ;; it is in selnodes *and* it has no more children, copy the node to
-  ;; dirty-selnodes. `destroy-orphaned-nodes` performs the actual sweep
-  ;; and also updates the mark list for the next round of gc
-  (if (cempty? gc-marked)
-    dirty-selnodes
-    (persistent!
-      (reduce
-        (fn [ds! marked-sel]
-          ;; NOTE: transients do not support `contains?`
-          (if (unknown? (ds! marked-sel UNKNOWN))
-            (if-some [sn (selnodes marked-sel)]
-              (if (and (cempty? (:int-children sn)) (cempty? (:ext-children sn)))
-                (assoc! ds! marked-sel sn)
-                ds!)
-              ds!)
-            ds!))
-        (transient dirty-selnodes)
-        gc-marked))))
-
-(defn full-gc [dirty-selnodes selnodes effects]
-  ;; NOTE: does not detect cycles
-  ;; At the end, we can find nodes unreachable from ext-children nodes and
-  ;; forcibly remove them all at once. ("all at once" may require some subtlety
-  ;; for effectful selectors, and maybe machines too)
-  (loop [ds dirty-selnodes gc-marked (keys selnodes)]
-    (let [[ds gc-marked] (-> ds
-                             (dirty-orphaned-nodes selnodes gc-marked)
-                             (destroy-orphaned-nodes effects))]
-      (if (cempty? gc-marked)
-        ds
-        (recur ds gc-marked)))))
-
-(defn- apply-ops [selnodes sel->ops gc-marked effects]
+(defn- apply-ops [selnodes sel->ops gc-level effects]
   (let [pending-deps-changes (dep-changes)
-        pending-recalcs      (recalc-queue)]
+        pending-recalcs      (recalc-queue)
+        full-gc?             (= gc-level :full)
+        max-gc-cycles        (cond
+                               (and (number? gc-level) (pos? gc-level)) (long gc-level)
+                               full-gc? 2147483647
+                               :else 1)]
     (-> {}
         (apply-external-ops selnodes effects pending-recalcs pending-deps-changes sel->ops)
-        (stabilize-nodes selnodes effects pending-recalcs pending-deps-changes 1000)
+        (stabilize-nodes selnodes effects pending-recalcs pending-deps-changes full-gc? max-gc-cycles 1000)
         ;; INVARIANT: At this point, dep-changes and recalcs are empty
-        (dirty-orphaned-nodes selnodes gc-marked)
         (destroy-orphaned-nodes effects))))
 
 (defn- im-child-add [acc [_ sel x]]
@@ -901,11 +921,10 @@ ArrayList
   proto/InformedSelector
   proto/CommandableSelector
   (command-accumulator [_ selnodes]
-    {:selnodes selnodes :sel->cmd->arg {}})
+    {:selnodes selnodes :sel->cmd->arg {} :gc-level 1})
   (command-step [_ acc [type :as command]]
     (case type
-      ::gc-sweep (update acc :gc-sweep (fnil into #{}) (second command))
-      ::gc-full (assoc acc :gc-full? true)
+      ::do-gc (assoc acc :gc-level (second command))
       ::proto/child-add (im-child-add acc command)
       ::proto/child-del (im-child-del acc command)
       ::child-adds-dels (im-child-adds-dels acc command)
@@ -915,21 +934,17 @@ ArrayList
   (command-result [s acc]
     (when *trace*
       (vreset! op-history [[:ops (:sel->cmd->arg acc)]]))
-    (let [{:keys [selnodes sel->cmd->arg gc-sweep gc-full?]} acc
+    (let [{:keys [selnodes sel->cmd->arg gc-level]} acc
           sel->ops       sel->cmd->arg
           effects        (effect-queue)
-          [dirty-selnodes gc-mark :as x] (apply-ops selnodes sel->ops gc-sweep effects)
-          [dirty-selnodes gc-mark] (if (true? gc-full?)
-                                     [(full-gc dirty-selnodes selnodes effects) #{}]
-                                     x)
+          dirty-selnodes (apply-ops selnodes sel->ops gc-level effects)
           [new-selnodes recalcs val-changes] (merge-dirty-selnodes dirty-selnodes selnodes)]
       (cond->
-        (-> (proto/->StateEffect
-              new-selnodes
-              (when-some [effects (not-cempty (clear-effects! effects))]
-                (comp-effects effects))
-              (not-cempty (keys recalcs)))
-            (assoc :gc-mark gc-mark))
+        (proto/->StateEffect
+          new-selnodes
+          (when-some [effects (not-cempty (clear-effects! effects))]
+            (comp-effects effects))
+          (not-cempty (keys recalcs)))
         (pos? (count val-changes))
         (-> (assoc :observable-changed-selector-values val-changes)
             (assoc :selector-changes-by-ext-child

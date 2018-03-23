@@ -64,6 +64,73 @@
     (is (= selector-changes-by-ext-child {:ext1 [vec-selector]}))
     (is (= observable-changed-selector-values {vec-selector [1 2 3]}))))
 
+(deftest garbage-collection
+  (let [gn  (:graph-node (gm/create-graph-node (im/->ImmutableGraph 1)))
+        c1  (->Constant 1)
+        sv4 (->SelVec [c1])
+        sv3 (->SelVec [sv4])
+        sv2 (->SelVec [sv3])
+        sv1 (->SelVec [sv2])
+        [status {:keys [value state] :as gn2}]
+        (gm/apply-graph-node-commands gn
+          [[::hp/child-add sv1 :ext1]])]
+    (is (= status :ok))
+    (is (= state {c1  (#'im/map->SelectorNode {:value        1
+                                               :int-children #{sv4}
+                                               :ext-children #{}
+                                               :parents      #{}
+                                               :state        nil})
+                  sv4 (#'im/map->SelectorNode {:value        [1]
+                                               :int-children #{sv3}
+                                               :ext-children #{}
+                                               :parents      #{c1}
+                                               :state        nil})
+                  sv3 (#'im/map->SelectorNode {:value        [[1]]
+                                               :int-children #{sv2}
+                                               :ext-children #{}
+                                               :parents      #{sv4}
+                                               :state        nil})
+                  sv2 (#'im/map->SelectorNode {:value        [[[1]]]
+                                               :int-children #{sv1}
+                                               :ext-children #{}
+                                               :parents      #{sv3}
+                                               :state        nil})
+                  sv1 (#'im/map->SelectorNode {:value        [[[[1]]]]
+                                               :int-children #{}
+                                               :ext-children #{:ext1}
+                                               :parents      #{sv2}
+                                               :state        nil})})
+      "State is correct")
+    (let [[status {:keys [value state] :as gn3}]
+          (binding [im/*trace* true]
+            (try
+              (gm/apply-graph-node-commands gn2
+                [[::hp/child-del sv1 :ext1]
+                 [::hp/child-add sv4 :ext1]])
+              (finally (clojure.pprint/pprint (im/get-trace)))))]
+      (is (= status :ok))
+      (is (= state {c1  (#'im/map->SelectorNode {:value        1
+                                                 :int-children #{sv4}
+                                                 :ext-children #{}
+                                                 :parents      #{}
+                                                 :state        nil})
+                    sv4 (#'im/map->SelectorNode {:value        [1]
+                                                 :int-children #{sv3}
+                                                 :ext-children #{:ext1}
+                                                 :parents      #{c1}
+                                                 :state        nil})
+                    sv3 (#'im/map->SelectorNode {:value        [[1]]
+                                                 :int-children #{}
+                                                 :ext-children #{}
+                                                 :parents      #{sv4}
+                                                 :state        nil})}))
+
+      )
+
+    ))
+
+
+
 (deftest always-run-effects
   (testing "Graph should always run effects, even when a selector node exists only for the lifetime of the transaction."
     (async done
