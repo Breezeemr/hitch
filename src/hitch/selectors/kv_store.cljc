@@ -105,8 +105,7 @@
                        (update :dirty-sels add-dirty-sels (:deps acc) arg))
         ::proto/child-add (-> (update acc :deps update-deps arg true)
                               (update :dirty-sels conj arg))
-        ::proto/child-del (-> (update acc :deps update-deps arg false)
-                              (update :dirty-sels conj arg)))))
+        ::proto/child-del (update acc :deps update-deps arg false))))
   (command-result [s acc]
     (proto/->StateEffect (dissoc acc :dirty-sels) nil (:dirty-sels acc)))
 
