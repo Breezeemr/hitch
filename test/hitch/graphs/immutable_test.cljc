@@ -67,67 +67,118 @@
 (deftest garbage-collection
   (let [gn  (:graph-node (gm/create-graph-node (im/->ImmutableGraph 1)))
         c1  (->Constant 1)
-        sv4 (->SelVec [c1])
-        sv3 (->SelVec [sv4])
-        sv2 (->SelVec [sv3])
-        sv1 (->SelVec [sv2])
+        sv1 (->SelVec [c1])
+        sv2 (->SelVec [sv1])
+        sv3 (->SelVec [sv2])
+        sv4 (->SelVec [sv3])
         [status {:keys [value state] :as gn2}]
         (gm/apply-graph-node-commands gn
-          [[::hp/child-add sv1 :ext1]])]
+          [[::hp/child-add sv4 :ext1]])]
     (is (= status :ok))
     (is (= state {c1  (#'im/map->SelectorNode {:value        1
-                                               :int-children #{sv4}
+                                               :int-children #{sv1}
                                                :ext-children #{}
                                                :parents      #{}
                                                :state        nil})
-                  sv4 (#'im/map->SelectorNode {:value        [1]
-                                               :int-children #{sv3}
+                  sv1 (#'im/map->SelectorNode {:value        [1]
+                                               :int-children #{sv2}
                                                :ext-children #{}
                                                :parents      #{c1}
                                                :state        nil})
-                  sv3 (#'im/map->SelectorNode {:value        [[1]]
-                                               :int-children #{sv2}
+                  sv2 (#'im/map->SelectorNode {:value        [[1]]
+                                               :int-children #{sv3}
                                                :ext-children #{}
-                                               :parents      #{sv4}
+                                               :parents      #{sv1}
                                                :state        nil})
-                  sv2 (#'im/map->SelectorNode {:value        [[[1]]]
-                                               :int-children #{sv1}
+                  sv3 (#'im/map->SelectorNode {:value        [[[1]]]
+                                               :int-children #{sv4}
                                                :ext-children #{}
-                                               :parents      #{sv3}
+                                               :parents      #{sv2}
                                                :state        nil})
-                  sv1 (#'im/map->SelectorNode {:value        [[[[1]]]]
+                  sv4 (#'im/map->SelectorNode {:value        [[[[1]]]]
                                                :int-children #{}
                                                :ext-children #{:ext1}
-                                               :parents      #{sv2}
+                                               :parents      #{sv3}
                                                :state        nil})})
       "State is correct")
     (let [[status {:keys [value state] :as gn3}]
-          (binding [im/*trace* true]
-            (try
-              (gm/apply-graph-node-commands gn2
-                [[::hp/child-del sv1 :ext1]
-                 [::hp/child-add sv4 :ext1]])
-              (finally (clojure.pprint/pprint (im/get-trace)))))]
+          (gm/apply-graph-node-commands gn2
+            [[::im/do-gc 0]
+             [::hp/child-del sv4 :ext1]
+             [::hp/child-add sv1 :ext1]])]
       (is (= status :ok))
       (is (= state {c1  (#'im/map->SelectorNode {:value        1
-                                                 :int-children #{sv4}
+                                                 :int-children #{sv1}
                                                  :ext-children #{}
                                                  :parents      #{}
                                                  :state        nil})
-                    sv4 (#'im/map->SelectorNode {:value        [1]
-                                                 :int-children #{sv3}
+                    sv1 (#'im/map->SelectorNode {:value        [1]
+                                                 :int-children #{sv2}
                                                  :ext-children #{:ext1}
                                                  :parents      #{c1}
                                                  :state        nil})
-                    sv3 (#'im/map->SelectorNode {:value        [[1]]
+                    sv2 (#'im/map->SelectorNode {:value        [[1]]
+                                                 :int-children #{sv3}
+                                                 :ext-children #{}
+                                                 :parents      #{sv1}
+                                                 :state        nil})
+                    sv3 (#'im/map->SelectorNode {:value        [[[1]]]
+                                                 :int-children #{sv4}
+                                                 :ext-children #{}
+                                                 :parents      #{sv2}
+                                                 :state        nil})
+                    sv4 (#'im/map->SelectorNode {:value        [[[[1]]]]
                                                  :int-children #{}
                                                  :ext-children #{}
-                                                 :parents      #{sv4}
-                                                 :state        nil})}))
+                                                 :parents      #{sv3}
+                                                 :state        nil})})
+        "GC off should never delete nodes"))
 
-      )
+    (let [[status {:keys [value state] :as gn3}]
+          (gm/apply-graph-node-commands gn2
+            [[::hp/child-del sv4 :ext1]
+             [::hp/child-add sv1 :ext1]])]
+      (is (= status :ok))
+      (is (= state {c1  (#'im/map->SelectorNode {:value        1
+                                                 :int-children #{sv1}
+                                                 :ext-children #{}
+                                                 :parents      #{}
+                                                 :state        nil})
+                    sv1 (#'im/map->SelectorNode {:value        [1]
+                                                 :int-children #{sv2}
+                                                 :ext-children #{:ext1}
+                                                 :parents      #{c1}
+                                                 :state        nil})
+                    sv2 (#'im/map->SelectorNode {:value        [[1]]
+                                                 :int-children #{sv3}
+                                                 :ext-children #{}
+                                                 :parents      #{sv1}
+                                                 :state        nil})
+                    sv3 (#'im/map->SelectorNode {:value        [[[1]]]
+                                                 :int-children #{}
+                                                 :ext-children #{}
+                                                 :parents      #{sv2}
+                                                 :state        nil})})
+        "Default GC should collect only one level and leave no dangling :int-children references."))
 
-    ))
+    (let [[status {:keys [value state] :as gn3}]
+          (binding [im/*trace* true]
+            (gm/apply-graph-node-commands gn2
+              [[::im/do-gc :full]
+               [::hp/child-del sv4 :ext1]
+               [::hp/child-add sv1 :ext1]]))]
+      (is (= status :ok))
+      (is (= state {c1  (#'im/map->SelectorNode {:value        1
+                                                 :int-children #{sv1}
+                                                 :ext-children #{}
+                                                 :parents      #{}
+                                                 :state        nil})
+                    sv1 (#'im/map->SelectorNode {:value        [1]
+                                                 :int-children #{}
+                                                 :ext-children #{:ext1}
+                                                 :parents      #{c1}
+                                                 :state        nil})})
+        "Full GC should collect all nodes without children"))))
 
 
 

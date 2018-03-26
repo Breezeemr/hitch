@@ -177,11 +177,6 @@
   [sn]
   (and (cempty? (:int-children sn)) (cempty? (:ext-children sn))))
 
-(defn- mark-destroyablity [sn]
-  (if (and (no-children? sn))
-    (assoc sn :destroy? true)
-    (dissoc sn :destroy?)))
-
 ;; Internal reduction state manipulation functions
 
 ;;; Early Termination
@@ -557,12 +552,11 @@
     (reduce-kv
       (fn [ds sel ops]
         (assoc! ds sel
-          (-> (if (satisfies? proto/Machine sel)
-                ;; NOTE: Machines have no ext-deps, so ignore ::update-ext-children
-                (apply-machine-commands ds selnodes sel (::commands ops) effects
-                  recalcs deps)
-                (apply-external-ops* ds selnodes sel ops effects recalcs))
-              (mark-destroyablity))))
+          (if (satisfies? proto/Machine sel)
+            ;; NOTE: Machines have no ext-deps, so ignore ::update-ext-children
+            (apply-machine-commands ds selnodes sel (::commands ops) effects
+              recalcs deps)
+            (apply-external-ops* ds selnodes sel ops effects recalcs))))
       (transient dirty-selnodes)
       sel->ops)))
 
@@ -593,7 +587,10 @@
               (inform-selector sn' sel adds+dels effects recalcs)
 
               :else
-              (recalc-sel-if-needed! sn' sel (:state sn) recalcs))]
+              (recalc-sel-if-needed! sn' sel (:state sn) recalcs))
+        sn' (cond-> sn'
+              (and (:destroy? sn') (not (no-children? sn)))
+              (dissoc :destroy?))]
     ;; Newly-added children need an opportunity to recalculate
     (when-not (or (unknown? (:value sn')) (proto/silent-selector? sel))
       ;; This is only reached if both
@@ -611,7 +608,7 @@
           (when-not (cempty? recalc-children)
             (record! [:enq-recalcs :new-children sel recalc-children])))
         (enq-recalc-children! recalcs sel recalc-children)))
-    (assoc! ds sel (mark-destroyablity sn'))))
+    (assoc! ds sel sn')))
 
 (defn- update-selnodes-children [changes selnodes dirty-selnodes effects recalcs deps]
   (persistent!
@@ -688,8 +685,7 @@
         (record! [:value sel new-value])))
     (cond-> (-> sn
                 (dissoc :new?)
-                (assoc :parents new-parents)
-                (mark-destroyablity))
+                (assoc :parents new-parents))
       changed-value? (assoc :value new-value))))
 
 (defn- #?(:cljs    ^boolean all-known?
@@ -732,12 +728,22 @@
       (transient dirty-selnodes)
       recalc-sels)))
 
+(def ^:private filter-no-children
+  (filter #(and (no-children? (val %)) (not (true? (:destroy? (val %)))))))
+
+(def ^:private map-mark-destroy
+  (map #(update % 1 assoc :destroy? true)))
+
 (defn- mark-orphaned-nodes [dirty-selnodes selnodes]
-  (cond-> (into {} (filter #(:destroy? (val %))) dirty-selnodes)
+  (cond-> (into {} (comp
+                     filter-no-children
+                     map-mark-destroy)
+            dirty-selnodes)
     (some? selnodes) (into (comp
-                             (filter #(no-children? (val %)))
+                             filter-no-children
                              (remove #(contains? dirty-selnodes (key %)))
-                             (map #(assoc (val %) :original-value (:value (val %)))))
+                             (map #(assoc (val %) :original-value (:value (val %))))
+                             map-mark-destroy)
                        selnodes)))
 
 (defn- gc-sweep-node [sn sel deps]
@@ -799,6 +805,8 @@
     (fn [dn sel {:keys [destroy?] :as selnode}]
       (if (true? destroy?)
         (do
+          (when *trace*
+            (record! [:destroy sel]))
           (when (satisfies? proto/StatefulSelector sel)
             (let [effect (proto/destroy sel (:state selnode))]
               (when *trace*
@@ -834,7 +842,7 @@
                                     (= value original-value))
                           (vswap! ext-recalcs update-ext-recalcs ext-chs sel)
                           (vswap! val-changes assoc! sel value))))
-                    (cond-> (dissoc dirtynode :original-value :var-reset)
+                    (cond-> (dissoc dirtynode :original-value :var-reset :destroy?)
                       (or unknown-value? (= value original-value))
                       (assoc :value original-value))))))
             (transient selnodes))
@@ -847,7 +855,7 @@
         pending-recalcs      (recalc-queue)
         full-gc?             (= gc-level :full)
         max-gc-cycles        (cond
-                               (and (number? gc-level) (pos? gc-level)) (long gc-level)
+                               (and (number? gc-level) (not (neg? gc-level))) (long gc-level)
                                full-gc? 2147483647
                                :else 1)]
     (-> {}
