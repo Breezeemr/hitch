@@ -4,6 +4,20 @@
   #?(:clj
      (:import (clojure.lang IDeref ILookup))))
 
+(defn- best-change-notify [gvalues x parents]
+  (if (satisfies? hp/ExternalDependent2 x)
+    (hp/-change-notify2 x gvalues parents)
+    (op/-change-notify x))
+  gvalues)
+
+(defn notify-all-ext-children
+  "Given a map of external-children to the parents that updated them, and
+  a snapshot of the graph, call the best notification protocol
+  (ExternalDependent, ExternalDependent2) that the external-child supports."
+  [selector-changes-by-ext-child graph-value-snapshot]
+  (reduce-kv best-change-notify graph-value-snapshot
+    selector-changes-by-ext-child)
+  nil)
 
 (defn- new-value [selector old-value state]
   (let [sv (hp/value selector old-value state)]
@@ -118,9 +132,10 @@
                  (when-not (empty? cmds)
                    (let [tx-result (update-graph-node! gns cmds)]
                      (if (= (first tx-result) ::hp/tx-ok)
-                       (let [{:keys [effect selector-changes-by-ext-child]} (peek tx-result)]
+                       (let [[_ {value :value-after} {:keys [effect selector-changes-by-ext-child]}] tx-result]
                          (when (some? effect) (run-effect! this effect))
-                         (run! op/-change-notify (keys selector-changes-by-ext-child))
+                         (notify-all-ext-children selector-changes-by-ext-child
+                           value)
                          (pop tx-result))
                        tx-result))))
 

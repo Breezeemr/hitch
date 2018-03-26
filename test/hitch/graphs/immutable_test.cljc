@@ -196,3 +196,18 @@
         (is (fn? effect) "We should get an effect, even though the selector that created it is gone.")
         (when effect (effect))
         (is @did-run "Effect should run, even though selector was created and destroyed within a single TX.")))))
+
+
+(deftest atom-graph-manager-supports-ExternalDependent2
+  (let [gm     (gm/atom-GraphManager (im/->ImmutableGraph 1))
+        result (volatile! nil)
+        ext    (reify
+                 hp/ExternalDependent2
+                 (-change-notify2 [_ g parents]
+                   (vreset! result
+                     (into {}
+                       (map #(do [% (get g % ::not-found)]))
+                       parents))))
+        _      (hp/transact! gm [[::hp/child-add (->Constant 1) ext]])]
+    (is (= @result {(->Constant 1) 1})
+      "After update, -change-notify2 is called with the correct arguments.")))

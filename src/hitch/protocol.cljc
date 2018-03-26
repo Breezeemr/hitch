@@ -274,6 +274,13 @@
 (defn informed-selector? [s]
   (or (satisfies? InformedSelector s) (satisfies? Machine s)))
 
+(defprotocol ExternalDependent2
+  (-change-notify2 [_ g-snapshot parent-changes]
+    "Notify an external dependent that some of its dependencies' values have
+    changed. It receives a shapshot of the graph and a set of selectors which
+    changed. (To retrieve the actual new value, look up the selectors in the
+    graph snapshot."))
+
 (defprotocol GraphManager
   (transact! [graph-manager cmds]
     "Apply a transaction to a graph manager and mutate the graph.

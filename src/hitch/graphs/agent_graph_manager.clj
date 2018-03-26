@@ -84,8 +84,8 @@
         sel+cmd-pairs))
     nil))
 
-(defn- notify-runner [prev-notify-tx-id tx-id ext-children]
-  (run! op/-change-notify (keys ext-children))
+(defn- notify-runner [prev-notify-tx-id {:keys [tx-id value] :as x} ext-children]
+  (gm/notify-all-ext-children ext-children value)
   tx-id)
 
 (defn- effect-runner [prev-effect-tx-id tx-id effect gm-agent]
@@ -97,7 +97,10 @@
 (defn- effect+notify-watcher [effect-agent notify-agent]
   (fn [key gm-agent prev-state new-state]
     (when-some [ext-children (not-empty (:selector-changes-by-ext-child new-state))]
-      (send-off notify-agent notify-runner (:tx-id new-state) ext-children))
+      (send-off notify-agent notify-runner
+        {:tx-id (:tx-id new-state)
+         :value (-> new-state :graph :value)}
+        ext-children))
     (when-some [effect (:effect new-state)]
       (send-off effect-agent effect-runner (:tx-id new-state) effect gm-agent))))
 
