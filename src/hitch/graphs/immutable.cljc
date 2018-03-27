@@ -886,6 +886,27 @@
       sca adds)
     (assoc acc :sel->cmd->arg sca)))
 
+(defn- im-child-unsub-all**
+  [sel->cmd->arg sel {:keys [ext-children]} del-ext-children]
+  (let [delable (into #{} (filter del-ext-children) ext-children)]
+    (if (pos? (count delable))
+      (update-in sel->cmd->arg [sel ::update-ext-children :del]
+        (fnil into #{}) delable)
+      sel->cmd->arg)))
+
+(defn- im-child-unsub-all*
+  [sel->cmd->arg selnodes del-ext-children]
+  (reduce-kv
+    (fn [sca sel node] (im-child-unsub-all** sca sel node del-ext-children))
+    sel->cmd->arg selnodes))
+
+(defn- im-child-unsub-all
+  [{:keys [selnodes] :as acc} [_ del-ext-children]]
+  (-> (update acc :sel->cmd->arg im-child-unsub-all* selnodes
+        (into #{} del-ext-children))
+      ;; gc more aggressively when mass-deleting
+      (assoc :gc-level 20)))
+
 (defn- im-command [acc [_ sel command]]
   (cond
     (not (vector? command))
@@ -936,6 +957,7 @@
       ::proto/child-add (im-child-add acc command)
       ::proto/child-del (im-child-del acc command)
       ::child-adds-dels (im-child-adds-dels acc command)
+      ::children-del-all (im-child-unsub-all acc command)
       ::proto/command (im-command acc command)
       (proto/map->CommandError {:accumulator acc
                                 :error       "Unrecognized command"})))

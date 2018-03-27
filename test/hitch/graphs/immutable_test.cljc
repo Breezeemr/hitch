@@ -180,7 +180,81 @@
                                                  :state        nil})})
         "Full GC should collect all nodes without children"))))
 
+(deftest children-del-all-command
+  (let [gn  (:graph-node (gm/create-graph-node (im/->ImmutableGraph 1)))
+        c1  (->Constant 1)
+        sv1 (->SelVec [c1])
+        sv2 (->SelVec [sv1])
+        sv3 (->SelVec [sv2])
+        sv4 (->SelVec [sv3])
+        [status {:keys [state] :as gn2}]
+        (gm/apply-graph-node-commands gn
+          [[::hp/child-add sv4 :ext1]
+           [::hp/child-add sv4 :ext2]
+           [::hp/child-add sv4 :ext3]
+           [::hp/child-add sv4 :ext4]
+           [::hp/child-add sv3 :ext1]
+           [::hp/child-add sv3 :ext2]
+           [::hp/child-add sv3 :ext3]
+           [::hp/child-add sv3 :ext4]
+           [::hp/child-add sv2 :ext1]
+           [::hp/child-add sv2 :ext2]
+           [::hp/child-add sv2 :ext3]
+           [::hp/child-add sv2 :ext4]
+           [::hp/child-add sv1 :ext1]
+           [::hp/child-add sv1 :ext2]
+           [::hp/child-add sv1 :ext3]
+           [::hp/child-add sv1 :ext4]])]
+    (is (= status :ok))
+    (is (= (select-keys state [sv1 sv2 sv3 sv4])
+          {sv1 (#'im/map->SelectorNode {:value        [1]
+                                        :int-children #{sv2}
+                                        :ext-children #{:ext1 :ext2 :ext3 :ext4}
+                                        :parents      #{c1}
+                                        :state        nil})
+           sv2 (#'im/map->SelectorNode {:value        [[1]]
+                                        :int-children #{sv3}
+                                        :ext-children #{:ext1 :ext2 :ext3 :ext4}
+                                        :parents      #{sv1}
+                                        :state        nil})
+           sv3 (#'im/map->SelectorNode {:value        [[[1]]]
+                                        :int-children #{sv4}
+                                        :ext-children #{:ext1 :ext2 :ext3 :ext4}
+                                        :parents      #{sv2}
+                                        :state        nil})
+           sv4 (#'im/map->SelectorNode {:value        [[[[1]]]]
+                                        :int-children #{}
+                                        :ext-children #{:ext1 :ext2 :ext3 :ext4}
+                                        :parents      #{sv3}
+                                        :state        nil})})
+      "State is correct")
 
+    (let [[status {:keys [state]}]
+          (gm/apply-graph-node-commands gn2
+            [[::im/children-del-all [:ext1 :ext2 :ext3]]])]
+      (is (= status :ok))
+      (is (= (select-keys state [sv1 sv2 sv3 sv4])
+            {sv1 (#'im/map->SelectorNode {:value        [1]
+                                          :int-children #{sv2}
+                                          :ext-children #{:ext4}
+                                          :parents      #{c1}
+                                          :state        nil})
+             sv2 (#'im/map->SelectorNode {:value        [[1]]
+                                          :int-children #{sv3}
+                                          :ext-children #{:ext4}
+                                          :parents      #{sv1}
+                                          :state        nil})
+             sv3 (#'im/map->SelectorNode {:value        [[[1]]]
+                                          :int-children #{sv4}
+                                          :ext-children #{:ext4}
+                                          :parents      #{sv2}
+                                          :state        nil})
+             sv4 (#'im/map->SelectorNode {:value        [[[[1]]]]
+                                          :int-children #{}
+                                          :ext-children #{:ext4}
+                                          :parents      #{sv3}
+                                          :state        nil})})
+        "::im/children-del-all should remove all matching :ext-children from graph"))))
 
 (deftest always-run-effects
   (testing "Graph should always run effects, even when a selector node exists only for the lifetime of the transaction."
