@@ -2,6 +2,7 @@
   (:require [hitch.graphs.immutable :as im]
             [hitch.graphs.graph-manager :as gm]
             [hitch.protocol :as hp]
+            [hitch.selectors.mutable-var :as mv]
             [hitch.test-common :refer [->Constant ->SelVec]]
     #?@(:cljs    [[cljs.test :as t :refer-macros [testing is async]]
                   [devcards.core :refer-macros [deftest]]]
@@ -24,9 +25,9 @@
 (deftest basic-graph
   (let [gn           (:graph-node (gm/create-graph-node (im/->ImmutableGraph 1)))
         vec-selector (->SelVec [(->Constant 1) (->Constant 2) (->Constant 3)])
-        [status {:keys [value state] :as new-node} {:keys [effect
-                                                           selector-changes-by-ext-child
-                                                           observable-changed-selector-values]}]
+        [status {:keys [value state] :as gn2} {:keys [effect
+                                                      selector-changes-by-ext-child
+                                                      observable-changed-selector-values]}]
         (gm/apply-graph-node-commands gn
           [[::hp/child-add vec-selector :ext1]])]
     (is (= status :ok))
@@ -62,7 +63,32 @@
       (is (= (get value vec-selector) [1 2 3])))
     (is (nil? effect))
     (is (= selector-changes-by-ext-child {:ext1 [vec-selector]}))
-    (is (= observable-changed-selector-values {vec-selector [1 2 3]}))))
+    (is (= observable-changed-selector-values {vec-selector [1 2 3]}))
+
+    (testing "observable-changed-selector-values should have all selectors mentioned by selector-changes-by-ext-child"
+      (let [unresolved-sel (mv/mutable-var :unresolved)
+            [status _ {:keys [selector-changes-by-ext-child
+                              observable-changed-selector-values]}]
+            (gm/apply-graph-node-commands gn2
+              [[::hp/child-add vec-selector :ext2]
+               [::hp/child-add unresolved-sel :ext2]])]
+        (is (= status :ok))
+        (is (= selector-changes-by-ext-child {:ext2 [vec-selector]})
+          "newly-added ext-children get recalced even if selector value does not change")
+        (is (= observable-changed-selector-values {vec-selector [1 2 3]})
+          "observable-changed-selector-values should include values that did not change if the selector has an ext-child that needs recalc"))
+
+      (let [unresolved-sel (mv/mutable-var :unresolved)
+            [status _ {:keys [selector-changes-by-ext-child
+                              observable-changed-selector-values]}]
+            (gm/apply-graph-node-commands gn2
+              [[::hp/child-add unresolved-sel :ext2]])]
+        (is (= status :ok))
+        (is (empty? selector-changes-by-ext-child)
+          "newly-added ext-children do not get recalced selector value is unresolved")
+        (is (empty? observable-changed-selector-values)
+          "observable-changed-selector-values should not include unresolved values"))
+      )))
 
 (deftest garbage-collection
   (let [gn  (:graph-node (gm/create-graph-node (im/->ImmutableGraph 1)))

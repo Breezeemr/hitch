@@ -826,6 +826,24 @@
               (assoc! m! ext-ch (conj! sels sel))))
     ext-recalcs! ext-chs))
 
+(defn- ext-children-to-recalc
+  [sel new-ext-children original-value value selnodes]
+  (cond
+    ;; No ext-children, no need to update
+    (cempty? new-ext-children)
+    []
+
+    ;; value is different, definitely update all
+    (not= value original-value)
+    new-ext-children
+
+    ;; value is the same; only recalc ext-children that are newly-added
+    :else
+    (persistent!
+      (reduce disj!
+        (transient new-ext-children)
+        (:ext-children (selnodes sel))))))
+
 (defn- merge-dirty-selnodes [dirty-selnodes selnodes]
   (let [ext-recalcs (volatile! (transient {}))
         val-changes (volatile! (transient {}))]
@@ -837,12 +855,15 @@
                 (assoc! sns sel
                   (let [unknown-value? (unknown? value)]
                     (when-not unknown-value?
-                      (let [ext-chs (:ext-children dirtynode)]
-                        (when-not (or (zero? (count ext-chs))
-                                    (= value original-value))
+                      (let [ext-chs (ext-children-to-recalc
+                                      sel (:ext-children dirtynode)
+                                      original-value value selnodes)]
+                        (when-not (cempty? ext-chs)
                           (vswap! ext-recalcs update-ext-recalcs ext-chs sel)
                           (vswap! val-changes assoc! sel value))))
                     (cond-> (dissoc dirtynode :original-value :var-reset :destroy?)
+                      ;; reuse old value when old and new are equal to preserve
+                      ;; value identity as long as possible
                       (or unknown-value? (= value original-value))
                       (assoc :value original-value))))))
             (transient selnodes))
