@@ -820,7 +820,7 @@
 
 (defn- update-ext-recalcs [ext-recalcs! ext-chs sel]
   (reduce (fn [m! ext-ch]
-            (let [sels (if-some [sels (m! ext-ch)]
+            (let [sels (if-some [sels (get m! ext-ch)]
                          sels
                          (transient []))]
               (assoc! m! ext-ch (conj! sels sel))))
