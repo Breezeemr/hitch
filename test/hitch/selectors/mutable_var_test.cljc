@@ -35,27 +35,6 @@
       (is (= (get graph (mutable-var :test)) 5)
         (str graph-name "Graph should have value for selector after selector state change."))))
 
-  (deftest nested-hook-next
-    (testing "Nested `hook-next`s see value changes to a selector in the order they occur."
-      (async done
-        (let [graph   (gctor)
-              testsel (mutable-var :test)
-              firstfn (fn [val]
-                        (is (= val 7) (str graph-name "First hook"))
-                        (graph/hook-next graph
-                          (fn [val]
-                            (is (= val 8) (str graph-name "Second hook (nested)"))
-                            (graph/hook-next graph
-                              (fn [val]
-                                (is (= val 9) (str graph-name "Third hook (nested)"))
-                                (done))
-                              mutable-var :test)
-                            (graph/apply-commands graph [[testsel [:set-value 9]]]))
-                          mutable-var :test)
-                        (graph/apply-commands graph [[testsel [:set-value 8]]]))]
-          (graph/hook graph firstfn mutable-var :test)
-          (graph/apply-commands graph [[testsel [:set-value 7]]])))))
-
   (deftest hitch-callback
     (testing "Hitch-callback is only triggered when all its dependencies are satisfied."
       (async done

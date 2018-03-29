@@ -73,15 +73,6 @@
     (oldproto/update-parents graph h #{selector} nil)
     #(oldproto/update-parents graph h nil #{selector})))
 
-(defn hook-next-sel
-  "Like hook-sel, but will only call `cb` on a change in value
-  (edge-triggered). If the selector already has a value, cb will not be called
-  until it changes."
-  [graph cb selector]
-  (let [h (mkhook graph selector cb)]
-    (oldproto/update-parents graph h #{selector} nil))
-  nil)
-
 (defn dget-sel!
   "Return the value (or `nf` if not yet known) for a selector from graph
   transaction context `tx`."
@@ -113,18 +104,6 @@
   ([graph cb selector-constructor a b c d f] (hook-change-sel graph cb (selector-constructor a b c d f)))
   ([graph cb selector-constructor a b c d f g] (hook-change-sel graph cb (selector-constructor a b c d f g)))
   ([graph cb selector-constructor a b c d f g h] (hook-change-sel graph cb (selector-constructor a b c d f g h))))
-
-(defn hook-next
-  "Like hook-next-sel, but receives a selector-constructor plus arguments
-  instead of a selector."
-  ([graph cb selector-constructor] (hook-next-sel graph cb (selector-constructor)))
-  ([graph cb selector-constructor a] (hook-next-sel graph cb (selector-constructor a)))
-  ([graph cb selector-constructor a b] (hook-next-sel graph cb (selector-constructor a b)))
-  ([graph cb selector-constructor a b c] (hook-next-sel graph cb (selector-constructor a b c)))
-  ([graph cb selector-constructor a b c d] (hook-next-sel graph cb (selector-constructor a b c d)))
-  ([graph cb selector-constructor a b c d f] (hook-next-sel graph cb (selector-constructor a b c d f)))
-  ([graph cb selector-constructor a b c d f g] (hook-next-sel graph cb (selector-constructor a b c d f g)))
-  ([graph cb selector-constructor a b c d f g h] (hook-next-sel graph cb (selector-constructor a b c d f g h))))
 
 (defn dget!
   "Return the value (or `nf` if not yet known) for a selector-constructor and
