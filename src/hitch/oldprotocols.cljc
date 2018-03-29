@@ -38,7 +38,9 @@
   (enqueue-dependency-changes [this] "returns removed dependencies"))
 
 (defprotocol IEagerSelectorResolve
-  (attempt-eager-selector-resolution! [this parent nf]))
+  (attempt-eager-selector-resolution! [graph selector nf]
+    "Returns the value of the selector if the graph is able to calculate
+    it immediately; else returns `nf`."))
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
