@@ -5,6 +5,7 @@
             [hitch.selectors.machine-test]
             [hitch.graphs.immutable-test]
             [hitch.graphs.mutable-test]
+            [hitch.graph-test]
             [cljs.test :as test :include-macros true :refer [report]])
   (:import [goog.dom DomHelper]
            [goog dom]))
@@ -57,6 +58,7 @@
     'hitch.selectors.machine-test
     'hitch.graphs.immutable-test
     'hitch.graphs.mutable-test
+    'hitch.graph-test
     ))
 
 (defn ^:export on-js-reload []
