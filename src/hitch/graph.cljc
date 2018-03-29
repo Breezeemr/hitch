@@ -53,26 +53,25 @@
 (defn hook-change-sel
   "Call fn `cb` with the value of `selector` in `graph` as soon as it is
   available, and every time the value changes. `cb` may be called synchronously
-  if the selector's value is already known.
+  if the selector's value is already known and the graph supports
+  eager selector resolution.
 
   Returns a zero-arg unsubscribe function. After it is called, cb will not
   be called again.
 
-  There is no guaranteee that each `cb` call will receive a value not= to the
+  There is no guarantee that each `cb` call will receive a value not= to the
   previous call's value."
   [graph cb selector]
-  (let [val (let [v (get graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
-              (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-                (if (satisfies? oldproto/IEagerSelectorResolve graph)
-                  (oldproto/attempt-eager-selector-resolution! graph selector oldproto/NOT-IN-GRAPH-SENTINEL)
-                  oldproto/NOT-IN-GRAPH-SENTINEL)
-                v))]
-    (when-not (identical? val oldproto/NOT-IN-GRAPH-SENTINEL)
-      (cb val))
-    (let [h (mkhookchange graph selector cb)]
-      (oldproto/update-parents graph h #{selector} nil)
-
-      (fn [] (oldproto/update-parents graph h nil #{selector})))))
+  (when (satisfies? oldproto/IEagerSelectorResolve graph)
+    (let [v (get graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+      (if-not (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+        (cb v)
+        (let [v (oldproto/attempt-eager-selector-resolution! graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
+          (when-not (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
+            (cb v))))))
+  (let [h (mkhookchange graph selector cb)]
+    (oldproto/update-parents graph h #{selector} nil)
+    #(oldproto/update-parents graph h nil #{selector})))
 
 (defn hook-next-sel
   "Like hook-sel, but will only call `cb` on a change in value
