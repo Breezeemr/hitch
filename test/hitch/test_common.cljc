@@ -31,8 +31,8 @@
                     (conj r x))))
               [] parents)]
       (if (= v ::not-found)
-        (hp/->SelectorUnresolved parents)
-        (hp/->SelectorValue v parents)))))
+        (hp/->SelectorUnresolved (set parents))
+        (hp/->SelectorValue v (set parents))))))
 
 ;; Machine which will var-reset its vars with their own :v param
 (defrecord EchoMachine []
