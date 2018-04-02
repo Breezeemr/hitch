@@ -105,6 +105,44 @@
 (defn synchronous-effect-runner [gm effect]
   (effect gm))
 
+(deftype AtomGraphManagerAdaptor [graph-node-atom run-effect!]
+  IDeref
+  #?(:clj  (deref [_] (:value @graph-node-atom))
+     :cljs (-deref [_] (:value @graph-node-atom)))
+
+  ;; Here only for compatiblity, should probably be removed
+  ILookup
+  #?@(:clj  [(valAt [this sel] (.valAt ^ILookup @this sel nil))
+             (valAt [this sel nf] (.valAt ^ILookup @this sel nf))]
+      :cljs [(-lookup [this sel] (-lookup @this sel nil))
+             (-lookup [this sel nf] (-lookup @this sel nf))])
+
+  hp/GraphManager
+  (transact! [this cmds]
+    (when-not (empty? cmds)
+      (let [tx-result (update-graph-node! graph-node-atom cmds)]
+        (if (= (first tx-result) ::hp/tx-ok)
+          (let [[_ {value :value-after} {:keys [effect selector-changes-by-ext-child]}] tx-result]
+            (when (some? effect) (run-effect! this effect))
+            (notify-all-ext-children selector-changes-by-ext-child
+              value)
+            (pop tx-result))
+          tx-result))))
+
+  op/IDependencyGraph
+  (update-parents [this child add rm]
+    (when-not (and (empty? add) (empty? rm))
+      (hp/transact! this
+        [[:hitch.graphs.immutable/child-adds-dels child add rm]]))
+    nil)
+
+  (apply-commands [this sel+cmd-pairs]
+    (hp/transact! this
+      (into []
+        (map (fn [[s cmd]] [::hp/command s cmd]))
+        sel+cmd-pairs))
+    nil))
+
 (defn atom-GraphManager
   ;; Every object in recalc-external-children must implement -change-notify,
   ;; which will be called immediately after successful tx
@@ -115,42 +153,6 @@
   ([immutable-graph-selector run-effect!]
    (let [{:keys [graph-node effect]} (create-graph-node immutable-graph-selector)
          gns (atom graph-node)
-         gm  (reify
-               IDeref
-               #?(:clj  (deref [_] (:value @gns))
-                  :cljs (-deref [_] (:value @gns)))
-
-               ;; Here only for compatiblity, should probably be removed
-               ILookup
-               #?@(:clj  [(valAt [this sel] (.valAt ^ILookup @this sel nil))
-                          (valAt [this sel nf] (.valAt ^ILookup @this sel nf))]
-                   :cljs [(-lookup [this sel] (-lookup @this sel nil))
-                          (-lookup [this sel nf] (-lookup @this sel nf))])
-
-               hp/GraphManager
-               (transact! [this cmds]
-                 (when-not (empty? cmds)
-                   (let [tx-result (update-graph-node! gns cmds)]
-                     (if (= (first tx-result) ::hp/tx-ok)
-                       (let [[_ {value :value-after} {:keys [effect selector-changes-by-ext-child]}] tx-result]
-                         (when (some? effect) (run-effect! this effect))
-                         (notify-all-ext-children selector-changes-by-ext-child
-                           value)
-                         (pop tx-result))
-                       tx-result))))
-
-               op/IDependencyGraph
-               (update-parents [this child add rm]
-                 (when-not (and (empty? add) (empty? rm))
-                   (hp/transact! this
-                     [[:hitch.graphs.immutable/child-adds-dels child add rm]]))
-                 nil)
-
-               (apply-commands [this sel+cmd-pairs]
-                 (hp/transact! this
-                   (into []
-                     (map (fn [[s cmd]] [::hp/command s cmd]))
-                     sel+cmd-pairs))
-                 nil))]
+         gm  (->AtomGraphManagerAdaptor gns run-effect!)]
      (when (some? effect) (run-effect! effect gm))
      gm)))
