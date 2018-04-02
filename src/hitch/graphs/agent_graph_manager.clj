@@ -116,6 +116,14 @@
 
 ;; PUBLIC INTERFACE
 
+(defn agent-graph-manager-adaptor
+  "Adaptor around an agent-graph-manager that provides the usual graph manager
+  type expected in effect functions."
+  ([{:keys [gm-agent] :as _agm}]
+    (->EffectGraphManager gm-agent nil))
+  ([{:keys [gm-agent] :as _agm} oob]
+   (->EffectGraphManager gm-agent oob)))
+
 (defn agent-graph-manager
   "Return a graph-manager which is agent-based.
 
