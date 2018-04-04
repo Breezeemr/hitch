@@ -144,7 +144,20 @@
     Effects are only called at the end of a successful transaction after all
     commands have been processed and new selector values recalculated.
     The effect function receives a transactable GraphManager as its argument."
-  (:refer-clojure :exclude [Var]))
+  (:refer-clojure :exclude [Var])
+  #?(:cljs
+     (:require-macros [hitch.protocol :refer [if-clj-target]])
+     :clj
+     (:import (java.util.concurrent ConcurrentHashMap))))
+
+
+(defmacro if-clj-target [clj-body cljs-body]
+  #?(:clj
+     (if (contains? &env '&env)
+       `(if (:ns ~'&env) ~cljs-body ~clj-body)
+       (if (:ns &env) cljs-body clj-body))
+     :cljs
+     cljs-body))
 
 
 (defrecord SelectorUnresolved [parents])
@@ -181,9 +194,6 @@
   "If this protocol is present, child selectors' values are *not* recalculated
   when this selector changes. Instead, this selector must mark them stale in
   the return value of command-result.")
-
-(defn silent-selector? [s]
-  (satisfies? SilentSelector s))
 
 (defprotocol InformedSelector
   "A marker protocol. When present, :hitch.protocol/child-add and child-del
@@ -271,9 +281,6 @@
        to a new value for each var. Vars with no children will be ignored.
     * `:effect` An optional effect function."))
 
-(defn informed-selector? [s]
-  (or (satisfies? InformedSelector s) (satisfies? Machine s)))
-
 (defprotocol ExternalDependent2
   (-change-notify2 [_ g-snapshot parent-changes]
     "Notify an external dependent that some of its dependencies' values have
@@ -296,3 +303,61 @@
                                  :value-after              new-sel->value-map}]
 
          [:hitch.protocol/tx-error hitch.protocol/CommandError-instance]"))
+
+
+;; This is to get around satisfies? being slow in CLJ until
+;; https://dev.clojure.org/jira/browse/CLJ-1814 is applied
+;; CLJS is already fast
+(if-clj-target
+  (defn- fast-satisfies [protocol-var]
+    ;; copied and slightly modified from manifold.utils/fast-satisfies
+    (let [^ConcurrentHashMap classes (ConcurrentHashMap.)]
+      (add-watch protocol-var ::memoization
+        (fn [_ _ _ _] (.clear classes)))
+      (fn [x]
+        (if (nil? x)
+          false
+          (let [cls (.getClass x)
+                val (.get classes cls)]
+            (if (nil? val)
+              (let [val (satisfies? @protocol-var x)]
+                (.put classes cls val)
+                val)
+              val))))))
+  nil)
+
+(if-clj-target
+  (def stateful-selector?
+    (fast-satisfies #'StatefulSelector))
+  (defn ^boolean stateful-selector? [x]
+    (satisfies? StatefulSelector x)))
+
+(if-clj-target
+  (def silent-selector?
+    (fast-satisfies #'SilentSelector))
+  (defn ^boolean silent-selector? [x]
+    (satisfies? SilentSelector x)))
+
+(if-clj-target
+  (def informed-selector?
+    (fast-satisfies #'InformedSelector))
+  (defn ^boolean informed-selector? [x]
+    (satisfies? InformedSelector x)))
+
+(if-clj-target
+  (def machine-selector?
+    (fast-satisfies #'Machine))
+  (defn ^boolean machine-selector? [x]
+    (satisfies? Machine x)))
+
+(if-clj-target
+  (def var-selector?
+    (fast-satisfies #'Var))
+  (defn ^boolean var-selector? [x]
+    (satisfies? Var x)))
+
+(if-clj-target
+  (def external-dependent2?
+    (fast-satisfies #'ExternalDependent2))
+  (defn ^boolean external-dependent2? [x]
+    (satisfies? ExternalDependent2 x)))

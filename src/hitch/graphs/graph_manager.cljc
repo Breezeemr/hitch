@@ -5,7 +5,7 @@
      (:import (clojure.lang IDeref ILookup))))
 
 (defn- best-change-notify [gvalues x parents]
-  (if (satisfies? hp/ExternalDependent2 x)
+  (if (hp/external-dependent2? x)
     (hp/-change-notify2 x gvalues parents)
     (op/-change-notify x))
   gvalues)

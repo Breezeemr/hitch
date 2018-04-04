@@ -7,8 +7,8 @@
               (java.io Writer))))
 
 ;; Tracing machinery
-(def #?(:default ^:dynamic *trace*
-        :cljs    ^:dynamic ^boolean *trace*)
+(def #?(:cljs    ^:dynamic ^boolean *trace*
+        :default ^:dynamic *trace*)
   "Whether the ImmutableGraph will include a key ::trace in the command-result,
   which is a list of internal ops executed during the transaction. Default false."
   false)
@@ -372,10 +372,10 @@
   (let [sn (new-SelectorNode)]
     (cond->
       (cond
-        (satisfies? proto/Var sel)
+        (proto/var-selector? sel)
         (assoc sn :machine (proto/machine-selector sel))
 
-        (satisfies? proto/StatefulSelector sel)
+        (proto/stateful-selector? sel)
         (let [{:keys [state effect]} (proto/create sel)]
           (when *trace* (when effect (record! [:enq-effect :create sel])))
           (enq-effect! effects effect)
@@ -389,7 +389,7 @@
       ;; or all parents are realized (not UNKNOWN).
       ;; This is a trick to ensure machines are not notified of
       ;; ::hp/parent-value-change unnecessarily.
-      (satisfies? proto/Machine sel)
+      (proto/machine-selector? sel)
       (assoc :value ::machine-parents-known))))
 
 (defn- get|create-selnode! [dirty-selnodes selnodes sel effects]
@@ -442,7 +442,7 @@
             (record! [:enq-effect :command sel])))
         (enq-effect! effects effect)
         (when-not (empty? recalc-child-selectors)
-          (when-not (satisfies? proto/SilentSelector sel)
+          (when-not (proto/silent-selector? sel)
             (throw-ex-info "Selector is not a SilentSelector but returned recalc-child-selectors from a command-result"
               {:selector sel}))
           (when-not (subset? (:int-children selnode) recalc-child-selectors)
@@ -469,7 +469,7 @@
     (= machine-sel (:machine (lookup ds var-sel)))
     (= machine-sel (:machine (lookup selnodes var-sel)))
     (and
-      (satisfies? proto/Var var-sel)
+      (proto/var-selector? var-sel)
       (= machine-sel (proto/machine-selector var-sel)))))
 
 (defn- merge-var-reset* [vr! ds selnodes machine-sel var-sel value]
@@ -552,7 +552,7 @@
     (reduce-kv
       (fn [ds sel ops]
         (assoc! ds sel
-          (if (satisfies? proto/Machine sel)
+          (if (proto/machine-selector? sel)
             ;; NOTE: Machines have no ext-deps, so ignore ::update-ext-children
             (apply-machine-commands ds selnodes sel (::commands ops) effects
               recalcs deps)
@@ -580,10 +580,10 @@
               ;; NOTE: inform*-selector calls apply*-commands which calls recalc-sel-if-needed
               ;; Need to delegate because parent should recalc before child,
               ;; but we only see state after StateEffect recalcs are added.
-              (satisfies? proto/Machine sel)
+              (proto/machine-selector? sel)
               (inform-machine-selector ds selnodes sn' sel adds+dels effects recalcs deps)
 
-              (satisfies? proto/InformedSelector sel)
+              (proto/informed-selector? sel)
               (inform-selector sn' sel adds+dels effects recalcs)
 
               :else
@@ -636,7 +636,7 @@
   [sels]
   (reduce
     (fn [_ s]
-      (if (satisfies? proto/Machine s)
+      (if (proto/machine-selector? s)
         (reduced true)
         false))
     false sels))
@@ -651,7 +651,7 @@
       v)))
 
 (defn- new-sel-value [sel sn ds selnodes]
-  (if (satisfies? proto/Var sel)
+  (if (proto/var-selector? sel)
     (new-sel-value-var sel sn ds)
     (new-sel-value-selector sel sn ds selnodes)))
 
@@ -722,7 +722,7 @@
   (persistent!
     (reduce (fn [ds sel]
               (assoc! ds sel
-                (if (satisfies? proto/Machine sel)
+                (if (proto/machine-selector? sel)
                   (recalculate-machine-node dirty-parents sel ds selnodes effects recalcs deps)
                   (recalculate-node sel ds selnodes effects recalcs deps))))
       (transient dirty-selnodes)
@@ -807,7 +807,7 @@
         (do
           (when *trace*
             (record! [:destroy sel]))
-          (when (satisfies? proto/StatefulSelector sel)
+          (when (proto/stateful-selector? sel)
             (let [effect (proto/destroy sel (:state selnode))]
               (when *trace*
                 (when effect
@@ -935,7 +935,7 @@
       {:accumulator acc
        :error       "Malformed command; must be vector like `[:cmd-keyword & args]`"})
 
-    (satisfies? proto/Machine sel)
+    (proto/machine-selector? sel)
     (proto/map->CommandError
       {:accumulator acc
        :error       "Machines cannot receive commands directly"})
@@ -943,7 +943,7 @@
     :else
     ;; Commands addressed to vars get re-addressed to machines
     (let [[sel' command']
-          (if (satisfies? proto/Var sel)
+          (if (proto/var-selector? sel)
             [(proto/machine-selector sel) [::proto/var-command sel command]]
             [sel command])]
       (->> (update (-> acc :sel->cmd->arg (get sel' {}))
@@ -960,7 +960,7 @@
     (comp-effects
       (into []
         (keep (fn [[selector {:keys [state]}]]
-                (when (satisfies? proto/StatefulSelector selector)
+                (when (proto/stateful-selector? selector)
                   (proto/destroy selector state))))
         selnodes)))
   proto/Selector
