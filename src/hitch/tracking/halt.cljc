@@ -1,14 +1,11 @@
 (ns hitch.tracking.halt
   #?(:cljs
-     (:require-macros [hitch.tracking.halt :refer [if-clj-target]])))
-
-(defmacro if-clj-target [clj-body cljs-body]
-  #?(:clj
-     (if (contains? &env '&env)
-       `(if (:ns ~'&env) ~cljs-body ~clj-body)
-       (if (:ns &env) cljs-body clj-body))
-     :cljs
-     cljs-body))
+     (:require-macros
+       [hitch.tracking.halt]
+       [hitch.cljc-utils :refer [if-clj-target]])
+     :default
+     (:require
+       [hitch.cljc-utils :refer [if-clj-target]])))
 
 ;; NOTE: In order to import these only when the target lang is clj, we need to
 ;; ensure that import and class forms are not even seen *by the reader* during

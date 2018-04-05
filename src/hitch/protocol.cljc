@@ -145,19 +145,7 @@
     commands have been processed and new selector values recalculated.
     The effect function receives a transactable GraphManager as its argument."
   (:refer-clojure :exclude [Var])
-  #?(:cljs
-     (:require-macros [hitch.protocol :refer [if-clj-target]])
-     :clj
-     (:import (java.util.concurrent ConcurrentHashMap))))
-
-
-(defmacro if-clj-target [clj-body cljs-body]
-  #?(:clj
-     (if (contains? &env '&env)
-       `(if (:ns ~'&env) ~cljs-body ~clj-body)
-       (if (:ns &env) cljs-body clj-body))
-     :cljs
-     cljs-body))
+  (:require [hitch.cljc-utils #?(:cljs :refer-macros :clj :refer) [defsatisfies]]))
 
 
 (defrecord SelectorUnresolved [parents])
@@ -305,59 +293,9 @@
          [:hitch.protocol/tx-error hitch.protocol/CommandError-instance]"))
 
 
-;; This is to get around satisfies? being slow in CLJ until
-;; https://dev.clojure.org/jira/browse/CLJ-1814 is applied
-;; CLJS is already fast
-(if-clj-target
-  (defn- fast-satisfies [protocol-var]
-    ;; copied and modified from manifold.utils/fast-satisfies
-    (let [classes (ConcurrentHashMap. 16 0.9 1)]
-      (add-watch protocol-var ::memoization
-        (fn [_ _ _ _] (.clear classes)))
-      (fn [^Object x]
-        (let [protocol @protocol-var]
-          (if (nil? x)
-            (contains? (:impls protocol) nil)
-            (if (instance? (:on-interface protocol) x)
-              true
-              (let [cls (.getClass x)]
-                (if-some [s? (.get classes cls)]
-                  s?
-                  (.putIfAbsent classes cls (satisfies? protocol x))))))))))
-  nil)
-
-(if-clj-target
-  (def stateful-selector?
-    (fast-satisfies #'StatefulSelector))
-  (defn ^boolean stateful-selector? [x]
-    (satisfies? StatefulSelector x)))
-
-(if-clj-target
-  (def silent-selector?
-    (fast-satisfies #'SilentSelector))
-  (defn ^boolean silent-selector? [x]
-    (satisfies? SilentSelector x)))
-
-(if-clj-target
-  (def informed-selector?
-    (fast-satisfies #'InformedSelector))
-  (defn ^boolean informed-selector? [x]
-    (satisfies? InformedSelector x)))
-
-(if-clj-target
-  (def machine-selector?
-    (fast-satisfies #'Machine))
-  (defn ^boolean machine-selector? [x]
-    (satisfies? Machine x)))
-
-(if-clj-target
-  (def var-selector?
-    (fast-satisfies #'Var))
-  (defn ^boolean var-selector? [x]
-    (satisfies? Var x)))
-
-(if-clj-target
-  (def external-dependent2?
-    (fast-satisfies #'ExternalDependent2))
-  (defn ^boolean external-dependent2? [x]
-    (satisfies? ExternalDependent2 x)))
+(defsatisfies stateful-selector? StatefulSelector)
+(defsatisfies silent-selector? SilentSelector)
+(defsatisfies informed-selector? InformedSelector)
+(defsatisfies machine-selector? Machine)
+(defsatisfies var-selector? Var)
+(defsatisfies external-dependent2? ExternalDependent2)
