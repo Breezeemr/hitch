@@ -310,20 +310,20 @@
 ;; CLJS is already fast
 (if-clj-target
   (defn- fast-satisfies [protocol-var]
-    ;; copied and slightly modified from manifold.utils/fast-satisfies
-    (let [^ConcurrentHashMap classes (ConcurrentHashMap.)]
+    ;; copied and modified from manifold.utils/fast-satisfies
+    (let [classes (ConcurrentHashMap. 16 0.9 1)]
       (add-watch protocol-var ::memoization
         (fn [_ _ _ _] (.clear classes)))
-      (fn [x]
-        (if (nil? x)
-          false
-          (let [cls (.getClass x)
-                val (.get classes cls)]
-            (if (nil? val)
-              (let [val (satisfies? @protocol-var x)]
-                (.put classes cls val)
-                val)
-              val))))))
+      (fn [^Object x]
+        (let [protocol @protocol-var]
+          (if (nil? x)
+            (contains? (:impls protocol) nil)
+            (if (instance? (:on-interface protocol) x)
+              true
+              (let [cls (.getClass x)]
+                (if-some [s? (.get classes cls)]
+                  s?
+                  (.putIfAbsent classes cls (satisfies? protocol x))))))))))
   nil)
 
 (if-clj-target
