@@ -3,7 +3,8 @@
   (:require [hitch.protocol :as hp]
             [hitch.oldprotocols :as op]
             [hitch.graphs.graph-manager :as gm])
-  (:import (clojure.lang ILookup IDeref IRef Agent)))
+  (:import (clojure.lang ILookup IDeref IRef Agent)
+           (java.io Writer)))
 
 (defn- gm-agent-transact-runner [gm-state commands oob-request-data]
   (cond
@@ -83,6 +84,13 @@
         (map (fn [[s cmd]] [::hp/command s cmd]))
         sel+cmd-pairs))
     nil))
+
+(defmethod print-method EffectGraphManager [^EffectGraphManager o ^Writer w]
+  (.write w "#object[hitch.graphs.agent_graph_manager.EffectGraphManager ")
+  (.write w (format "0x%x " (System/identityHashCode o)))
+  (.write w (pr-str (some-> (.gm_agent o) deref :running?)))
+  (.write w "]"))
+
 
 (defn- notify-runner [prev-notify-tx-id {:keys [tx-id value] :as x} ext-children]
   (gm/notify-all-ext-children ext-children value)
