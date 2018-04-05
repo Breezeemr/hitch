@@ -26,7 +26,7 @@
     (set! requests (conj requests data-selector))
     (let [v (get this data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
       (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-        (if (satisfies? oldproto/IEagerSelectorResolve graph)
+        (if (oldproto/eager-selector-resolve? graph)
           (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
           nf)
         v)))

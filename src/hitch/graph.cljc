@@ -40,7 +40,7 @@
   [graph cb selector]
   (let [val (let [v (get graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
               (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-                (if (satisfies? oldproto/IEagerSelectorResolve graph)
+                (if (oldproto/eager-selector-resolve? graph)
                   (oldproto/attempt-eager-selector-resolution! graph selector oldproto/NOT-IN-GRAPH-SENTINEL)
                   oldproto/NOT-IN-GRAPH-SENTINEL)
                 v))]
@@ -62,7 +62,7 @@
   There is no guarantee that each `cb` call will receive a value not= to the
   previous call's value."
   [graph cb selector]
-  (when (satisfies? oldproto/IEagerSelectorResolve graph)
+  (when (oldproto/eager-selector-resolve? graph)
     (let [v (get graph selector oldproto/NOT-IN-GRAPH-SENTINEL)]
       (if-not (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
         (cb v)
@@ -235,7 +235,7 @@
     (set! all-requests (conj! all-requests data-selector))
     (let [v (get this data-selector oldproto/NOT-IN-GRAPH-SENTINEL)]
       (if (identical? v oldproto/NOT-IN-GRAPH-SENTINEL)
-        (if (satisfies? oldproto/IEagerSelectorResolve graph)
+        (if (oldproto/eager-selector-resolve? graph)
           (oldproto/attempt-eager-selector-resolution! graph data-selector nf)
           nf)
         v)))

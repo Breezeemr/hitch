@@ -29,7 +29,7 @@
 (defn get-or-create-node [graph data-selector]
   (if-let [n (get (.-nodemap graph) data-selector)]
     n
-    (when (satisfies? oldproto/IEagerSelectorResolve graph)
+    (when (oldproto/eager-selector-resolve? graph)
       (oldproto/attempt-eager-selector-resolution! graph data-selector nil)
       (get (.-nodemap graph) data-selector))))
 

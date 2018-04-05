@@ -1,5 +1,6 @@
 (ns hitch.oldprotocols
-  (:require [hitch.tracking.halt :as halt]))
+  (:require [hitch.tracking.halt :as halt]
+            [hitch.cljc-utils #?(:cljs :refer-macros :default :refer) [defsatisfies]]))
 
 (defonce NOT-FOUND-SENTINEL
   (reify
@@ -41,6 +42,8 @@
   (attempt-eager-selector-resolution! [graph selector nf]
     "Returns the value of the selector if the graph is able to calculate
     it immediately; else returns `nf`."))
+
+(defsatisfies eager-selector-resolve? IEagerSelectorResolve)
 
 (defprotocol IDependencyGraph
   "Implemented by function and component caches"
