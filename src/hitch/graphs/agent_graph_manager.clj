@@ -3,7 +3,7 @@
   (:require [hitch.protocol :as hp]
             [hitch.oldprotocols :as op]
             [hitch.graphs.graph-manager :as gm])
-  (:import (clojure.lang ILookup IDeref IRef Agent)
+  (:import (clojure.lang ILookup IDeref IRef)
            (java.io Writer)))
 
 (defn- gm-agent-transact-runner [gm-state commands oob-request-data]
@@ -14,12 +14,11 @@
     (= commands :stop!)
     (let [{{:keys [graph state]} :graph} gm-state
           effect (hp/destroy graph state)]
-      (when effect
-        (effect nil))
       {:running?         false
        :graph-before     (:graph gm-state)
        :tx-id            (:tx-id gm-state)
        :error-count      (:error-count gm-state)
+       :effect           effect
        :oob-request-data oob-request-data})
 
     :else
@@ -98,8 +97,7 @@
 
 (defn- effect-runner [prev-effect-tx-id tx-id effect gm-agent]
   (let [gm (->EffectGraphManager gm-agent {::effect-from-tx-id tx-id})]
-    (when (:running? @gm-agent)
-      (.execute Agent/soloExecutor #(effect gm))))
+    (effect gm))
   tx-id)
 
 (defn- effect+notify-watcher [effect-agent notify-agent]
