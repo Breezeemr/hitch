@@ -88,6 +88,9 @@
   hp/Var
   (machine-selector [_] (->LogMachine log-volatile)))
 
+(defrecord LogVar2 [log-volatile]
+  hp/Var
+  (machine-selector [_] (->LogMachine log-volatile)))
 
 #?(:cljs
    (extend-protocol IPrintWithWriter
@@ -103,6 +106,13 @@
        (doto writer
          (-write "#<LogVar ")
          (-write (str (hash (:log-volatile o))))
+         (-write ">")))
+
+     LogVar2
+     (-pr-writer [o writer opts]
+       (doto writer
+         (-write "#<LogVar2 ")
+         (-write (str (hash (:log-volatile o))))
          (-write ">")))))
 
 #?(:clj
@@ -116,5 +126,12 @@
    (defmethod print-method LogVar [c, ^Writer w]
      (doto w
        (.write "#<LogVar ")
+       (.write (str (hash (:log-volatile c))))
+       (.write ">"))))
+
+#?(:clj
+   (defmethod print-method LogVar2 [c, ^Writer w]
+     (doto w
+       (.write "#<LogVar2 ")
        (.write (str (hash (:log-volatile c))))
        (.write ">"))))

@@ -16,6 +16,8 @@
         (assert (deref done#) "Async body did not complete!"))))
 
 (defrecord EffectSel [on-command-effect]
+  hp/Selector
+  (value [_ _ _] (hp/->SelectorUnresolved #{}))
   hp/CommandableSelector
   (command-accumulator [s old-state] old-state)
   (command-step [s accumulator command] accumulator)

@@ -232,23 +232,18 @@
     (vreset! dirty-parents (transient #{}))
     [recalcs parents]))
 
-(defn- needs-recalc? [selnode old-state]
-  (if (some? (:machine selnode))
-    ;; Vars should recalc if they're new, lose all children, or change their value
-    ;; Value change recalcs are scheduled during the var-reset, not here.
-    ;; If they're new or lose children, we need to inform the machine of the
-    ;; child add/del; informs are done during the recalc phase.
-    (or
-      #?(:default (:new? selnode) :cljs ^boolean (:new? selnode))
-      (no-children? selnode))
-    (and
-      (not (no-children? selnode))
-      (or #?(:default (:new? selnode) :cljs ^boolean (:new? selnode))
-        (not= old-state (:state selnode))))))
+(defn- needs-recalc? [selnode old-selnode]
+  (or
+    ;; Brand new node
+    #?(:default (:new? selnode) :cljs ^boolean (:new? selnode))
+    ;; state change on non-vars
+    (and (nil? (:machine selnode)) (not= (:state selnode) (:state old-selnode)))
+    ;; went from no-children to have-children or vice-versa
+    (not= (no-children? selnode) (no-children? old-selnode))))
 
-(defn- recalc-sel-if-needed! [selnode sel old-state recalcs]
+(defn- recalc-sel-if-needed! [selnode sel old-selnode recalcs]
   ;; INVARIANT: All sel deps are known
-  (if (needs-recalc? selnode old-state)
+  (if (needs-recalc? selnode old-selnode)
     (do
       (when *trace* (record! [:enq-recalc sel]))
       (enq-recalc! recalcs sel)
@@ -455,7 +450,7 @@
                :recalc-child-selectors recalc-child-selectors})))
         (let [selnode' (-> (assoc selnode :state state)
                            ;; NOTE: Ensure a parent is recalced before children.
-                           (recalc-sel-if-needed! sel old-state recalc))]
+                           (recalc-sel-if-needed! sel selnode recalc))]
           (when *trace*
             (when-not (empty? recalc-child-selectors)
               (record! [:enc-recalcs :silent-selector-command sel recalc-child-selectors])))
@@ -543,7 +538,7 @@
               ;; Need to delegate because parent should recalc before child,
               ;; but we only see state after StateEffect recalcs are added.
               (apply-external-ops*-apply-commands sn' sel commands effects recalcs)
-              (recalc-sel-if-needed! sn' sel (:state sn) recalcs))]
+              (recalc-sel-if-needed! sn' sel sn recalcs))]
     sn'))
 
 (defn- apply-external-ops [dirty-selnodes selnodes effects recalcs deps sel->ops]
@@ -587,7 +582,7 @@
               (inform-selector sn' sel adds+dels effects recalcs)
 
               :else
-              (recalc-sel-if-needed! sn' sel (:state sn) recalcs))
+              (recalc-sel-if-needed! sn' sel sn recalcs))
         sn' (cond-> sn'
               (and (:destroy? sn') (not (no-children? sn)))
               (dissoc :destroy?))]

@@ -4,7 +4,7 @@
             [hitch.selectors.mutable-var :refer [mutable-var]]
             [hitch.graph :as h]
             [hitch.test-common :refer [->EchoMachine ->EchoVar
-                                       ->LogMachine ->LogVar
+                                       ->LogMachine ->LogVar ->LogVar2
                                        ->Constant ->SelVec]]
             [hitch.pin :refer [pin unpin]]
             [hitch.graphs.graph-manager :as gm]
@@ -88,6 +88,67 @@
             (str graph-name "Machine should be destroyed with latest machine state"))
           (is (empty? xs)
             (str graph-name "No other events should happen to the machine"))))))
+
+  (deftest partially-gced-vars-reconnect-to-machines
+    ;; WARNING: This test may be immutable-graph-specific because it relies on
+    ;; GC and machine impl details!
+    (let [g             (gctor)
+          log           (volatile! [])
+          log-var       (->LogVar log)
+          sel           (->SelVec [log-var])
+          log-var2      (->LogVar2 log)
+          log-machine   (->LogMachine log)
+          set-log-var   (fn [r _g _]
+                          (assoc r :var-reset {log-var :was-set}))
+          reset-log-var (fn [r _g _]
+                          (assoc r :var-reset {log-var :was-reset}))]
+      (testing "If a Var is left without parents or children but is still in the graph
+      (due to partial gc), then when it gains a child the machine should be informed
+      again and the machine should be re-added as a parent."
+        ;; Create machine and a side-var to route commands
+        (pin g log-var2)
+        ;; Indirectly creates log-var
+        (pin g sel)
+        (h/apply-commands g [[log-var2 [:fn set-log-var]]])
+        (is (= :was-set (get @g log-var))
+          (str graph-name "Var should get reset value"))
+
+        (testing "Indirectly orphan a var"
+          (vreset! log [])
+          (unpin g sel)
+
+          (is (= [[:commands 3 [[:hitch.protocol/child-del log-var]]]] @log)
+            (str graph-name "Machine should be informed of log-var removal."))
+          (let [{:keys [children int-children]} (get-node g log-machine nil)]
+            (is (= #{log-var2} (or children int-children))
+              (str graph-name "Machine should not have log-var as a child")))
+          (let [{:keys [children int-children parents]} (get-node g log-var nil)]
+            (is (empty? (or children int-children))
+              (str graph-name "Var should be orphaned by GC (no children) but node not yet collected"))
+            (is (empty? parents)
+              (str graph-name "Var should be disconnected from parent (due to partial GC) but node not yet collected"))))
+
+        (testing "Unorphan the var, ensure it reconnects to its machine"
+          (vreset! log [])
+          (pin g sel)
+          (is (= @log [[:commands 4 [[:hitch.protocol/child-add log-var]]]])
+            (str graph-name "Machine should be informed of child-re-add, even though orphaned node was in graph"))
+          (let [{:keys [children int-children] :as x} (get-node g log-machine nil)]
+            (is (= #{log-var log-var2} (or children int-children))
+              (str graph-name "Machine should now have log-var as a child")))
+          (let [{:keys [value children int-children parents]} (get-node g log-var nil)]
+            (is (= #{sel} (or children int-children))
+              (str graph-name "Var should have children now."))
+            (is (= #{log-machine} parents)
+              (str graph-name "Var should reconnect to machine parent."))))
+
+        (testing "var-reset the var to ensure it is receiving machine updates"
+          (vreset! log [])
+          (h/apply-commands g [[log-var2 [:fn reset-log-var]]])
+          (is (= [[:commands 5 [[::hp/var-command log-var2 [:fn reset-log-var]]]]] @log))
+          (is (= :was-reset (get @g log-var))
+            "Var should get var-reset updates after reconnecting to machine"))
+        )))
 
   (deftest machine-can-dep-change
     (let [g         (gctor)
