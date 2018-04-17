@@ -1,5 +1,6 @@
 (ns hitch.mutable.graph
   (:require [hitch.oldprotocols :as oldproto]
+            [goog.structs :refer [PriorityQueue]]
             [hitch.protocol :as proto]
             [hitch.mutable.node :as simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
 
@@ -8,13 +9,13 @@
 (def scheduled-actions (volatile! false))
 
 (defn schedule-gc [g]
-  (when-let [timer (.-gc-timer g)]
-    (when (not-empty (.-gc-list g))
-      (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) timer)))))
+  (when-some [timer (.peekKey (.-gc-list g))]
+    (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) (- timer (.-current-time g))))))
 
 (defn add-to-gc-list [g x]
-  (set! (.-gc-list g) (conj (.-gc-list g) x))
-  (schedule-gc g))
+  (set! (.-gc-list g) (.enqueue (.-gc-list g) (+ (.-gc-timer g) + (.-current-time g))  x))
+  (when-not (.-cancel-gc g)
+    (schedule-gc g)))
 
 (defprotocol IBatching
   (-request-invalidations [graph invalidations])
@@ -216,29 +217,33 @@
 
 ;; "deps is a map from graphs => (maps of DataSelectors => DataSelectors state)"
 (deftype DependencyGraph [^:mutable nodemap ^:mutable tempstate
-                          ^:mutable gc-list ^:mutable gc-timer ^:mutable cancel-gc
+                          ^:mutable gc-list ^:mutable gc-timer
+                          ^:mutable cancel-gc ^:mutable current-time
                           ^:mutable internal-invalidated
                           ^:mutable external-invalidate!]
   Object
   (get-unresolved-selectors [_] (filter #(identical? (val (.-value %)) NODE-NOT-RESOLVED-SENTINEL) nodemap))
   (gc-pass [g]
-    (when (not-empty gc-list)
-      (let [gc-items gc-list]
-        (set! gc-list #{})
-        (run! (fn [n]
-                (when (unused? n)
-                  (let [data-selector (.-selector n)]
-                    (removed-deps g data-selector (.-refs n) #{})
-                    (set! nodemap (dissoc nodemap data-selector))
-                    (when (satisfies? proto/StatefulSelector data-selector)
-                      (let [state (proto/destroy data-selector (.-state n))]
-                        (when-let [effect (:effect state)]
-                          (schedule-actions g)
-                          (vswap! pending-actions conj effect)))
-                      ))))
-          gc-items)
-        (normalize-tx! g)
-        (schedule-gc g))))
+    (let [pass-time (.getTime (js/Date.))]
+      (set! current-time pass-time)
+      (set! cancel-gc nil)
+      (when
+        (loop [selector-removed? false]
+          (if (< (.peekKey gc-list) pass-time)
+            (let [n (.remove gc-list)]
+              (if (unused? n)
+                (let [data-selector (.-selector n)]
+                  (removed-deps g data-selector (.-refs n) #{})
+                  (set! nodemap (dissoc nodemap data-selector))
+                  (when (satisfies? proto/StatefulSelector data-selector)
+                    (let [state (proto/destroy data-selector (.-state n))]
+                      (when-let [effect (:effect state)]
+                        (schedule-actions g)
+                        (vswap! pending-actions conj effect))))
+                  (recur true))
+                (recur selector-removed?)))
+            selector-removed?))
+        (normalize-tx! g))))
   (gc-start [g gc-time]
     (set! gc-timer gc-time)
     (when-not cancel-gc
@@ -279,9 +284,11 @@
   oldproto/IDependencyGraph
   (apply-commands [graph selector-command-pairs]
     (-apply-selector-command-pairs graph selector-command-pairs)
+    (set! (.-current-time graph) (.getTime (js/Date.)))
     (normalize-tx! graph))
   (update-parents [this child adds rms]
     ;(prn "update-parents " child adds rms )
+    (set! (.-current-time graph) (.getTime (js/Date.)))
     (normalize-tx! this)
     (doseq [add adds
             :let [n (get nodemap add)]
@@ -307,7 +314,7 @@
       (persistent! ret))))
 
 (defn graph []
-  (DependencyGraph. {} {} #{} nil nil nil identity))
+  (DependencyGraph. {} {} (PriorityQueue.) nil nil nil identity))
 
 (defn get-node-map [graph]
   (.-nodemap graph))
