@@ -13,7 +13,11 @@
     (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) (- timer (.-current-time g))))))
 
 (defn add-to-gc-list [g x]
-  (.enqueue (.-gc-list g) (+ (.-gc-timer g) + (.-current-time g)) x)
+  (.enqueue (.-gc-list g)
+    (if (.-gc-timer g)
+      (+ (.-gc-timer g) + (.-current-time g))
+      (.-current-time g))
+    x)
   (when-not (.-cancel-gc g)
     (schedule-gc g)))
 
@@ -229,6 +233,7 @@
       (set! cancel-gc nil)
       (when
         (loop [selector-removed? false]
+          (prn pass-time (.peekKey gc-list))
           (if (< (.peekKey gc-list) pass-time)
             (let [n (.remove gc-list)]
               (if (unused? n)
