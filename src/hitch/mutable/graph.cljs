@@ -1,6 +1,6 @@
 (ns hitch.mutable.graph
   (:require [hitch.oldprotocols :as oldproto]
-            [goog.structs :refer [PriorityQueue]]
+            [goog.structs.PriorityQueue]
             [hitch.protocol :as proto]
             [hitch.mutable.node :as simple :refer [node NODE-NOT-RESOLVED-SENTINEL]]))
 
@@ -13,7 +13,7 @@
     (set! (.-cancel-gc g) (js/setTimeout (fn [] (.gc-pass g)) (- timer (.-current-time g))))))
 
 (defn add-to-gc-list [g x]
-  (set! (.-gc-list g) (.enqueue (.-gc-list g) (+ (.-gc-timer g) + (.-current-time g))  x))
+  (.enqueue (.-gc-list g) (+ (.-gc-timer g) + (.-current-time g)) x)
   (when-not (.-cancel-gc g)
     (schedule-gc g)))
 
@@ -288,7 +288,7 @@
     (normalize-tx! graph))
   (update-parents [this child adds rms]
     ;(prn "update-parents " child adds rms )
-    (set! (.-current-time graph) (.getTime (js/Date.)))
+    (set! (.-current-time this) (.getTime (js/Date.)))
     (normalize-tx! this)
     (doseq [add adds
             :let [n (get nodemap add)]
@@ -314,7 +314,7 @@
       (persistent! ret))))
 
 (defn graph []
-  (DependencyGraph. {} {} (PriorityQueue.) nil nil nil identity))
+  (DependencyGraph. {} {} (goog.structs.PriorityQueue.) nil nil nil nil identity))
 
 (defn get-node-map [graph]
   (.-nodemap graph))
