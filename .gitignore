@@ -14,6 +14,8 @@ pom.xml
 /.idea/**
 !/.idea/misc.xml
 !/.idea/ClojureProjectResolveSettings.xml
+!/.idea/runConfigurations
+!/.idea/runConfigurations/*
 /log
 *.iml
 id_file

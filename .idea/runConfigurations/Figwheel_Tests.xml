@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Figwheel Tests" type="LeiningenRunConfiguration" factoryName="Leiningen" singleton="true">
+    <module name="hitch" />
+    <arguments argument="test-cljs" />
+    <setting name="profiles" value="" />
+    <setting name="trampoline" value="false" />
+    <method />
+  </configuration>
+</component>
