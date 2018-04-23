@@ -15,7 +15,7 @@
 (defn add-to-gc-list [g x]
   (.enqueue (.-gc-list g)
     (if (.-gc-timer g)
-      (+ (.-gc-timer g) + (.-current-time g))
+      (+ (.-gc-timer g) (.-current-time g))
       (.-current-time g))
     x)
   (when-not (.-cancel-gc g)
