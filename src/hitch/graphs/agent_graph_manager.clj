@@ -50,7 +50,7 @@
 (defn- gm-agent-transact! [gm-agent commands oob-request-data]
   (if (:running? @gm-agent)
     (do
-      (send gm-agent gm-agent-transact-runner commands oob-request-data)
+      (send-off gm-agent gm-agent-transact-runner commands oob-request-data)
       true)
     false))
 
