@@ -13,4 +13,4 @@
     :test {:extra-deps {org.clojure/test.check {:mvn/version "RELEASE"}},
            :extra-paths ["test"]}},
  :deps {},
- :paths ["src" "targer/classes"]}
+ :paths ["src" "target/classes"]}
